@@ -56,19 +56,19 @@
       - action: input_boolean.turn_on
         target:
           entity_id: input_boolean.ems_peak_shaving_active
-      - action: switch.turn_off
+      - action: input_boolean.turn_off
         target:
-          entity_id: switch.ems_pompa_ciepla_boost
-      - action: input_number.set_value
-        target:
-          entity_id: input_number.ems_limit_ladowania_ev
-        data:
-          value: 0
+          entity_id: input_boolean.wirtualny_bojler
       - action: input_select.select_option
         target:
           entity_id: input_select.ems_tryb_pompy_ciepla
         data:
           option: "Wylaczona"
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.ems_limit_ladowania_ev
+        data:
+          value: 0
       - action: notify.persistent_notification
         data:
           title: "EMS: Peak Shaving"
@@ -177,3 +177,129 @@
       data:
         option: "Wylaczona"
   mode: restart
+
+- id: '1779394737430'
+  alias: 'EMS: Sync Bojler HA -> Modbus'
+  description: Synchronizuje input_boolean.wirtualny_bojler z rejestrem Modbus 3
+  triggers:
+  - entity_id: input_boolean.wirtualny_bojler
+    trigger: state
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: "{{ states('input_boolean.wirtualny_bojler') == 'on' }}"
+      sequence:
+      - action: switch.turn_on
+        target:
+          entity_id: switch.ems_bojler_grzalka_3kw
+    default:
+    - action: switch.turn_off
+      target:
+        entity_id: switch.ems_bojler_grzalka_3kw
+  mode: restart
+
+- id: '1779394737431'
+  alias: 'EMS: Sync Tryb PC HA -> Modbus'
+  description: Zapisuje wybrany tryb pompy ciepla bezposrednio do rejestru Modbus 4
+  triggers:
+  - entity_id: input_select.ems_tryb_pompy_ciepla
+    trigger: state
+  conditions: []
+  actions:
+  - variables:
+      mode: "{{ states('input_select.ems_tryb_pompy_ciepla') }}"
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: "{{ mode == 'Wylaczona' }}"
+      sequence:
+      - action: modbus.write_register
+        data:
+          hub: wirtualny_inwerter
+          address: 4
+          value: 0
+    - conditions:
+      - condition: template
+        value_template: "{{ mode == 'Komfort' }}"
+      sequence:
+      - action: modbus.write_register
+        data:
+          hub: wirtualny_inwerter
+          address: 4
+          value: 1
+    - conditions:
+      - condition: template
+        value_template: "{{ mode == 'Boost' }}"
+      sequence:
+      - action: modbus.write_register
+        data:
+          hub: wirtualny_inwerter
+          address: 4
+          value: 2
+  mode: restart
+
+- id: '1779394737432'
+  alias: 'EMS: Sync EV Limit HA -> Modbus'
+  description: Zapisuje limit ladowania EV do rejestru Modbus 5
+  triggers:
+  - entity_id: input_number.ems_limit_ladowania_ev
+    trigger: state
+  conditions: []
+  actions:
+  - action: modbus.write_register
+    data:
+      hub: wirtualny_inwerter
+      address: 5
+      value: "{{ states('input_number.ems_limit_ladowania_ev') | int }}"
+  mode: restart
+
+- id: '1779394737433'
+  alias: 'EMS: Ladowanie nocne - tania energia'
+  description: Laduje baterie z sieci w najtanszych godzinach 2:00-5:00
+  triggers:
+  - trigger: time_pattern
+    hours: '*'
+    minutes: '/5'
+  conditions:
+  - condition: time
+    after: '02:00:00'
+    before: '05:00:00'
+  - condition: numeric_state
+    entity_id: sensor.sztuczny_stan_baterii_soc
+    below: 70
+  - condition: numeric_state
+    entity_id: sensor.ems_biezaca_cena_energii
+    below: 30
+  actions:
+  - action: switch.turn_on
+    target:
+      entity_id: switch.inwerter_wymus_ladowanie_z_sieci
+  - action: notify.persistent_notification
+    data:
+      title: "EMS: Ladowanie nocne"
+      message: "Rozpoczeto ladowanie baterii z sieci (tania energia, <30gr/kWh)"
+  mode: single
+
+- id: '1779394737434'
+  alias: 'EMS: Zakoncz ladowanie nocne'
+  description: Wylacza ladowanie nocne gdy bateria pelna lub konczy sie tania taryfa
+  triggers:
+  - trigger: time
+    at: '05:00:00'
+  - trigger: numeric_state
+    entity_id: sensor.sztuczny_stan_baterii_soc
+    above: 95
+  conditions:
+  - condition: template
+    value_template: "{{ states('switch.inwerter_wymus_ladowanie_z_sieci') == 'on' }}"
+  actions:
+  - action: switch.turn_off
+    target:
+      entity_id: switch.inwerter_wymus_ladowanie_z_sieci
+  - action: notify.persistent_notification
+    data:
+      title: "EMS: Koniec ladowania nocnego"
+      message: "Zakonczono ladowanie baterii (pelna lub koniec taniej taryfy)"
+  mode: single

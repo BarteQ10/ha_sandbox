@@ -50,11 +50,11 @@ modbus:
         write_type: holding
         command_on: 1
         command_off: 0
-      - name: "EMS: Pompa Ciepla Boost"
+      - name: "EMS: Bojler (Grzałka 3kW)"
         slave: 1
-        address: 4
+        address: 3
         write_type: holding
-        command_on: 2
+        command_on: 1
         command_off: 0
 
 template:
@@ -87,6 +87,15 @@ template:
           {% else %}
             0
           {% endif %}
+      - name: "EMS: PV safe (fallback 0)"
+        unit_of_measurement: "W"
+        state: "{{ states('sensor.sztuczna_produkcja_pv') | int(0) }}"
+      - name: "EMS: SoC safe (fallback 0)"
+        unit_of_measurement: "%"
+        state: "{{ states('sensor.sztuczny_stan_baterii_soc') | int(0) }}"
+      - name: "EMS: Dom safe (fallback 0)"
+        unit_of_measurement: "W"
+        state: "{{ states('sensor.ems_pobor_domu_bazowy') | int(0) }}"
 
 sensor:
   - platform: integration

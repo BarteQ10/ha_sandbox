@@ -11,7 +11,7 @@ views:
           - type: heading
             heading: Produkcja i zuzycie
           - type: gauge
-            entity: sensor.sztuczna_produkcja_pv
+            entity: sensor.ems_pv_safe_fallback_0
             name: PV
             unit: W
             min: 0
@@ -21,7 +21,7 @@ views:
               yellow: 1500
               red: 0
           - type: gauge
-            entity: sensor.sztuczny_stan_baterii_soc
+            entity: sensor.ems_soc_safe_fallback_0
             name: Bateria
             unit: "%"
             min: 0
@@ -31,7 +31,7 @@ views:
               yellow: 30
               red: 0
           - type: gauge
-            entity: sensor.ems_pobor_domu_bazowy
+            entity: sensor.ems_dom_safe_fallback_0
             name: Dom
             unit: W
             min: 0
@@ -133,6 +133,10 @@ views:
             entity: input_number.ems_max_pobor_sieci
             name: Max pobor z sieci
             icon: mdi:transmission-tower
+          - type: tile
+            entity: switch.inwerter_wymus_ladowanie_z_sieci
+            name: Ladowanie z sieci
+            icon: mdi:weather-night
 
       - type: grid
         cards:

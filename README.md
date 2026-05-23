@@ -5,20 +5,46 @@ Modbus TCP simulator + Home Assistant config for Energy Management System develo
 ## Quick Start
 
 ```bash
-pip install pyModbusTCP
-python mock_inverter.py
+pip install pyModbusTCP requests
+python run.py
 ```
 
 HA connects to `192.168.0.18:5020` (Modbus TCP).
+
+## File Structure
+
+```
+ems_simulator/
+├── config.py         # Location, PV kWp, battery kWh, price bands
+├── weather.py        # Open-Meteo API: GHI + temperature + cloud cover
+├── pricing.py        # PSE API: real RCE prices (PLN/MWh → gr/kWh)
+├── generators.py     # PV, load, spike simulation
+├── battery.py        # SoC delta from power balance
+├── server.py         # Modbus TCP server (pyModbusTCP)
+├── influx_writer.py  # Direct InfluxDB writes (influxdb-client)
+└── main.py           # Main loop (entry point)
+run.py                # Top-level launcher
+```
 
 ## Stack
 
 | Component | Technology |
 |-----------|-----------|
-| Simulator | Python + pyModbusTCP |
+| Simulator | Python `ems_simulator/` (pyModbusTCP + Open-Meteo + PSE API) |
 | Brain | Home Assistant (Docker, port 8123) |
 | MQTT | Mosquitto (Docker, port 1883) |
+| Telemetry DB | InfluxDB 2.7 (Docker, port 8086) — direct writes |
+| ML | `ml_forecast.py` (RandomForest, GHI from Open-Meteo past_days) |
 | Dashboard | Lovelace YAML (`ui-lovelace.yaml`) |
+
+### Data flow
+
+```
+simulator (Modbus) → InfluxDB (direct, 5s interval)
+simulator (Modbus) → HA (Modbus TCP) → automations
+                         ↓
+                 InfluxDB (for ML / forecasting)
+```
 
 ## Modbus Registers
 
@@ -35,10 +61,11 @@ HA connects to `192.168.0.18:5020` (Modbus TCP).
 
 ## Simulation
 
-- **PV**: sinusoidal 5kWp curve, dynamic cloud cover changes every ~30 min
-- **House**: daily profile (night ~250W, evening ~850W) + controllable loads
+- **PV**: 5kWp × **real GHI (shortwave_radiation) from Open-Meteo** — GHI integrates sun angle + cloud cover in a single number, 0 at night, peak ~3850W on sunny noon, dips when clouds pass
+- **Cloud cover**: Stored in InfluxDB as `sensor.cloud_cover` (0-100%) for ML feature engineering
+- **House**: daily profile + **temperature-dependent load** (heating when <18C, cooling when >26C)
 - **Spikes**: random 2-7kW events (kettle, oven, induction) every ~2-8 min
-- **Prices**: TGE-style (cheapest 2-5 at 15gr, peak 16-22 at 80gr)
+- **Prices**: **real RCE from PSE API** (`api.raporty.pse.pl`) — 15-min aggregated to hourly; shows duck curve (near-zero at solar noon, peak evening)
 - **Battery**: 15kWh LiFePO4, smooth SoC delta from real-time power balance
 
 ## HA Entities
@@ -49,12 +76,19 @@ HA connects to `192.168.0.18:5020` (Modbus TCP).
 - `sensor.ems_pobor_domu_bazowy` — House load (W)
 - `sensor.ems_biezaca_cena_energii` — Price (gr/kWh)
 - `switch.inwerter_wymus_ladowanie_z_sieci` — Force charge
-- `switch.ems_pompa_ciepla_boost` — HP boost toggle
+- `switch.ems_bojler_grzalka_3kw` — Boiler Modbus (reg 3)
 
 ### Template
 - `sensor.ems_moc_netto_bilans` — PV - house load (W)
 - `sensor.ems_czas_do_rozladowania` — Estimated minutes until empty
 - `sensor.ems_czas_do_pelnego_naladowania` — Estimated minutes until full
+
+### Critical: HA → Modbus sync (3 automations)
+- `input_boolean.wirtualny_bojler` → `switch.ems_bojler_grzalka_3kw` → reg 3
+- `input_select.ems_tryb_pompy_ciepla` → `modbus.write_register` → reg 4 (0/1/2)
+- `input_number.ems_limit_ladowania_ev` → `modbus.write_register` → reg 5
+
+Without these sync automations, changing HA entities has no effect on the simulator.
 
 ### Riemann integrals (kWh accumulation)
 - `sensor.ems_energia_pv_riemann` — PV energy today
@@ -70,9 +104,13 @@ HA connects to `192.168.0.18:5020` (Modbus TCP).
 ## Automations
 
 1. **Smart Boiler** — on when PV > 3000W or price < 0.20 zl/kWh
-2. **Peak Shaving** — cuts HP/EV when grid draw exceeds configurable limit
+2. **Peak Shaving** — cuts boiler/HP/EV when grid draw exceeds configurable limit
 3. **Smart EV Charging** — matches charge power to PV surplus when battery > 80%
 4. **HP Boost** — stores excess PV as heat when battery is full
+5. **Bojler Sync** — synchronizes input_boolean → Modbus reg 3
+6. **HP Sync** — synchronizes input_select → Modbus reg 4 (0/1/2)
+7. **EV Sync** — synchronizes input_number → Modbus reg 5
+8. **Night Charging** — charges battery from grid at cheap hours (02:00-05:00, <30 gr/kWh)
 
 ## Dashboard
 
@@ -80,3 +118,41 @@ HA connects to `192.168.0.18:5020` (Modbus TCP).
 - **Przeplywy** — gauges, daily stats, battery runtime, 12h history
 - **Sterowanie** — all controllable devices, peak shaving controls, prices
 - **Energy** — Riemann integrals, 24h price chart
+
+## InfluxDB Measurements
+
+Written every 5s by `influx_writer.py` to bucket `ems` (token: `ems-token`, org: `home`):
+
+| Measurement | Description | Unit |
+|-------------|-------------|------|
+| `sensor.sztuczna_produkcja_pv` | PV power | W |
+| `sensor.sztuczny_stan_baterii_soc` | Battery SoC | % |
+| `sensor.ems_pobor_domu_bazowy` | House load | W |
+| `sensor.ems_biezaca_cena_energii` | Energy price | gr/kWh |
+| `sensor.ems_moc_netto_bilans` | Net balance (PV - load) | W |
+| `sensor.current_temp` | Outdoor temperature | °C |
+| `sensor.cloud_cover` | Cloud cover | % |
+| `sensor.shortwave_radiation` | GHI (Global Horizontal Irradiance) | W/m² |
+
+## ML Forecast (`ml_forecast.py`)
+
+Predicts PV production for the next 48h using a RandomForest model:
+
+- **Training features**: GHI + temperature + cloud_cover (from Open-Meteo with `past_days=N`) + hour sin/cos
+- **Target**: PV power from InfluxDB (`sensor.sztuczna_produkcja_pv`)
+- **Forecast**: weather features from Open-Meteo → predicted PV (GHI=0 → PV=0 automatically)
+
+### Usage
+
+```bash
+# Let the simulator run for at least 12h to accumulate training data
+python run.py
+
+# In another terminal:
+python ml_forecast.py          # last 3 days
+python ml_forecast.py 7        # last 7 days
+```
+
+Output: `forecast.png` (time series plot) + `forecast_feature_importance.png`
+
+> Historical GHI is fetched from Open-Meteo's `past_days` parameter (same endpoint as forecast), so it covers the full training period even if `sensor.shortwave_radiation` was added to InfluxDB recently.
