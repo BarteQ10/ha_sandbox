@@ -1,0 +1,36 @@
+{
+  "models": [
+    {
+      "title": "Gemma 4-e4b",
+      "provider": "openai",
+      "model": "google/gemma-4-e4b",
+      "apiBase": "http://localhost:1234/v1"
+    }
+  ],
+  "tabAutocompleteModel": {
+    "title": "Gemma 4-e4b",
+    "provider": "openai",
+    "model": "google/gemma-4-e4b",
+    "apiBase": "http://localhost:1234/v1"
+  },
+  "contextProviders": [
+    {
+      "name": "codebase",
+      "options": {}
+    },
+    {
+      "name": "folder",
+      "options": {}
+    },
+    {
+      "name": "open",
+      "options": {}
+    }
+  ],
+  "slashCommands": [
+    {
+      "name": "share",
+      "description": "Share this session"
+    }
+  ]
+}

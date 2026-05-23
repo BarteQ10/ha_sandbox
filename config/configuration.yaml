@@ -1,0 +1,54 @@
+
+# Loads default set of integrations. Do not remove.
+default_config:
+
+# Load frontend themes from the themes folder
+frontend:
+  themes: !include_dir_merge_named themes
+
+automation: !include automations.yaml
+script: !include scripts.yaml
+scene: !include scenes.yaml
+
+modbus:
+  - name: "wirtualny_inwerter"
+    type: tcp
+    host: 192.168.0.18
+    port: 5020
+    sensors:
+      - name: "Sztuczna Produkcja PV"
+        slave: 1
+        address: 0
+        unit_of_measurement: "W"
+        data_type: int16
+      - name: "Sztuczny Stan Baterii SoC"
+        slave: 1
+        address: 1
+        unit_of_measurement: "%"
+        data_type: int16
+    switches:
+      - name: "Inwerter: Wymuś ładowanie z sieci"
+        slave: 1
+        address: 2 # Rejestr 40003
+        write_type: holding
+        command_on: 1
+        command_off: 0
+
+# Wirtualne przełączniki urządzeń
+input_boolean:
+  wirtualny_bojler:
+    name: "EMS: Wirtualny Bojler (Grzałka)"
+    icon: mdi:water-heater
+  wirtualna_pralka:
+    name: "EMS: Wirtualna Pralka"
+    icon: mdi:washing-machine
+
+# Wirtualny sensor cenowy do testowania taryf dynamicznych
+input_number:
+  wirtualna_cena_pradu:
+    name: "EMS: Bieżąca cena prądu (RCE)"
+    min: -0.50
+    max: 2.50
+    step: 0.05
+    initial: 0.80
+    unit_of_measurement: "zł/kWh"

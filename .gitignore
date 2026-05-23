@@ -1,0 +1,21 @@
+# Bytecode and compiled files
+*.pyc
+__pycache__/
+
+# Home Assistant - generated/runtime files (not source code)
+config/.cache/
+config/.cloud/
+config/.storage/
+config/deps/
+config/tts/
+config/home-assistant_v2.db*
+config/.HA_VERSION
+config/.ha_run.lock
+
+# Logs
+*.log
+*.log.*
+
+# Environment variables or secrets
+.env
+config/secrets.yaml

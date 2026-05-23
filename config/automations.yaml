@@ -1,0 +1,29 @@
+- id: '1779394737426'
+  alias: 'EMS: Inteligentne sterowanie Bojlerem'
+  description: Włącza bojler przy nadwyżce PV lub bardzo tanim prądzie
+  triggers:
+  - entity_id: sensor.sztuczna_produkcja_pv
+    trigger: state
+  - entity_id: input_number.wirtualna_cena_pradu
+    trigger: state
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: or
+        conditions:
+        - condition: numeric_state
+          entity_id: sensor.sztuczna_produkcja_pv
+          above: 3000
+        - condition: numeric_state
+          entity_id: input_number.wirtualna_cena_pradu
+          below: 0.2
+      sequence:
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.wirtualny_bojler
+    default:
+    - action: input_boolean.turn_off
+      target:
+        entity_id: input_boolean.wirtualny_bojler
+  mode: restart
