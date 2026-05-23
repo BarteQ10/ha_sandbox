@@ -1,17 +1,24 @@
-
-# Loads default set of integrations. Do not remove.
 default_config:
 
-# Load frontend themes from the themes folder
 frontend:
   themes: !include_dir_merge_named themes
+
+lovelace:
+  resource_mode: yaml
+  dashboards:
+    lovelace:
+      mode: yaml
+      filename: ui-lovelace.yaml
+      title: Overview
+      icon: mdi:view-dashboard
+      show_in_sidebar: true
 
 automation: !include automations.yaml
 script: !include scripts.yaml
 scene: !include scenes.yaml
 
 modbus:
-  - name: "wirtualny_inwerter"
+  - name: wirtualny_inwerter
     type: tcp
     host: 192.168.0.18
     port: 5020
@@ -26,15 +33,75 @@ modbus:
         address: 1
         unit_of_measurement: "%"
         data_type: int16
-    switches:
-      - name: "Inwerter: Wymuś ładowanie z sieci"
+      - name: "EMS: Pobor domu bazowy"
         slave: 1
-        address: 2 # Rejestr 40003
+        address: 6
+        unit_of_measurement: "W"
+        data_type: int16
+      - name: "EMS: Biezaca cena energii"
+        slave: 1
+        address: 7
+        unit_of_measurement: "gr/kWh"
+        data_type: int16
+    switches:
+      - name: "Inwerter: Wymus ladowanie z sieci"
+        slave: 1
+        address: 2
         write_type: holding
         command_on: 1
         command_off: 0
+      - name: "EMS: Pompa Ciepla Boost"
+        slave: 1
+        address: 4
+        write_type: holding
+        command_on: 2
+        command_off: 0
 
-# Wirtualne przełączniki urządzeń
+template:
+  - sensor:
+      - name: "EMS: Moc netto (bilans)"
+        unit_of_measurement: "W"
+        state: >
+          {{ (states('sensor.sztuczna_produkcja_pv') | int(0)) -
+             (states('sensor.ems_pobor_domu_bazowy') | int(0)) }}
+      - name: "EMS: Czas do rozladowania"
+        unit_of_measurement: "min"
+        state: >
+          {% set soc = states('sensor.sztuczny_stan_baterii_soc') | int(0) %}
+          {% set netto = states('sensor.ems_moc_netto_bilans') | int(0) %}
+          {% if netto < 0 and soc > 0 %}
+            {% set minutes = (soc * 150 * 60) / (-netto) %}
+            {{ (minutes) | int }}
+          {% else %}
+            999
+          {% endif %}
+      - name: "EMS: Czas do pelnego naladowania"
+        unit_of_measurement: "min"
+        state: >
+          {% set soc = states('sensor.sztuczny_stan_baterii_soc') | int(0) %}
+          {% set netto = states('sensor.ems_moc_netto_bilans') | int(0) %}
+          {% if netto > 0 and soc < 100 %}
+            {% set pozostalo = 100 - soc %}
+            {% set minutes = (pozostalo * 150 * 60) / netto %}
+            {{ (minutes) | int }}
+          {% else %}
+            0
+          {% endif %}
+
+sensor:
+  - platform: integration
+    source: sensor.sztuczna_produkcja_pv
+    name: "EMS: Energia PV (Riemann)"
+    unit_prefix: k
+    unit_time: h
+    round: 2
+  - platform: integration
+    source: sensor.ems_moc_netto_bilans
+    name: "EMS: Energia netto (Riemann)"
+    unit_prefix: k
+    unit_time: h
+    round: 2
+
 input_boolean:
   wirtualny_bojler:
     name: "EMS: Wirtualny Bojler (Grzałka)"
@@ -42,13 +109,41 @@ input_boolean:
   wirtualna_pralka:
     name: "EMS: Wirtualna Pralka"
     icon: mdi:washing-machine
+  ems_peak_shaving_active:
+    name: "EMS: Aktywne Peak Shaving"
+    icon: mdi:flash-alert
 
-# Wirtualny sensor cenowy do testowania taryf dynamicznych
+input_select:
+  ems_tryb_pompy_ciepla:
+    name: "EMS: Tryb Pompy Ciepla"
+    options:
+      - "Wylaczona"
+      - "Komfort"
+      - "Boost"
+    initial: "Wylaczona"
+    icon: mdi:heat-pump
+
 input_number:
   wirtualna_cena_pradu:
-    name: "EMS: Bieżąca cena prądu (RCE)"
+    name: "EMS: Biezaca cena pradu (RCE)"
     min: -0.50
     max: 2.50
     step: 0.05
     initial: 0.80
-    unit_of_measurement: "zł/kWh"
+    unit_of_measurement: "zl/kWh"
+  ems_max_pobor_sieci:
+    name: "EMS: Maksymalny pobor z sieci"
+    min: 1000
+    max: 15000
+    step: 500
+    initial: 8000
+    unit_of_measurement: "W"
+    icon: mdi:transmission-tower
+  ems_limit_ladowania_ev:
+    name: "EMS: Limit ladowania EV"
+    min: 0
+    max: 7400
+    step: 100
+    initial: 0
+    unit_of_measurement: "W"
+    icon: mdi:car-electric

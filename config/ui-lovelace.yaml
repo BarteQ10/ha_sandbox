@@ -1,0 +1,189 @@
+title: EMS Dashboard
+views:
+  - title: Przeplywy
+    path: przeplywy
+    icon: mdi:flash
+    type: sections
+    max_columns: 4
+    sections:
+      - type: grid
+        cards:
+          - type: heading
+            heading: Produkcja i zuzycie
+          - type: gauge
+            entity: sensor.sztuczna_produkcja_pv
+            name: PV
+            unit: W
+            min: 0
+            max: 5500
+            severity:
+              green: 3000
+              yellow: 1500
+              red: 0
+          - type: gauge
+            entity: sensor.sztuczny_stan_baterii_soc
+            name: Bateria
+            unit: "%"
+            min: 0
+            max: 100
+            severity:
+              green: 60
+              yellow: 30
+              red: 0
+          - type: gauge
+            entity: sensor.ems_pobor_domu_bazowy
+            name: Dom
+            unit: W
+            min: 0
+            max: 10000
+            severity:
+              green: 1000
+              yellow: 4000
+              red: 7000
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Bilans energii dzisiaj
+            icon: mdi:scale-balance
+          - type: statistic
+            entity: sensor.sztuczna_produkcja_pv
+            name: PV
+            period:
+              calendar:
+                period: day
+            stat_type: sum
+            unit: kWh
+          - type: statistic
+            entity: sensor.ems_pobor_domu_bazowy
+            name: Dom
+            period:
+              calendar:
+                period: day
+            stat_type: sum
+            unit: kWh
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Czas pracy baterii
+          - type: tile
+            entity: sensor.ems_czas_do_rozladowania
+            name: Do rozladowania
+            icon: mdi:battery-arrow-down
+          - type: tile
+            entity: sensor.ems_czas_do_pelnego_naladowania
+            name: Do pelnego
+            icon: mdi:battery-arrow-up
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Historia
+          - type: history-graph
+            title: PV produkcja
+            entities:
+              - sensor.sztuczna_produkcja_pv
+            hours_to_show: 12
+            fit_y_data: true
+          - type: history-graph
+            title: Stan baterii
+            entities:
+              - sensor.sztuczny_stan_baterii_soc
+            hours_to_show: 12
+            min_y_axis: 0
+            max_y_axis: 100
+
+  - title: Sterowanie
+    path: sterowanie
+    icon: mdi:tune
+    type: sections
+    max_columns: 4
+    sections:
+      - type: grid
+        cards:
+          - type: heading
+            heading: Urzadzenia sterowalne
+          - type: tile
+            entity: input_boolean.wirtualny_bojler
+            name: Bojler 3kW
+            icon: mdi:water-heater
+          - type: tile
+            entity: input_select.ems_tryb_pompy_ciepla
+            name: Pompa ciepla
+            icon: mdi:heat-pump
+          - type: tile
+            entity: input_number.ems_limit_ladowania_ev
+            name: EV ladowanie
+            icon: mdi:car-electric
+          - type: tile
+            entity: switch.inwerter_wymus_ladowanie_z_sieci
+            name: Force Charge
+            icon: mdi:battery-charging
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Peak Shaving
+          - type: tile
+            entity: input_boolean.ems_peak_shaving_active
+            name: Peak Shaving
+            icon: mdi:flash-alert
+          - type: tile
+            entity: input_number.ems_max_pobor_sieci
+            name: Max pobor z sieci
+            icon: mdi:transmission-tower
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Ceny energii
+          - type: tile
+            entity: sensor.ems_biezaca_cena_energii
+            name: Biezaca cena
+            icon: mdi:cash
+          - type: tile
+            entity: input_number.wirtualna_cena_pradu
+            name: Cena RCE
+            icon: mdi:cash-multiple
+
+  - title: Energy
+    path: energy
+    icon: mdi:solar-power
+    type: sections
+    max_columns: 4
+    sections:
+      - type: grid
+        cards:
+          - type: heading
+            heading: Energie (Riemann)
+          - type: tile
+            entity: sensor.ems_energia_pv_riemann
+            name: PV dzisiaj
+          - type: tile
+            entity: sensor.ems_energia_netto_riemann
+            name: Bilans netto
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Ceny (24h)
+          - type: history-graph
+            title: Cena energii (gr/kWh)
+            entities:
+              - sensor.ems_biezaca_cena_energii
+            hours_to_show: 24
+            fit_y_data: true
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Szczegoly
+          - type: entity
+            entity: sensor.ems_energia_pv_riemann
+          - type: entity
+            entity: sensor.ems_energia_netto_riemann
+          - type: entity
+            entity: sensor.ems_pobor_domu_bazowy
+          - type: entity
+            entity: sensor.sztuczny_stan_baterii_soc

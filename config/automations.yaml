@@ -27,3 +27,153 @@
       target:
         entity_id: input_boolean.wirtualny_bojler
   mode: restart
+
+- id: '1779394737427'
+  alias: 'EMS: Peak Shaving - ochrona przed przeciążeniem'
+  description: >
+    Gdy całkowity pobór z sieci przekracza limit, wyłącza bojler i odbiorniki.
+    Gdy bateria ma zapas, rozładowuje ją by wspomóc sieć.
+  triggers:
+  - entity_id: sensor.ems_moc_netto_bilans
+    trigger: state
+  conditions: []
+  actions:
+  - variables:
+      pobor_sieci: >
+        {% set pv = states('sensor.sztuczna_produkcja_pv') | int(0) %}
+        {% set dom = states('sensor.ems_pobor_domu_bazowy') | int(0) %}
+        {% set bilans = states('sensor.ems_moc_netto_bilans') | int(0) %}
+        {% if bilans < 0 %}{{ -bilans }}{% else %}0{% endif %}
+      limit: "{{ states('input_number.ems_max_pobor_sieci') | int(0) }}"
+  - choose:
+    - conditions:
+      - condition: numeric_state
+        entity_id: sensor.ems_moc_netto_bilans
+        below: -500
+      - condition: template
+        value_template: "{{ pobor_sieci > limit }}"
+      sequence:
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.ems_peak_shaving_active
+      - action: switch.turn_off
+        target:
+          entity_id: switch.ems_pompa_ciepla_boost
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.ems_limit_ladowania_ev
+        data:
+          value: 0
+      - action: input_select.select_option
+        target:
+          entity_id: input_select.ems_tryb_pompy_ciepla
+        data:
+          option: "Wylaczona"
+      - action: notify.persistent_notification
+        data:
+          title: "EMS: Peak Shaving"
+          message: >
+            Przekroczono limit {{ limit }}W! Pobór: {{ pobor_sieci }}W.
+            Wyłączono odbiorniki, bateria wspomaga sieć.
+    default:
+    - action: input_boolean.turn_off
+      target:
+        entity_id: input_boolean.ems_peak_shaving_active
+  mode: restart
+
+- id: '1779394737428'
+  alias: 'EMS: Smart EV Charging - zielone ładowanie'
+  description: >
+    Dynamicznie dostosowuje moc ładowania EV do nadwyżki PV.
+    Ładuje tylko gdy jest nadmiar słońca lub bardzo tania energia.
+  triggers:
+  - entity_id: sensor.sztuczna_produkcja_pv
+    trigger: state
+  - entity_id: sensor.ems_pobor_domu_bazowy
+    trigger: state
+  conditions:
+  - condition: numeric_state
+    entity_id: sensor.sztuczny_stan_baterii_soc
+    above: 80
+  actions:
+  - variables:
+      nadwyzka: >
+        {% set pv = states('sensor.sztuczna_produkcja_pv') | int(0) %}
+        {% set dom = states('sensor.ems_pobor_domu_bazowy') | int(0) %}
+        {% set surplus = pv - dom %}
+        {{ surplus if surplus > 1400 else 0 }}
+      cena: "{{ states('sensor.ems_biezaca_cena_energii') | int(0) }}"
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: "{{ nadwyzka >= 1400 }}"
+      sequence:
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.ems_limit_ladowania_ev
+        data:
+          value: "{{ nadwyzka | int }}"
+    - conditions:
+      - condition: numeric_state
+        entity_id: sensor.ems_biezaca_cena_energii
+        below: 20
+      sequence:
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.ems_limit_ladowania_ev
+        data:
+          value: 3700
+    default:
+    - action: input_number.set_value
+      target:
+        entity_id: input_number.ems_limit_ladowania_ev
+      data:
+        value: 0
+  mode: restart
+
+- id: '1779394737429'
+  alias: 'EMS: Pompa Ciepła - wykorzystanie nadwyżki PV'
+  description: >
+    Gdy bateria jest pełna i PV produkuje nadwyżkę, włącza tryb Boost PC,
+    by zmagazynować energię w buforze ciepła / podgrzać wodę.
+  triggers:
+  - entity_id: sensor.sztuczna_produkcja_pv
+    trigger: state
+  - entity_id: sensor.sztuczny_stan_baterii_soc
+    trigger: state
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: numeric_state
+        entity_id: sensor.sztuczny_stan_baterii_soc
+        above: 95
+      - condition: numeric_state
+        entity_id: sensor.ems_moc_netto_bilans
+        above: 1000
+      sequence:
+      - action: input_select.select_option
+        target:
+          entity_id: input_select.ems_tryb_pompy_ciepla
+        data:
+          option: "Boost"
+    - conditions:
+      - condition: numeric_state
+        entity_id: sensor.sztuczny_stan_baterii_soc
+        above: 80
+      - condition: numeric_state
+        entity_id: sensor.ems_moc_netto_bilans
+        above: 500
+      sequence:
+      - action: input_select.select_option
+        target:
+          entity_id: input_select.ems_tryb_pompy_ciepla
+        data:
+          option: "Komfort"
+    default:
+    - action: input_select.select_option
+      target:
+        entity_id: input_select.ems_tryb_pompy_ciepla
+      data:
+        option: "Wylaczona"
+  mode: restart
