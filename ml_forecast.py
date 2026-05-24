@@ -21,10 +21,11 @@ TOKEN = "ems-token"
 URL = "http://localhost:8086"
 
 FEATURES = ["ghi", "temp", "cloud", "hour_sin", "hour_cos"]
+RESAMPLE_MIN = 10
 
 
 def query_pv_influx(days: int) -> pd.DataFrame:
-    """Load PV and temperature from InfluxDB."""
+    """Load PV from InfluxDB at original resolution."""
     client = InfluxDBClient(url=URL, token=TOKEN, org=ORG)
     out = {}
     for sensor, name in [("sensor.sztuczna_produkcja_pv", "pv"),
@@ -33,7 +34,7 @@ def query_pv_influx(days: int) -> pd.DataFrame:
         from(bucket: "{BUCKET}")
           |> range(start: -{days}d)
           |> filter(fn: (r) => r["_measurement"] == "{sensor}")
-          |> aggregateWindow(every: 5m, fn: mean)
+          |> aggregateWindow(every: {RESAMPLE_MIN}m, fn: mean)
           |> yield(name: "mean")
         """
         tables = client.query_api().query(q)
@@ -60,7 +61,7 @@ def query_pv_influx(days: int) -> pd.DataFrame:
 
 
 def add_hour_features(df: pd.DataFrame) -> pd.DataFrame:
-    df["hour"] = df["ds"].dt.hour
+    df["hour"] = df["ds"].dt.hour + df["ds"].dt.minute / 60
     df["hour_sin"] = np.sin(2 * np.pi * df["hour"] / 24)
     df["hour_cos"] = np.cos(2 * np.pi * df["hour"] / 24)
     return df
@@ -74,7 +75,7 @@ def load_training_data(days: int):
         return None, None, None
     wdf = pd.DataFrame(weather)
     wdf["ds"] = pd.to_datetime(wdf["ds"])
-    wdf["ds_h"] = wdf["ds"].dt.floor("h")
+    wdf = wdf.set_index("ds").resample(f"{RESAMPLE_MIN}min").ffill().reset_index()
     add_hour_features(wdf)
 
     print("Loading PV from InfluxDB...")
@@ -85,11 +86,11 @@ def load_training_data(days: int):
 
     pvdf["ds"] = pd.to_datetime(pvdf["ds"])
     pvdf["ds"] = pvdf["ds"].dt.tz_localize(None)
-    pvdf["ds_h"] = pvdf["ds"].dt.round("h")
-    pv_hourly = pvdf.groupby("ds_h").agg(pv=("pv", "mean")).reset_index()
+    pvdf["ds_k"] = pvdf["ds"].dt.floor(f"{RESAMPLE_MIN}min")
+    pv_resampled = pvdf.groupby("ds_k").agg(pv=("pv", "mean"), temp_influx=("temp_influx", "mean")).reset_index()
 
-    merged = wdf.merge(pv_hourly, on="ds_h", how="left")
-    merged = merged.drop(columns=["ds_h"])
+    merged = wdf.merge(pv_resampled, left_on="ds", right_on="ds_k", how="left")
+    merged = merged.drop(columns=["ds_k"])
 
     past = merged.dropna(subset=["pv"]).copy().reset_index(drop=True)
     future = merged[merged["pv"].isna()].copy().reset_index(drop=True)
@@ -102,7 +103,7 @@ def main(days: int = 3, forecast_hours: int = 48):
     if past is None or future is None:
         return
 
-    print(f"Past: {len(past)} hourly rows, Future: {len(future)} hourly rows")
+    print(f"Past: {len(past)} rows ({RESAMPLE_MIN}-min res), Future: {len(future)} rows ({RESAMPLE_MIN}-min res)")
     print(f"Features: {avail}")
 
     train = past.dropna(subset=avail + ["pv"]).copy()
@@ -128,7 +129,11 @@ def main(days: int = 3, forecast_hours: int = 48):
     night = future["ghi"] < 1
     future.loc[night, "pv_pred"] = 0.0
 
-    print(f"\nForecast ({forecast_hours}h, first 12 rows):")
+    now = datetime.now()
+    future_fwd = future[future["ds"] > now].copy()
+    fwd_hours = int(len(future_fwd) * RESAMPLE_MIN / 60)
+
+    print(f"\nForecast ({fwd_hours}h forward, {len(future_fwd)} rows, first 12):")
     cols = ["ds"] + avail + ["pv_pred"]
     print(future[cols].head(12).to_string(index=False))
 
@@ -137,8 +142,8 @@ def main(days: int = 3, forecast_hours: int = 48):
     ax.plot(pd.to_datetime(train["ds"]), train["pv"].values,
             "k.", alpha=0.4, markersize=2, label="observed PV")
 
-    ax.plot(future["ds"].values[:forecast_hours], future["pv_pred"].values[:forecast_hours],
-            "b-", linewidth=2, label=f"forecast ({forecast_hours}h)")
+    ax.plot(future_fwd["ds"].values, future_fwd["pv_pred"].values,
+            "b-", linewidth=2, label=f"forecast ({fwd_hours}h forward)")
 
     ax.set_title(f"PV Forecast — Features: {' + '.join(avail)}", fontsize=14)
     ax.set_ylabel("Power (W)")
