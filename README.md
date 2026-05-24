@@ -15,14 +15,15 @@ HA connects to `192.168.0.18:5020` (Modbus TCP).
 
 ```
 ems_simulator/
-├── config.py         # Location, PV kWp, battery kWh, price bands
-├── weather.py        # Open-Meteo API: GHI + temperature + cloud cover
-├── pricing.py        # PSE API: real RCE prices (PLN/MWh → gr/kWh)
-├── generators.py     # PV, load, spike simulation
-├── battery.py        # SoC delta from power balance
-├── server.py         # Modbus TCP server (pyModbusTCP)
-├── influx_writer.py  # Direct InfluxDB writes (influxdb-client)
-└── main.py           # Main loop (entry point)
+├── config.py              # Location, PV kWp, battery kWh, price bands
+├── weather.py             # Open-Meteo API: GHI + temperature + cloud cover
+├── pricing.py             # PSE API: real RCE prices (PLN/MWh → gr/kWh)
+├── generators.py          # PV, load, spike simulation
+├── battery.py             # SoC delta from power balance
+├── charge_scheduler.py    # Dynamic charge window (PV forecast + price bands)
+├── server.py              # Modbus TCP server (pyModbusTCP)
+├── influx_writer.py       # Direct InfluxDB writes (influxdb-client)
+└── main.py                # Main loop (entry point)
 run.py                # Top-level launcher
 ```
 
@@ -61,6 +62,9 @@ simulator (Modbus) → HA (Modbus TCP) → automations
 | 8 | 40009 | R | Peak Price Today | gr/kWh (PSE 24h forecast peak) |
 | 9 | 40010 | R | Running Cost Today | grosze (cumulative financial balance) |
 | 10 | 40011 | RW | PV Curtailment | 0=Auto, 1=Zero-Export (curtail) |
+| 11 | 40012 | R | Charge Window Start | hour (0-23, 24=no charge needed) |
+| 12 | 40013 | R | Charge Window Duration | hours × 10 |
+| 13 | 40014 | R | PV Forecast Tomorrow | kWh × 10 |
 
 ## Simulation
 
@@ -119,18 +123,19 @@ Without these sync automations, changing HA entities has no effect on the simula
 2. **Peak Shaving** — cuts boiler/HP/EV when grid draw exceeds configurable limit
 3. **Smart EV Charging** — matches charge power to PV surplus when battery > 80%
 4. **HP Boost** — stores excess PV as heat when battery is full
-5. **Bojler Sync** — synchronizes input_boolean → Modbus reg 3
-6. **HP Sync** — synchronizes input_select → Modbus reg 4 (0/1/2)
-7. **EV Sync** — synchronizes input_number → Modbus reg 5
-8. **Night Charging** — charges battery from grid at cheap hours (02:00-05:00, <30 gr/kWh); checks battery degradation cost (spread = PSE peak forecast - current > degradation_cost); skips if tomorrow's GHI peak >400 W/m² (sun will charge for free)
-9. **Smart EV (degradation)** — same degradation cost check before grid charging EV at <20 gr/kWh
-10. **Inverter Sync** — synchronizes input_select → Modbus reg 2 (0/1/2)
-11. **Arbitrage: Discharge on peak** — when price >55 gr, SoC >20%, switches to Force Discharge
-12. **Arbitrage: Charge on low price** — when price <25 gr, SoC <80%, switches to Force Charge (checks degradation)
-13. **Arbitrage: Return to Auto** — when 25 ≤ price ≤ 55 or SoC critical, switches back to Auto
-14. **Negative prices: Smart load dispatch** — when price < 0: always boiler + Force Charge; if SoC > 30% adds EV 7400W; if SoC > 50% adds HP Boost
-15. **Negative prices: PV curtailment** — when price < 0, SoC > 95%, and still exporting → enables zero-export (curtail PV)
-16. **Negative prices: Restore normal** — when price returns above 0, disables curtailment, returns inverter to Auto, turns off loads
+5. **Charge Scheduler** (`charge_scheduler.py`) — every simulated hour, computes tomorrow's PV energy from Open-Meteo forecast, calculates energy needed for target SoC, finds cheapest consecutive night hours for charging; exposes window via reg 11-13
+6. **Bojler Sync** — synchronizes input_boolean → Modbus reg 3
+7. **HP Sync** — synchronizes input_select → Modbus reg 4 (0/1/2)
+8. **EV Sync** — synchronizes input_number → Modbus reg 5
+9. **Dynamic Night Charging** — uses scheduler's optimal window (cheapest consecutive night hours based on PV forecast + PSE prices + degradation cost)
+10. **Smart EV (degradation)** — same degradation cost check before grid charging EV at <20 gr/kWh
+11. **Inverter Sync** — synchronizes input_select → Modbus reg 2 (0/1/2)
+12. **Arbitrage: Discharge on peak** — when price >55 gr, SoC >20%, switches to Force Discharge
+13. **Arbitrage: Charge on low price** — when price <25 gr, SoC <80%, switches to Force Charge (checks degradation)
+14. **Arbitrage: Return to Auto** — when 25 ≤ price ≤ 55 or SoC critical, switches back to Auto
+15. **Negative prices: Smart load dispatch** — when price < 0: always boiler + Force Charge; if SoC > 30% adds EV 7400W; if SoC > 50% adds HP Boost
+16. **Negative prices: PV curtailment** — when price < 0, SoC > 95%, and still exporting → enables zero-export (curtail PV)
+17. **Negative prices: Restore normal** — when price returns above 0, disables curtailment, returns inverter to Auto, turns off loads
 
 ## Dashboard
 
@@ -157,6 +162,9 @@ Written every 5s by `influx_writer.py` to bucket `ems` (token: `ems-token`, org:
 | `sensor.ems_koszt_kumulatywny_dzis` | Cumulative daily financial balance | PLN |
 | `sensor.ems_szczyt_cena_dzis` | Today's peak price (PSE 24h forecast) | gr/kWh |
 | `sensor.ems_ograniczenie_pv` | PV curtailment status (0=Auto, 1=Curtail) | — |
+| `sensor.ems_charge_window_start` | Charge window start hour | h |
+| `sensor.ems_charge_window_duration` | Charge window duration | h×10 |
+| `sensor.ems_pv_forecast_tomorrow_kwh` | Forecast PV energy tomorrow | kWh |
 
 ## Financial Counter & Battery Degradation
 
@@ -205,3 +213,7 @@ python ml_forecast.py 7        # last 7 days
 Output: `forecast.png` (time series plot) + `forecast_feature_importance.png`
 
 > Historical GHI is fetched from Open-Meteo's `past_days` parameter (same endpoint as forecast), so it covers the full training period even if `sensor.shortwave_radiation` was added to InfluxDB recently.
+
+## Weather Caching
+
+`weather.py` stores forecast data keyed by `(date, hour)` tuple, so `get(hour)` always returns today's data (not overwritten by tomorrow's). Full forecast rows are cached in `_forecast_rows` on `fetch()` — `forecast_df()` returns them without a second HTTP call.

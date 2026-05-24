@@ -108,7 +108,7 @@ def main(days: int = 3, forecast_hours: int = 48):
     train = past.dropna(subset=avail + ["pv"]).copy()
     print(f"Training rows (non-null PV): {len(train)}")
 
-    if len(train) < 12:
+    if len(train) < 6:
         print("Too few training points. Let the simulator run longer.")
         return
 

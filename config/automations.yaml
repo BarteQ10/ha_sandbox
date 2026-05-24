@@ -410,34 +410,27 @@
   mode: single
 
 - id: '1779394737433'
-  alias: 'EMS: Ladowanie nocne - tania energia'
+  alias: 'EMS: Ladowanie dynamiczne - okno cenowe'
   description: >
-    Laduje baterie z sieci w najtanszych godzinach 2:00-5:00.
-    Uwzglednia koszt degradacji baterii (spread > koszt_deg).
-    Pomin ladowanie gdy jutro bedzie slonecznie (GHI>400).
+    Laduje baterie w optymalnym oknie wyznaczonym przez scheduler.
+    Uwzglednia prognoze PV, ceny PSE i koszt degradacji.
   triggers:
   - trigger: time_pattern
     hours: '*'
     minutes: '/5'
   conditions:
-  - condition: time
-    after: '02:00:00'
-    before: '05:00:00'
+  - condition: template
+    value_template: >
+      {% set h = states('sensor.ems_ladowanie_start_godzina') | int(24) %}
+      {% set dur = states('sensor.ems_ladowanie_czas_trwania') | int(0) / 10 %}
+      {% set now_h = now().hour %}
+      {{ h < 24 and now_h >= h and (now_h | int) < (h + dur | int) }}
   - condition: numeric_state
     entity_id: sensor.sztuczny_stan_baterii_soc
-    below: 70
+    below: 90
   - condition: numeric_state
     entity_id: sensor.ems_biezaca_cena_energii
     below: 30
-  - condition: template
-    value_template: >
-      {% set peak = states('sensor.ems_szczyt_cena_dzis') | int(60) %}
-      {% set price = states('sensor.ems_biezaca_cena_energii') | int(0) %}
-      {% set deg = states('input_number.ems_koszt_degradacji_baterii') | int(15) %}
-      {{ (peak - price) > deg }}
-  - condition: template
-    value_template: >
-      {{ states('sensor.ems_prognoza_pv_jutro_szczyt_ghi') | int(0) < 400 }}
   actions:
   - action: input_select.select_option
     target:
@@ -446,24 +439,32 @@
       option: "Force Charge"
   - action: notify.persistent_notification
     data:
-      title: "EMS: Ladowanie nocne"
+      title: "EMS: Ladowanie dynamiczne"
       message: >
-        Rozpoczeto ladowanie baterii z sieci (tania energia, <30gr/kWh).
-        Prognoza PV na jutro: {{ states('sensor.ems_prognoza_pv_jutro_szczyt_ghi') }} W/m2.
+        Ladowanie w oknie wyznaczonym przez scheduler.
+        Start: {{ states('sensor.ems_ladowanie_start_godzina') }}h,
+        czas: {{ states('sensor.ems_ladowanie_czas_trwania') | int / 10 }}h.
   mode: single
 
 - id: '1779394737434'
-  alias: 'EMS: Zakoncz ladowanie nocne'
-  description: Wylacza ladowanie nocne gdy bateria pelna (95%) lub konczy sie tania taryfa (05:00)
+  alias: 'EMS: Zakoncz ladowanie dynamiczne'
+  description: Wylacza ladowanie gdy bateria pelna (95%) lub konczy sie okno
   triggers:
-  - trigger: time
-    at: '05:00:00'
+  - trigger: time_pattern
+    hours: '*'
+    minutes: '/5'
   - trigger: numeric_state
     entity_id: sensor.sztuczny_stan_baterii_soc
     above: 95
   conditions:
   - condition: template
     value_template: "{{ states('input_select.ems_tryb_inwertera') == 'Force Charge' }}"
+  - condition: template
+    value_template: >
+      {% set h = states('sensor.ems_ladowanie_start_godzina') | int(24) %}
+      {% set dur = states('sensor.ems_ladowanie_czas_trwania') | int(0) / 10 %}
+      {% set now_h = now().hour %}
+      {{ h >= 24 or now_h < h or (now_h | int) >= (h + dur | int) }}
   actions:
   - action: input_select.select_option
     target:
@@ -472,8 +473,8 @@
       option: "Auto"
   - action: notify.persistent_notification
     data:
-      title: "EMS: Koniec ladowania nocnego"
-      message: "Zakonczono ladowanie baterii (pelna lub koniec taniej taryfy)"
+      title: "EMS: Koniec ladowania dynamicznego"
+      message: "Zakonczono ladowanie (pelna lub okno sie skonczylo)."
   mode: single
 
 - id: '1779394737439'

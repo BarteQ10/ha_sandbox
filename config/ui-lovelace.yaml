@@ -160,6 +160,18 @@ views:
             entity: sensor.ems_bilans_finansowy_dzis
             name: Bilans finansowy
             icon: mdi:currency-usd
+          - type: tile
+            entity: sensor.ems_ladowanie_start_godzina
+            name: Ladowanie (start)
+            icon: mdi:battery-clock
+          - type: tile
+            entity: sensor.ems_ladowanie_czas_trwania
+            name: Ladowanie (czas)
+            icon: mdi:clock-outline
+          - type: tile
+            entity: sensor.ems_prognoza_pv_jutro_kwh
+            name: PV jutro
+            icon: mdi:solar-power
 
   - title: Energy
     path: energy

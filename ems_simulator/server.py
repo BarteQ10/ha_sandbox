@@ -30,4 +30,7 @@ def banner():
     print("  [R] 8  Peak Price Today           (gr/kWh)")
     print("  [R] 9  Running Cost Today          (grosze)")
     print("  [W] 10 PV Curtailment              (0=Auto 1=Curtail)")
+    print("  [R] 11 Charge Window Start          (hour 0-23, 24=none)")
+    print("  [R] 12 Charge Window Duration       (hours * 10)")
+    print("  [R] 13 PV Forecast Tomorrow         (0.1 kWh)")
     print("=" * 64)

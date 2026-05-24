@@ -4,8 +4,9 @@ import datetime
 
 from ems_simulator.config import TICK_S
 from ems_simulator.weather import fetch as w_fetch, get as w_get, needs_refresh as w_needs_refresh
-from ems_simulator.pricing import fetch as p_fetch, get as p_get, max_today as p_max_today, needs_refresh as p_needs_refresh, fallback_price as p_fallback
+from ems_simulator.pricing import fetch as p_fetch, get as p_get, max_today as p_max_today, needs_refresh as p_needs_refresh, fallback_price as p_fallback, _price_cache as p_cache
 from ems_simulator.generators import pv_from_ghi, base_load, SpikeState, controllable_load
+from ems_simulator.charge_scheduler import compute_charge_window
 from ems_simulator.battery import delta as batt_delta, clamp as batt_clamp
 from ems_simulator.server import start as srv_start, stop as srv_stop, read as srv_read, write as srv_write, banner as srv_banner
 from ems_simulator.influx_writer import start as inf_start, write as inf_write, stop as inf_stop, read_last as inf_read_last
@@ -29,6 +30,11 @@ def main():
     if cost_from_db is not None:
         running_cost_pln = float(cost_from_db)
         print(f"[STATE] Restored running cost: {running_cost_pln:.2f} PLN from InfluxDB")
+
+    chg_start = None
+    chg_duration = 0
+    chg_pv_kwh = 0.0
+    _last_chg_compute_h = -1
 
     try:
         while True:
@@ -80,6 +86,14 @@ def main():
             price = int(rce) if rce is not None else p_fallback(hour)
             peak_today = int(round(p_max_today()))
 
+            if day_step % 12 == 0 and day_step != _last_chg_compute_h:
+                _last_chg_compute_h = day_step
+                chg_start, chg_duration, chg_energy, chg_pv_kwh = compute_charge_window(
+                    hour, soc, p_cache
+                )
+                print(f"[CHG] Window: start={chg_start}h  dur={chg_duration}h  "
+                      f"need={chg_energy}kWh  PVtom={chg_pv_kwh}kWh")
+
             balance = pv - load
             dt_h = TICK_S * 60.0 / 3600.0
             running_cost_pln += -balance * price * dt_h / (100.0 * 1000.0)
@@ -117,9 +131,12 @@ def main():
                 peak_today,
                 cost_int,
                 curtail,
+                chg_start if chg_start is not None else 24,
+                int(round(chg_duration * 10)),
+                int(round(chg_pv_kwh * 10)),
             ])
 
-            inf_write(pv, round(new_soc), load, price, balance, current_temp, cloud, ghi, peak_today, round(running_cost_pln, 2), curtail)
+            inf_write(pv, round(new_soc), load, price, balance, current_temp, cloud, ghi, peak_today, round(running_cost_pln, 2), curtail, chg_start, chg_duration, chg_pv_kwh)
 
             time.sleep(TICK_S)
 

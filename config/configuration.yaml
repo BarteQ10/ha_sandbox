@@ -63,6 +63,21 @@ modbus:
         address: 10
         unit_of_measurement: ""
         data_type: int16
+      - name: "EMS: Ladowanie start godzina"
+        slave: 1
+        address: 11
+        unit_of_measurement: "h"
+        data_type: int16
+      - name: "EMS: Ladowanie czas trwania"
+        slave: 1
+        address: 12
+        unit_of_measurement: "h*10"
+        data_type: int16
+      - name: "EMS: Prognoza PV jutro kWh"
+        slave: 1
+        address: 13
+        unit_of_measurement: "0.1kWh"
+        data_type: int16
     switches:
       - name: "EMS: Bojler (Grzałka 3kW)"
         slave: 1
@@ -73,11 +88,6 @@ modbus:
       - name: "EMS: Ograniczenie PV"
         slave: 1
         address: 10
-        write_type: holding
-        command_on: 1
-        command_off: 0
-        slave: 1
-        address: 3
         write_type: holding
         command_on: 1
         command_off: 0
