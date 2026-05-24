@@ -121,6 +121,8 @@ def main():
                               f"HP_thermal={hp_thermal_w}W  heat_demand={heat_demand}W  saved={int(overlap*0.8)}W")
             load += ctrl_load
 
+            price = int(rce) if rce is not None else p_fallback(hour)
+
             for app in appliances:
                 app_load = app.tick(hour, price)
                 if app_load > 0:
@@ -139,7 +141,6 @@ def main():
                 pv = int(load)
                 print(f"[CURTAIL] PV {old_pv}W -> {pv}W (zero-export)")
 
-            price = int(rce) if rce is not None else p_fallback(hour)
             peak_today = int(round(p_max_today()))
 
             if not anomaly and _anomaly_prev:
