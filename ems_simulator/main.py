@@ -35,6 +35,7 @@ def main():
     chg_duration = 0
     chg_pv_kwh = 0.0
     _last_chg_compute_h = -1
+    _anomaly_prev = 0
 
     try:
         while True:
@@ -50,20 +51,29 @@ def main():
             ev        = regs[5]
             curtail   = regs[10] if len(regs) > 10 else 0
             grid_status = regs[14] if len(regs) > 14 else 0
+            anomaly = regs[15] if len(regs) > 15 else 0
 
             day_step = (day_step + 1) % 288
             if day_step == 0:
                 running_cost_pln = 0.0
             hour = day_step / 12.0
 
-            if w_needs_refresh(hour, day_step):
-                w_fetch()
-            if p_needs_refresh(hour, day_step):
-                p_fetch()
+            if anomaly:
+                ghi, temp, cloud = None, current_temp, 0
+                rce = None
+                if day_step % 60 == 0:
+                    print(f"[ANOMALY] API failure simulation active")
+            else:
+                if w_needs_refresh(hour, day_step):
+                    w_fetch()
+                if p_needs_refresh(hour, day_step):
+                    p_fetch()
 
-            ghi, temp, cloud = w_get(hour)
-            if ghi is not None:
-                current_temp = temp
+                ghi, temp, cloud = w_get(hour)
+                if ghi is not None:
+                    current_temp = temp
+
+                rce = p_get(hour)
 
             pv = pv_from_ghi(ghi, hour)
 
@@ -83,17 +93,22 @@ def main():
                 pv = int(load)
                 print(f"[CURTAIL] PV {old_pv}W -> {pv}W (zero-export)")
 
-            rce = p_get(hour)
             price = int(rce) if rce is not None else p_fallback(hour)
             peak_today = int(round(p_max_today()))
 
-            if day_step % 12 == 0 and day_step != _last_chg_compute_h:
+            if not anomaly and _anomaly_prev:
+                _last_chg_compute_h = -1
+                print(f"[ANOMALY] API restored — scheduler re-enabled")
+
+            if not anomaly and day_step % 12 == 0 and day_step != _last_chg_compute_h:
                 _last_chg_compute_h = day_step
                 chg_start, chg_duration, chg_energy, chg_pv_kwh = compute_charge_window(
                     hour, soc, p_cache
                 )
                 print(f"[CHG] Window: start={chg_start}h  dur={chg_duration}h  "
                       f"need={chg_energy}kWh  PVtom={chg_pv_kwh}kWh")
+            elif anomaly and day_step % 60 == 0:
+                print(f"[ANOMALY] Charge scheduler paused (no API data)")
 
             balance = pv - load
 
@@ -168,12 +183,14 @@ def main():
                 int(round(chg_duration * 10)),
                 int(round(chg_pv_kwh * 10)),
                 grid_status,
+                anomaly,
             ])
 
             inf_write(pv, round(new_soc), load, price, balance, current_temp, cloud, ghi,
                       peak_today, round(running_cost_pln, 2), curtail,
-                      chg_start, chg_duration, chg_pv_kwh, grid_status)
+                      chg_start, chg_duration, chg_pv_kwh, grid_status, anomaly)
 
+            _anomaly_prev = anomaly
             time.sleep(TICK_S)
 
     except KeyboardInterrupt:

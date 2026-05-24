@@ -66,6 +66,7 @@ simulator (Modbus) → HA (Modbus TCP) → automations
 | 12 | 40013 | R | Charge Window Duration | hours × 10 |
 | 13 | 40014 | R | PV Forecast Tomorrow | kWh × 10 |
 | 14 | 40015 | RW | Grid Status | 0=Normal, 1=Blackout, 2=Fluktuacje |
+| 15 | 40016 | RW | API Anomaly Simulator | 0=Off, 1=On (forces synthetic data) |
 
 ## Simulation
 
@@ -142,6 +143,7 @@ Without these sync automations, changing HA entities has no effect on the simula
 18. **Grid Status Sync** — synchronizes `input_select.ems_status_sieci` → Modbus reg 14 (0/1/2)
 19. **Island load shed** — when Blackout + SoC < 30%, force off boiler/EV/HP in HA
 20. **Island recovery** — when grid returns to Normal, restore normal operation
+21. **Anomaly sync** — synchronizes `input_boolean.ems_symuluj_awarie_api` → Modbus reg 15
 
 ## Dashboard
 
@@ -219,6 +221,29 @@ PSE_peak_forecast - current_price > degradation_cost
 - **Load shedding**: when SoC ≤ 5% and still deficit (`pv - load < 0`), Python sheds all controllable loads (boiler, EV, HP) and recalculates balance. If still negative, battery drains to 0%.
 - **HA protection**: separate automation (`EMS: Island mode - load shed ochrona`) monitors grid_status and SoC every minute — turns off boiler, EV, HP in HA when Blackout + SoC < 30%
 - **Recovery**: automation `EMS: Island mode - powrot sieci` fires when grid returns to Normal
+
+## API Anomaly Simulator (Reg 15)
+
+`input_boolean.ems_symuluj_awarie_api` controls simulated API failures via Modbus reg 15:
+
+| Value | Mode | Description |
+|-------|------|-------------|
+| 0 | Off | Normal operation — fetches real PSE prices and Open-Meteo weather |
+| 1 | On | API failure — skips all HTTP calls, forces synthetic fallback data |
+
+### Edge cases handled
+
+1. **Charge scheduler during anomaly**: `compute_charge_window()` is skipped entirely (nie woła `forecast_df()`). Gdy anomalia wyłączona, `_last_chg_compute_h` jest resetowany → scheduler odpala przy najbliższym tiknięciu.
+2. **Re-sync po powrocie API**: `needs_refresh()` wykrywa zmianę godziny → natychmiastowe fetch po wyłączeniu anomalii. Scheduler wznawia działanie z świeżymi danymi.
+
+### Behavior when active (reg 15 = 1)
+
+- **PSE pricing**: `p_get()` is never called; `fallback_price()` returns synthetic bands (15-80 gr/kWh)
+- **Open-Meteo weather**: `ghi` forced to `None` → `pv_from_ghi()` uses synthetic PV (sin wave + random cloud)
+- **Temperature**: holds last measured value (no update until anomaly deactivated)
+- **Failover test**: verifies the system seamlessly transitions to synthetic data (already implemented in `pv_from_ghi` and `p_fallback`) without error loops
+
+Use together with persistent notifications in HA to observe the transition and recovery.
 
 ### Peak price from PSE forecast
 `pricing.max_today()` returns the maximum price from the cached 24h PSE data (all hours already fetched at once). If PSE API fails, falls back to max price band (80 gr/kWh). Exposed via Modbus reg 8 as `sensor.ems_szczyt_cena_dzis`.

@@ -26,7 +26,7 @@ def start():
         _failed = True
 
 
-def write(pv, soc, load, price, balance, temp, cloud=None, ghi=None, peak_price=None, running_cost=None, curtail=None, chg_start=None, chg_duration=None, chg_pv_kwh=None, grid_status=None):
+def write(pv, soc, load, price, balance, temp, cloud=None, ghi=None, peak_price=None, running_cost=None, curtail=None, chg_start=None, chg_duration=None, chg_pv_kwh=None, grid_status=None, anomaly=None):
     global _failed
     if _failed or _write is None:
         return
@@ -84,6 +84,10 @@ def write(pv, soc, load, price, balance, temp, cloud=None, ghi=None, peak_price=
         if grid_status is not None:
             points.append(
                 Point("sensor.ems_status_sieci").time(now).field("value", float(grid_status))
+            )
+        if anomaly is not None:
+            points.append(
+                Point("sensor.ems_symuluj_awarie_api").time(now).field("value", float(anomaly))
             )
 
         _write.write(bucket=BUCKET, record=points)

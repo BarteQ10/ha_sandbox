@@ -3,7 +3,7 @@ import datetime
 # Modbus
 MODBUS_HOST = "0.0.0.0"
 MODBUS_PORT = 5020
-NUM_REGISTERS = 15
+NUM_REGISTERS = 16
 TICK_S = 5
 
 # Location (Open-Meteo, no API key)

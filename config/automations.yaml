@@ -729,3 +729,18 @@
       title: "EMS: Island mode"
       message: "Sieć wrocila do normy - tryb normalny."
   mode: single
+
+- id: 'ems_sync_anomaly'
+  alias: 'EMS: Sync Awarie API HA -> Modbus'
+  description: Synchronizuje input_boolean.ems_symuluj_awarie_api z rejestrem Modbus 15
+  triggers:
+  - entity_id: input_boolean.ems_symuluj_awarie_api
+    trigger: state
+  conditions: []
+  actions:
+  - action: modbus.write_register
+    data:
+      hub: wirtualny_inwerter
+      address: 15
+      value: "{{ 1 if states('input_boolean.ems_symuluj_awarie_api') == 'on' else 0 }}"
+  mode: restart
