@@ -52,7 +52,7 @@ simulator (Modbus) → HA (Modbus TCP) → automations
 |-----|---------|-----|-------------|-------|
 | 0 | 40001 | R | PV Production | 0-5000 W |
 | 1 | 40002 | R | Battery SoC | 0-100 % |
-| 2 | 40003 | RW | Force Charge | 0=Auto, 1=Grid Charge |
+| 2 | 40003 | RW | Inverter Mode | 0=Auto, 1=Force Charge, 2=Force Discharge |
 | 3 | 40004 | RW | Boiler (resistive) | 0=Off, 1=On (+3000W) |
 | 4 | 40005 | RW | Heat Pump Mode | 0=Off, 1=Comfort (+1500W), 2=Boost (+3000W) |
 | 5 | 40006 | RW | EV Charging Limit | 0-7400 W |
@@ -77,7 +77,6 @@ simulator (Modbus) → HA (Modbus TCP) → automations
 - `sensor.sztuczny_stan_baterii_soc` — Battery (%)
 - `sensor.ems_pobor_domu_bazowy` — House load (W)
 - `sensor.ems_biezaca_cena_energii` — Price (gr/kWh)
-- `switch.inwerter_wymus_ladowanie_z_sieci` — Force charge
 - `switch.ems_bojler_grzalka_3kw` — Boiler Modbus (reg 3)
 
 ### REST (Open-Meteo)
@@ -106,6 +105,7 @@ Without these sync automations, changing HA entities has no effect on the simula
 ### Native HA (always available)
 - `input_boolean.wirtualny_bojler` — Boiler switch
 - `input_select.ems_tryb_pompy_ciepla` — HP mode (Wylaczona/Komfort/Boost)
+- `input_select.ems_tryb_inwertera` — Inverter mode (Auto/Force Charge/Force Discharge)
 - `input_number.ems_limit_ladowania_ev` — EV charge limit (0-7400W)
 - `input_number.ems_max_pobor_sieci` — Peak shaving threshold
 - `input_boolean.ems_peak_shaving_active` — Peak shaving flag
@@ -122,6 +122,10 @@ Without these sync automations, changing HA entities has no effect on the simula
 7. **EV Sync** — synchronizes input_number → Modbus reg 5
 8. **Night Charging** — charges battery from grid at cheap hours (02:00-05:00, <30 gr/kWh); checks battery degradation cost (spread = PSE peak forecast - current > degradation_cost); skips if tomorrow's GHI peak >400 W/m² (sun will charge for free)
 9. **Smart EV (degradation)** — same degradation cost check before grid charging EV at <20 gr/kWh
+10. **Inverter Sync** — synchronizes input_select → Modbus reg 2 (0/1/2)
+11. **Arbitrage: Discharge on peak** — when price >55 gr, SoC >20%, switches to Force Discharge
+12. **Arbitrage: Charge on low price** — when price <25 gr, SoC <80%, switches to Force Charge (checks degradation)
+13. **Arbitrage: Return to Auto** — when 25 ≤ price ≤ 55 or SoC critical, switches back to Auto
 
 ## Dashboard
 

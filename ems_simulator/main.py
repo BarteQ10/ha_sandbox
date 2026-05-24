@@ -86,6 +86,8 @@ def main():
 
             if force == 1:
                 print(f"[FORCE]  Charging  {soc:.0f} -> {new_soc:.0f}%")
+            elif force == 2:
+                print(f"[FORCE]  Discharging  {soc:.0f} -> {new_soc:.0f}%")
             elif balance > 200 and new_soc > soc:
                 print(f"[PV]     Surplus +{balance:+.0f}W  SoC {soc:.0f} -> {new_soc:.0f}%")
             elif balance > 0 and new_soc >= 100:

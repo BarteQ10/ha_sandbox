@@ -117,9 +117,9 @@ views:
             name: EV ladowanie
             icon: mdi:car-electric
           - type: tile
-            entity: switch.inwerter_wymus_ladowanie_z_sieci
-            name: Force Charge
-            icon: mdi:battery-charging
+            entity: input_select.ems_tryb_inwertera
+            name: Tryb inwertera
+            icon: mdi:battery
 
       - type: grid
         cards:
@@ -134,9 +134,9 @@ views:
             name: Max pobor z sieci
             icon: mdi:transmission-tower
           - type: tile
-            entity: switch.inwerter_wymus_ladowanie_z_sieci
-            name: Ladowanie z sieci
-            icon: mdi:weather-night
+            entity: input_select.ems_tryb_inwertera
+            name: Tryb inwertera
+            icon: mdi:battery
 
       - type: grid
         cards:

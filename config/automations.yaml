@@ -261,6 +261,154 @@
       value: "{{ states('input_number.ems_limit_ladowania_ev') | int }}"
   mode: restart
 
+- id: '1779394737435'
+  alias: 'EMS: Sync Tryb Inwertera HA -> Modbus'
+  description: Synchronizuje input_select.ems_tryb_inwertera z rejestrem Modbus 2
+  triggers:
+  - entity_id: input_select.ems_tryb_inwertera
+    trigger: state
+  conditions: []
+  actions:
+  - variables:
+      mode: "{{ states('input_select.ems_tryb_inwertera') }}"
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: "{{ mode == 'Auto' }}"
+      sequence:
+      - action: modbus.write_register
+        data:
+          hub: wirtualny_inwerter
+          address: 2
+          value: 0
+    - conditions:
+      - condition: template
+        value_template: "{{ mode == 'Force Charge' }}"
+      sequence:
+      - action: modbus.write_register
+        data:
+          hub: wirtualny_inwerter
+          address: 2
+          value: 1
+    - conditions:
+      - condition: template
+        value_template: "{{ mode == 'Force Discharge' }}"
+      sequence:
+      - action: modbus.write_register
+        data:
+          hub: wirtualny_inwerter
+          address: 2
+          value: 2
+  mode: restart
+
+- id: '1779394737436'
+  alias: 'EMS: Arbitraz - rozladowanie na szczycie cenowym'
+  description: >
+    Gdy cena przekracza 55 gr/kWh a bateria ma zapas, wymusza rozladowanie
+    by pokryc zapotrzebowanie domu i oszczedzic na drogim pradzie.
+  triggers:
+  - entity_id: sensor.ems_biezaca_cena_energii
+    trigger: state
+  - trigger: time_pattern
+    minutes: '/1'
+  conditions:
+  - condition: numeric_state
+    entity_id: sensor.ems_biezaca_cena_energii
+    above: 55
+  - condition: numeric_state
+    entity_id: sensor.ems_szczyt_cena_dzis
+    above: 60
+  - condition: numeric_state
+    entity_id: sensor.sztuczny_stan_baterii_soc
+    above: 20
+  - condition: template
+    value_template: >
+      {{ states('input_select.ems_tryb_inwertera') != 'Force Discharge' }}
+  actions:
+  - action: input_select.select_option
+    target:
+      entity_id: input_select.ems_tryb_inwertera
+    data:
+      option: "Force Discharge"
+  - action: notify.persistent_notification
+    data:
+      title: "EMS: Arbitraz cenowy"
+      message: >
+        Wysoka cena ({{ states('sensor.ems_biezaca_cena_energii') }} gr/kWh),
+        wymuszono rozladowanie baterii.
+  mode: single
+
+- id: '1779394737437'
+  alias: 'EMS: Arbitraz - ladowanie przy niskiej cenie'
+  description: >
+    Gdy cena spada ponizej 25 gr/kWh i jest ponizej kosztu degradacji,
+    wymusza ladowanie baterii z sieci (jesli nie w oknie nocnym).
+  triggers:
+  - entity_id: sensor.ems_biezaca_cena_energii
+    trigger: state
+  - trigger: time_pattern
+    minutes: '/1'
+  conditions:
+  - condition: numeric_state
+    entity_id: sensor.ems_biezaca_cena_energii
+    below: 25
+  - condition: numeric_state
+    entity_id: sensor.sztuczny_stan_baterii_soc
+    below: 80
+  - condition: template
+    value_template: >
+      {% set peak = states('sensor.ems_szczyt_cena_dzis') | int(60) %}
+      {% set price = states('sensor.ems_biezaca_cena_energii') | int(0) %}
+      {% set deg = states('input_number.ems_koszt_degradacji_baterii') | int(15) %}
+      {{ (peak - price) > deg }}
+  - condition: template
+    value_template: >
+      {{ states('input_select.ems_tryb_inwertera') != 'Force Charge' }}
+  actions:
+  - action: input_select.select_option
+    target:
+      entity_id: input_select.ems_tryb_inwertera
+    data:
+      option: "Force Charge"
+  - action: notify.persistent_notification
+    data:
+      title: "EMS: Arbitraz cenowy"
+      message: >
+        Niska cena ({{ states('sensor.ems_biezaca_cena_energii') }} gr/kWh),
+        wymuszono ladowanie baterii.
+  mode: single
+
+- id: '1779394737438'
+  alias: 'EMS: Arbitraz - powrot do Auto'
+  description: >
+    Gdy cena wroci do normalnego zakresu (25-55) lub bateria jest kritcznie
+    niska/wysoka, wraca do trybu Auto.
+  triggers:
+  - entity_id: sensor.ems_biezaca_cena_energii
+    trigger: state
+  - entity_id: sensor.sztuczny_stan_baterii_soc
+    trigger: state
+  conditions:
+  - condition: template
+    value_template: >
+      {{ states('input_select.ems_tryb_inwertera') in ['Force Charge', 'Force Discharge'] }}
+  - condition: template
+    value_template: >
+      {% set price = states('sensor.ems_biezaca_cena_energii') | int(0) %}
+      {% set soc = states('sensor.sztuczny_stan_baterii_soc') | int(0) %}
+      {{ price >= 25 and price <= 55 or soc <= 5 or soc >= 95 }}
+  actions:
+  - action: input_select.select_option
+    target:
+      entity_id: input_select.ems_tryb_inwertera
+    data:
+      option: "Auto"
+  - action: notify.persistent_notification
+    data:
+      title: "EMS: Arbitraz cenowy"
+      message: "Powrot do trybu Auto (cena lub SoC w normie)."
+  mode: single
+
 - id: '1779394737433'
   alias: 'EMS: Ladowanie nocne - tania energia'
   description: >
@@ -291,9 +439,11 @@
     value_template: >
       {{ states('sensor.ems_prognoza_pv_jutro_szczyt_ghi') | int(0) < 400 }}
   actions:
-  - action: switch.turn_on
+  - action: input_select.select_option
     target:
-      entity_id: switch.inwerter_wymus_ladowanie_z_sieci
+      entity_id: input_select.ems_tryb_inwertera
+    data:
+      option: "Force Charge"
   - action: notify.persistent_notification
     data:
       title: "EMS: Ladowanie nocne"
@@ -313,11 +463,13 @@
     above: 95
   conditions:
   - condition: template
-    value_template: "{{ states('switch.inwerter_wymus_ladowanie_z_sieci') == 'on' }}"
+    value_template: "{{ states('input_select.ems_tryb_inwertera') == 'Force Charge' }}"
   actions:
-  - action: switch.turn_off
+  - action: input_select.select_option
     target:
-      entity_id: switch.inwerter_wymus_ladowanie_z_sieci
+      entity_id: input_select.ems_tryb_inwertera
+    data:
+      option: "Auto"
   - action: notify.persistent_notification
     data:
       title: "EMS: Koniec ladowania nocnego"

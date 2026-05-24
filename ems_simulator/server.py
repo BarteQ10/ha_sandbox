@@ -21,7 +21,7 @@ def banner():
     print(f"  EMS SIMULATOR v5  ({MODBUS_HOST}:{MODBUS_PORT})")
     print("  [R] 0  PV Production              (W)")
     print("  [R] 1  Battery SoC                (%)")
-    print("  [W] 2  Force Charge               (0=Auto 1=On)")
+    print("  [W] 2  Inverter Mode               (0=Auto 1=ForceChg 2=ForceDis)")
     print("  [W] 3  Boiler                     (0=Off 1=On)")
     print("  [W] 4  Heat Pump Mode             (0=Off 1=Comfort 2=Boost)")
     print("  [W] 5  EV Charging Limit          (0-7400W)")
