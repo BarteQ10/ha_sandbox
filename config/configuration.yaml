@@ -96,8 +96,36 @@ template:
       - name: "EMS: Dom safe (fallback 0)"
         unit_of_measurement: "W"
         state: "{{ states('sensor.ems_pobor_domu_bazowy') | int(0) }}"
+      - name: "EMS: Prognoza PV jutro (szczyt GHI)"
+        unit_of_measurement: "W/m^2"
+        state: >
+          {% set times = state_attr('sensor.open_meteo_ghi', 'time') %}
+          {% set ghis = state_attr('sensor.open_meteo_ghi', 'shortwave_radiation') %}
+          {% if times is none or ghis is none %}
+            0
+          {% else %}
+          {% set tomorrow = (now() + timedelta(days=1)).date() %}
+          {% set ns = namespace(max=0) %}
+          {% for i in range(times | length) %}
+            {% set dt = as_datetime(times[i]) %}
+            {% if dt.date() == tomorrow and ghis[i] | float(0) > ns.max %}
+              {% set ns.max = ghis[i] | float(0) %}
+            {% endif %}
+          {% endfor %}
+          {{ ns.max | int }}
+          {% endif %}
 
 sensor:
+  - platform: rest
+    name: "Open-Meteo GHI"
+    resource: https://api.open-meteo.com/v1/forecast?latitude=52.23&longitude=21.01&hourly=shortwave_radiation&timezone=Europe/Warsaw&forecast_days=2
+    method: GET
+    scan_interval: 3600
+    json_attributes_path: "$.hourly"
+    json_attributes:
+      - "time"
+      - "shortwave_radiation"
+    value_template: OK
   - platform: integration
     source: sensor.sztuczna_produkcja_pv
     name: "EMS: Energia PV (Riemann)"

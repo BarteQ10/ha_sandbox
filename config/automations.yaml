@@ -257,7 +257,9 @@
 
 - id: '1779394737433'
   alias: 'EMS: Ladowanie nocne - tania energia'
-  description: Laduje baterie z sieci w najtanszych godzinach 2:00-5:00
+  description: >
+    Laduje baterie z sieci w najtanszych godzinach 2:00-5:00.
+    Pomin ladowanie gdy jutro bedzie slonecznie (GHI>400) - PV zaladuje baterie za darmo.
   triggers:
   - trigger: time_pattern
     hours: '*'
@@ -272,6 +274,9 @@
   - condition: numeric_state
     entity_id: sensor.ems_biezaca_cena_energii
     below: 30
+  - condition: template
+    value_template: >
+      {{ states('sensor.ems_prognoza_pv_jutro_szczyt_ghi') | int(0) < 400 }}
   actions:
   - action: switch.turn_on
     target:
@@ -279,12 +284,14 @@
   - action: notify.persistent_notification
     data:
       title: "EMS: Ladowanie nocne"
-      message: "Rozpoczeto ladowanie baterii z sieci (tania energia, <30gr/kWh)"
+      message: >
+        Rozpoczeto ladowanie baterii z sieci (tania energia, <30gr/kWh).
+        Prognoza PV na jutro: {{ states('sensor.ems_prognoza_pv_jutro_szczyt_ghi') }} W/m2.
   mode: single
 
 - id: '1779394737434'
   alias: 'EMS: Zakoncz ladowanie nocne'
-  description: Wylacza ladowanie nocne gdy bateria pelna lub konczy sie tania taryfa
+  description: Wylacza ladowanie nocne gdy bateria pelna (95%) lub konczy sie tania taryfa (05:00)
   triggers:
   - trigger: time
     at: '05:00:00'
