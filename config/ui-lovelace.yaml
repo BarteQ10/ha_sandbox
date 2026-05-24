@@ -141,7 +141,7 @@ views:
       - type: grid
         cards:
           - type: heading
-            heading: Ceny energii
+            heading: Ceny i prognoza
           - type: tile
             entity: sensor.ems_biezaca_cena_energii
             name: Biezaca cena
@@ -150,6 +150,12 @@ views:
             entity: input_number.wirtualna_cena_pradu
             name: Cena RCE
             icon: mdi:cash-multiple
+          - type: tile
+            entity: sensor.ems_prognoza_pv_jutro_szczyt_ghi
+            name: GHI jutro (szczyt)
+            icon: mdi:weather-sunny
+            unit: W/m^2
+            show_entity_picture: false
 
   - title: Energy
     path: energy
