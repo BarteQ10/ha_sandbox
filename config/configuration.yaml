@@ -78,6 +78,11 @@ modbus:
         address: 13
         unit_of_measurement: "0.1kWh"
         data_type: int16
+      - name: "EMS: Status sieci"
+        slave: 1
+        address: 14
+        unit_of_measurement: ""
+        data_type: int16
     switches:
       - name: "EMS: Bojler (Grzałka 3kW)"
         slave: 1
@@ -207,6 +212,14 @@ input_select:
       - "Force Discharge"
     initial: "Auto"
     icon: mdi:battery
+  ems_status_sieci:
+    name: "EMS: Status sieci"
+    options:
+      - "Normal"
+      - "Blackout"
+      - "Fluktuacje"
+    initial: "Normal"
+    icon: mdi:transmission-tower-export
 
 input_number:
   wirtualna_cena_pradu:

@@ -124,6 +124,10 @@ views:
             entity: switch.ems_ograniczenie_pv
             name: Ogranicznik PV
             icon: mdi:solar-power-variant
+          - type: tile
+            entity: input_select.ems_status_sieci
+            name: Status sieci
+            icon: mdi:transmission-tower-export
 
       - type: grid
         cards:

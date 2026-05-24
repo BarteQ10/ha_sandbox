@@ -65,6 +65,7 @@ simulator (Modbus) → HA (Modbus TCP) → automations
 | 11 | 40012 | R | Charge Window Start | hour (0-23, 24=no charge needed) |
 | 12 | 40013 | R | Charge Window Duration | hours × 10 |
 | 13 | 40014 | R | PV Forecast Tomorrow | kWh × 10 |
+| 14 | 40015 | RW | Grid Status | 0=Normal, 1=Blackout, 2=Fluktuacje |
 
 ## Simulation
 
@@ -97,10 +98,11 @@ simulator (Modbus) → HA (Modbus TCP) → automations
 - `sensor.ems_bilans_finansowy_dzis` — Same in PLN (template sensor)
 - `sensor.ems_szczyt_cena_dzis` — Today's peak price from PSE 24h forecast (gr/kWh, Modbus reg 8)
 
-### Critical: HA → Modbus sync (3 automations)
+### Critical: HA → Modbus sync (4 automations)
 - `input_boolean.wirtualny_bojler` → `switch.ems_bojler_grzalka_3kw` → reg 3
 - `input_select.ems_tryb_pompy_ciepla` → `modbus.write_register` → reg 4 (0/1/2)
 - `input_number.ems_limit_ladowania_ev` → `modbus.write_register` → reg 5
+- `input_select.ems_status_sieci` → `modbus.write_register` → reg 14 (0/1/2)
 
 Without these sync automations, changing HA entities has no effect on the simulator.
 
@@ -112,6 +114,7 @@ Without these sync automations, changing HA entities has no effect on the simula
 - `input_boolean.wirtualny_bojler` — Boiler switch
 - `input_select.ems_tryb_pompy_ciepla` — HP mode (Wylaczona/Komfort/Boost)
 - `input_select.ems_tryb_inwertera` — Inverter mode (Auto/Force Charge/Force Discharge)
+- `input_select.ems_status_sieci` — Grid status (Normal/Blackout/Fluktuacje)
 - `input_number.ems_limit_ladowania_ev` — EV charge limit (0-7400W)
 - `input_number.ems_max_pobor_sieci` — Peak shaving threshold
 - `input_boolean.ems_peak_shaving_active` — Peak shaving flag
@@ -136,6 +139,9 @@ Without these sync automations, changing HA entities has no effect on the simula
 15. **Negative prices: Smart load dispatch** — when price < 0: always boiler + Force Charge; if SoC > 30% adds EV 7400W; if SoC > 50% adds HP Boost
 16. **Negative prices: PV curtailment** — when price < 0, SoC > 95%, and still exporting → enables zero-export (curtail PV)
 17. **Negative prices: Restore normal** — when price returns above 0, disables curtailment, returns inverter to Auto, turns off loads
+18. **Grid Status Sync** — synchronizes `input_select.ems_status_sieci` → Modbus reg 14 (0/1/2)
+19. **Island load shed** — when Blackout + SoC < 30%, force off boiler/EV/HP in HA
+20. **Island recovery** — when grid returns to Normal, restore normal operation
 
 ## Dashboard
 
@@ -165,6 +171,7 @@ Written every 5s by `influx_writer.py` to bucket `ems` (token: `ems-token`, org:
 | `sensor.ems_charge_window_start` | Charge window start hour | h |
 | `sensor.ems_charge_window_duration` | Charge window duration | h×10 |
 | `sensor.ems_pv_forecast_tomorrow_kwh` | Forecast PV energy tomorrow | kWh |
+| `sensor.ems_status_sieci` | Grid status (0=Normal, 1=Blackout, 2=Fluktuacje) | — |
 
 ## Financial Counter & Battery Degradation
 
@@ -194,6 +201,24 @@ Night charging and EV grid charging only fire when:
 ```
 PSE_peak_forecast - current_price > degradation_cost
 ```
+
+## Island Mode (Grid Status — Reg 14)
+
+`input_select.ems_status_sieci` controls simulated grid status via Modbus reg 14:
+
+| Value | Mode | Description |
+|-------|------|-------------|
+| 0 | Normal | Grid connected — full financial tracking, force charge/discharge available |
+| 1 | Blackout | Grid disconnected — island mode |
+| 2 | Fluktuacje | Grid instability (reserved for future use) |
+
+### Behavior in Blackout (reg 14 = 1)
+
+- **No grid exchange**: `running_cost_pln` stops accumulating (no financial tracking)
+- **Force Charge ignored**: treated as Auto (no grid to draw from)
+- **Load shedding**: when SoC ≤ 5% and still deficit (`pv - load < 0`), Python sheds all controllable loads (boiler, EV, HP) and recalculates balance. If still negative, battery drains to 0%.
+- **HA protection**: separate automation (`EMS: Island mode - load shed ochrona`) monitors grid_status and SoC every minute — turns off boiler, EV, HP in HA when Blackout + SoC < 30%
+- **Recovery**: automation `EMS: Island mode - powrot sieci` fires when grid returns to Normal
 
 ### Peak price from PSE forecast
 `pricing.max_today()` returns the maximum price from the cached 24h PSE data (all hours already fetched at once). If PSE API fails, falls back to max price band (80 gr/kWh). Exposed via Modbus reg 8 as `sensor.ems_szczyt_cena_dzis`.

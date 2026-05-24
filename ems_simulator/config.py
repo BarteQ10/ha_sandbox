@@ -3,7 +3,7 @@ import datetime
 # Modbus
 MODBUS_HOST = "0.0.0.0"
 MODBUS_PORT = 5020
-NUM_REGISTERS = 14
+NUM_REGISTERS = 15
 TICK_S = 5
 
 # Location (Open-Meteo, no API key)
@@ -30,6 +30,11 @@ PV_PEAK_KW = 5.0
 BATTERY_KWH = 15.0
 SOC_DELTA_DENOM = 1080.0
 INVERTER_EFFICIENCY = 0.92  # Round-trip AC↔DC conversion loss (8%)
+
+# Grid status
+GRID_NORMAL = 0
+GRID_BLACKOUT = 1
+GRID_INSTABILITY = 2
 
 # Load spikes
 SPIKE_CHANCE = 0.03

@@ -18,7 +18,7 @@ def write(registers):
 
 def banner():
     print("=" * 64)
-    print(f"  EMS SIMULATOR v5  ({MODBUS_HOST}:{MODBUS_PORT})")
+    print(f"  EMS SIMULATOR v6  ({MODBUS_HOST}:{MODBUS_PORT})")
     print("  [R] 0  PV Production              (W)")
     print("  [R] 1  Battery SoC                (%)")
     print("  [W] 2  Inverter Mode               (0=Auto 1=ForceChg 2=ForceDis)")
@@ -33,4 +33,5 @@ def banner():
     print("  [R] 11 Charge Window Start          (hour 0-23, 24=none)")
     print("  [R] 12 Charge Window Duration       (hours * 10)")
     print("  [R] 13 PV Forecast Tomorrow         (0.1 kWh)")
+    print("  [W] 14 Grid Status                   (0=Normal 1=Blackout 2=Fluktuacje)")
     print("=" * 64)

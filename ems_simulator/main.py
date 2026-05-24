@@ -2,12 +2,12 @@ import time
 import random as _random
 import datetime
 
-from ems_simulator.config import TICK_S
+from ems_simulator.config import TICK_S, GRID_NORMAL, GRID_BLACKOUT
 from ems_simulator.weather import fetch as w_fetch, get as w_get, needs_refresh as w_needs_refresh
 from ems_simulator.pricing import fetch as p_fetch, get as p_get, max_today as p_max_today, needs_refresh as p_needs_refresh, fallback_price as p_fallback, _price_cache as p_cache
 from ems_simulator.generators import pv_from_ghi, base_load, SpikeState, controllable_load
 from ems_simulator.charge_scheduler import compute_charge_window
-from ems_simulator.battery import delta as batt_delta, clamp as batt_clamp
+from ems_simulator.battery import delta as batt_delta, clamp as batt_clamp, MODE_AUTO, MODE_FORCE_CHARGE, MODE_FORCE_DISCHARGE
 from ems_simulator.server import start as srv_start, stop as srv_stop, read as srv_read, write as srv_write, banner as srv_banner
 from ems_simulator.influx_writer import start as inf_start, write as inf_write, stop as inf_stop, read_last as inf_read_last
 
@@ -49,6 +49,7 @@ def main():
             hp        = regs[4]
             ev        = regs[5]
             curtail   = regs[10] if len(regs) > 10 else 0
+            grid_status = regs[14] if len(regs) > 14 else 0
 
             day_step = (day_step + 1) % 288
             if day_step == 0:
@@ -95,18 +96,49 @@ def main():
                       f"need={chg_energy}kWh  PVtom={chg_pv_kwh}kWh")
 
             balance = pv - load
+
+            # Island mode: load shed on critical SoC
+            if grid_status == GRID_BLACKOUT and soc <= 5 and balance < 0:
+                if boiler > 0:
+                    print(f"[ISLAND] Shed boiler (SoC={soc:.0f}%)")
+                    load -= 3000
+                    boiler = 0
+                if ev > 0:
+                    print(f"[ISLAND] Shed EV {ev}W (SoC={soc:.0f}%)")
+                    load -= ev
+                    ev = 0
+                if hp > 0:
+                    hp_save = {1: 1500, 2: 3000}.get(hp, 0)
+                    print(f"[ISLAND] Shed HP {hp_save}W (SoC={soc:.0f}%)")
+                    load -= hp_save
+                    hp = 0
+                balance = pv - load
+                if balance < 0:
+                    print(f"[ISLAND] After shed: still deficit {balance:.0f}W")
+
             dt_h = TICK_S * 60.0 / 3600.0
-            running_cost_pln += -balance * price * dt_h / (100.0 * 1000.0)
-            delta = batt_delta(balance, force)
+            if grid_status == GRID_BLACKOUT:
+                pass  # no grid → no financial tracking
+            else:
+                running_cost_pln += -balance * price * dt_h / (100.0 * 1000.0)
+
+            actual_force = force
+            if grid_status == GRID_BLACKOUT and force == MODE_FORCE_CHARGE:
+                actual_force = MODE_AUTO
+
+            delta = batt_delta(balance, actual_force)
             new_soc = batt_clamp(soc + delta)
 
             if day_step % 60 == 0:
-                print(f"[PEAK]  Peak today: {peak_today} gr/kWh, "
+                tag = "[ISLAND]" if grid_status == GRID_BLACKOUT else "[PEAK]"
+                print(f"{tag} Peak today: {peak_today} gr/kWh, "
                       f"Current: {price} gr/kWh, Cost: {running_cost_pln:.2f} PLN")
 
-            if force == 1:
+            if grid_status == GRID_BLACKOUT and force == MODE_FORCE_CHARGE:
+                print(f"[ISLAND] Force Charge ignored (no grid), running in Auto")
+            elif force == MODE_FORCE_CHARGE:
                 print(f"[FORCE]  Charging  {soc:.0f} -> {new_soc:.0f}%")
-            elif force == 2:
+            elif force == MODE_FORCE_DISCHARGE:
                 print(f"[FORCE]  Discharging  {soc:.0f} -> {new_soc:.0f}%")
             elif balance > 200 and new_soc > soc:
                 print(f"[PV]     Surplus +{balance:+.0f}W  SoC {soc:.0f} -> {new_soc:.0f}%")
@@ -115,7 +147,8 @@ def main():
             elif balance < -200 and new_soc < soc:
                 print(f"[BAT]    Deficit {balance:+.0f}W  SoC {soc:.0f} -> {new_soc:.0f}%")
             elif new_soc <= 0:
-                print(f"[GRID]   Battery empty, draw {-balance:.0f}W at {price}gr/kWh")
+                label = "BLACKOUT" if grid_status == GRID_BLACKOUT else "GRID"
+                print(f"[{label}] Battery empty, load shed {-balance:.0f}W")
 
             cost_int = int(round(running_cost_pln * 100))
 
@@ -134,9 +167,12 @@ def main():
                 chg_start if chg_start is not None else 24,
                 int(round(chg_duration * 10)),
                 int(round(chg_pv_kwh * 10)),
+                grid_status,
             ])
 
-            inf_write(pv, round(new_soc), load, price, balance, current_temp, cloud, ghi, peak_today, round(running_cost_pln, 2), curtail, chg_start, chg_duration, chg_pv_kwh)
+            inf_write(pv, round(new_soc), load, price, balance, current_temp, cloud, ghi,
+                      peak_today, round(running_cost_pln, 2), curtail,
+                      chg_start, chg_duration, chg_pv_kwh, grid_status)
 
             time.sleep(TICK_S)
 

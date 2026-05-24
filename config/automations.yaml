@@ -625,3 +625,107 @@
       title: "EMS: Ujemne ceny"
       message: "Cena wrocila do dodatniej, przywrocono normalny tryb."
   mode: single
+
+- id: 'ems_sync_grid_status'
+  alias: 'EMS: Sync Status Sieci HA -> Modbus'
+  description: Synchronizuje input_select.ems_status_sieci z rejestrem Modbus 14
+  triggers:
+  - entity_id: input_select.ems_status_sieci
+    trigger: state
+  conditions: []
+  actions:
+  - variables:
+      mode: "{{ states('input_select.ems_status_sieci') }}"
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: "{{ mode == 'Normal' }}"
+      sequence:
+      - action: modbus.write_register
+        data:
+          hub: wirtualny_inwerter
+          address: 14
+          value: 0
+    - conditions:
+      - condition: template
+        value_template: "{{ mode == 'Blackout' }}"
+      sequence:
+      - action: modbus.write_register
+        data:
+          hub: wirtualny_inwerter
+          address: 14
+          value: 1
+    - conditions:
+      - condition: template
+        value_template: "{{ mode == 'Fluktuacje' }}"
+      sequence:
+      - action: modbus.write_register
+        data:
+          hub: wirtualny_inwerter
+          address: 14
+          value: 2
+  mode: restart
+
+- id: 'ems_island_protection'
+  alias: 'EMS: Island mode - load shed ochrona'
+  description: >
+    Gdy tryb Blackout i SoC < 30%, wylacza wszystkie zbedne odbiorniki
+    by chronic baterie przed calkowitym wyczerpaniem.
+  triggers:
+  - entity_id: sensor.ems_status_sieci
+    trigger: state
+  - entity_id: sensor.sztuczny_stan_baterii_soc
+    trigger: state
+  - trigger: time_pattern
+    minutes: '/1'
+  conditions:
+  - condition: numeric_state
+    entity_id: sensor.ems_status_sieci
+    above: 0
+  - condition: numeric_state
+    entity_id: sensor.sztuczny_stan_baterii_soc
+    below: 30
+  actions:
+  - action: input_boolean.turn_off
+    target:
+      entity_id: input_boolean.wirtualny_bojler
+  - action: input_select.select_option
+    target:
+      entity_id: input_select.ems_tryb_pompy_ciepla
+    data:
+      option: "Wylaczona"
+  - action: input_number.set_value
+    target:
+      entity_id: input_number.ems_limit_ladowania_ev
+    data:
+      value: 0
+  - action: notify.persistent_notification
+    data:
+      title: "EMS: Island mode"
+      message: >
+        Blackout + SoC < 30%: wylaczono zbedne odbiorniki,
+        bateria chroniona.
+  mode: single
+
+- id: 'ems_island_recovery'
+  alias: 'EMS: Island mode - powrot sieci'
+  description: >
+    Gdy siec wraca do Normal (z Blackout/Fluktuacje),
+    przywraca normalne sterowanie.
+  triggers:
+  - entity_id: sensor.ems_status_sieci
+    trigger: state
+  conditions:
+  - condition: numeric_state
+    entity_id: sensor.ems_status_sieci
+    below: 1
+  - condition: template
+    value_template: >
+      {{ trigger.from_state.state not in ['unknown', 'unavailable']
+         and trigger.from_state.state != '0' }}
+  actions:
+  - action: notify.persistent_notification
+    data:
+      title: "EMS: Island mode"
+      message: "Sieć wrocila do normy - tryb normalny."
+  mode: single
