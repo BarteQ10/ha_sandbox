@@ -29,6 +29,7 @@ PV_PEAK_KW = 5.0
 # Battery (60x simulated-speed factor baked in)
 BATTERY_KWH = 15.0
 SOC_DELTA_DENOM = 1080.0
+INVERTER_EFFICIENCY = 0.92  # Round-trip AC↔DC conversion loss (8%)
 
 # Load spikes
 SPIKE_CHANCE = 0.03

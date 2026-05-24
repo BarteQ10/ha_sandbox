@@ -180,6 +180,13 @@ cost_chwilowy = -balance * price / (100 * 1000 * dt_h)   # PLN
 - Cumulative `running_cost_pln` resets at simulated midnight (`day_step == 0`)
 - On restart, restored from InfluxDB last value (via `inf_read_last`)
 
+### Inverter round-trip efficiency
+`INVERTER_EFFICIENCY = 0.92` in `config.py` models AC↔DC conversion losses (~8% dissipated as heat). Applied in `battery.py`:
+- **Charging** (`balance > 0` or Force Charge): effective SoC delta = `power × 0.92 / SOC_DELTA_DENOM`
+- **Discharging** (`balance < 0` or Force Discharge): effective SoC delta = `-power / 0.92 / SOC_DELTA_DENOM`
+
+This adds an additional cost layer on top of battery degradation: arbitrage must cover both the 8% energy loss and the 15 gr/kWh cycle cost before generating profit.
+
 ### Battery degradation cost
 `input_number.ems_koszt_degradacji_baterii` (default 15 gr/kWh) represents the real cost of cycling the battery (15kWh ÷ 6000 cycles × 15000 zl ≈ 15 gr/kWh).
 
