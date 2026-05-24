@@ -744,3 +744,33 @@
       address: 15
       value: "{{ 1 if states('input_boolean.ems_symuluj_awarie_api') == 'on' else 0 }}"
   mode: restart
+
+- id: 'ems_sync_storm_safeguard'
+  alias: 'EMS: Sync Storm Safeguard HA -> Modbus'
+  description: Synchronizuje input_boolean.ems_storm_safeguard z rejestrem Modbus 16
+  triggers:
+  - entity_id: input_boolean.ems_storm_safeguard
+    trigger: state
+  conditions: []
+  actions:
+  - action: modbus.write_register
+    data:
+      hub: wirtualny_inwerter
+      address: 16
+      value: "{{ 1 if states('input_boolean.ems_storm_safeguard') == 'on' else 0 }}"
+  mode: restart
+
+- id: 'ems_sync_ev_override'
+  alias: 'EMS: Sync EV Override HA -> Modbus'
+  description: Synchronizuje input_boolean.ems_ev_override z rejestrem Modbus 17
+  triggers:
+  - entity_id: input_boolean.ems_ev_override
+    trigger: state
+  conditions: []
+  actions:
+  - action: modbus.write_register
+    data:
+      hub: wirtualny_inwerter
+      address: 17
+      value: "{{ 1 if states('input_boolean.ems_ev_override') == 'on' else 0 }}"
+  mode: restart

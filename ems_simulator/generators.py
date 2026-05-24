@@ -1,7 +1,39 @@
 import random
 import math
 
-from ems_simulator.config import PV_PEAK_KW, SPIKE_CHANCE, SPIKE_WATTS, SPIKE_MAX_TICKS
+from ems_simulator.config import PV_PEAK_KW, SPIKE_CHANCE, SPIKE_WATTS, SPIKE_MAX_TICKS, DEVICE_MIN_ON_SIM_MIN, DEVICE_MIN_OFF_SIM_MIN, TICK_S
+
+class DeviceTimer:
+    def __init__(self, min_on_sim_min=None, min_off_sim_min=None):
+        self._min_on = (min_on_sim_min if min_on_sim_min is not None else DEVICE_MIN_ON_SIM_MIN) // 5
+        self._min_off = (min_off_sim_min if min_off_sim_min is not None else DEVICE_MIN_OFF_SIM_MIN) // 5
+        self._remaining = 0
+        self._current_value = 0
+
+    def constrain(self, desired):
+        was_on = self._current_value > 0
+        want_on = desired > 0
+        if was_on == want_on:
+            if self._remaining > 0:
+                self._remaining -= 1
+            self._current_value = desired
+            return desired
+        if was_on and not want_on:
+            if self._remaining > 0:
+                return self._current_value
+            self._remaining = self._min_off
+            self._current_value = 0
+            return 0
+        if self._remaining > 0:
+            return 0
+        self._remaining = self._min_on
+        self._current_value = desired
+        return desired
+
+    @property
+    def value(self):
+        return self._current_value
+
 
 def pv_from_ghi(ghi, hour):
     if ghi is not None:

@@ -15,10 +15,10 @@ HA connects to `192.168.0.18:5020` (Modbus TCP).
 
 ```
 ems_simulator/
-├── config.py              # Location, PV kWp, battery kWh, price bands
+├── config.py              # Location, PV kWp, battery kWh, price/distribution bands
 ├── weather.py             # Open-Meteo API: GHI + temperature + cloud cover
-├── pricing.py             # PSE API: real RCE prices (PLN/MWh → gr/kWh)
-├── generators.py          # PV, load, spike simulation
+├── pricing.py             # PSE API + distribution_rate() tariff helper
+├── generators.py          # PV, load, spike simulation, DeviceTimer (anti-chatter)
 ├── battery.py             # SoC delta from power balance
 ├── charge_scheduler.py    # Dynamic charge window (PV forecast + price bands)
 ├── server.py              # Modbus TCP server (pyModbusTCP)
@@ -67,6 +67,8 @@ simulator (Modbus) → HA (Modbus TCP) → automations
 | 13 | 40014 | R | PV Forecast Tomorrow | kWh × 10 |
 | 14 | 40015 | RW | Grid Status | 0=Normal, 1=Blackout, 2=Fluktuacje |
 | 15 | 40016 | RW | API Anomaly Simulator | 0=Off, 1=On (forces synthetic data) |
+| 16 | 40017 | RW | Storm Safeguard | 0=Off, 1=Force 100% SoC |
+| 17 | 40018 | RW | EV Override | 0=Auto/EMS, 1=Manual 7400W |
 
 ## Simulation
 
@@ -75,6 +77,7 @@ simulator (Modbus) → HA (Modbus TCP) → automations
 - **House**: daily profile + **temperature-dependent load** (heating when <18C, cooling when >26C)
 - **Spikes**: random 2-7kW events (kettle, oven, induction) every ~2-8 min
 - **Prices**: **real RCE from PSE API** (`api.raporty.pse.pl`) — 15-min aggregated to hourly; shows duck curve (near-zero at solar noon, peak evening)
+- **Distribution fees**: on import (`balance < 0`), distribution cost added to PSE price: peak hours (6-13, 15-22) +28 gr/kWh, off-peak +12 gr/kWh. Export uses PSE price only (no distribution paid by operator).
 - **Battery**: 15kWh LiFePO4, smooth SoC delta from real-time power balance
 
 ## HA Entities
@@ -120,6 +123,8 @@ Without these sync automations, changing HA entities has no effect on the simula
 - `input_number.ems_max_pobor_sieci` — Peak shaving threshold
 - `input_boolean.ems_peak_shaving_active` — Peak shaving flag
 - `input_number.ems_koszt_degradacji_baterii` — Battery degradation cost (gr/kWh, default 15)
+- `input_boolean.ems_storm_safeguard` — Storm safeguard toggle (big red button on dashboard)
+- `input_boolean.ems_ev_override` — EV manual override (forces 7400W regardless of economics)
 
 ## Automations
 
@@ -144,6 +149,8 @@ Without these sync automations, changing HA entities has no effect on the simula
 19. **Island load shed** — when Blackout + SoC < 30%, force off boiler/EV/HP in HA
 20. **Island recovery** — when grid returns to Normal, restore normal operation
 21. **Anomaly sync** — synchronizes `input_boolean.ems_symuluj_awarie_api` → Modbus reg 15
+22. **Storm Safeguard sync** — synchronizes `input_boolean.ems_storm_safeguard` → Modbus reg 16
+23. **EV Override sync** — synchronizes `input_boolean.ems_ev_override` → Modbus reg 17
 
 ## Dashboard
 
@@ -174,6 +181,8 @@ Written every 5s by `influx_writer.py` to bucket `ems` (token: `ems-token`, org:
 | `sensor.ems_charge_window_duration` | Charge window duration | h×10 |
 | `sensor.ems_pv_forecast_tomorrow_kwh` | Forecast PV energy tomorrow | kWh |
 | `sensor.ems_status_sieci` | Grid status (0=Normal, 1=Blackout, 2=Fluktuacje) | — |
+| `sensor.ems_storm_safeguard` | Storm safeguard status | — |
+| `sensor.ems_ev_override` | EV override status | — |
 
 ## Financial Counter & Battery Degradation
 
@@ -181,7 +190,9 @@ Written every 5s by `influx_writer.py` to bucket `ems` (token: `ems-token`, org:
 Every tick (`TICK_S=5s`, 60× speed → 5 simulated min), the simulator computes:
 ```
 dt_h = 5 * 60 / 3600 = 1/12 h       # simulated hours per tick
-cost_chwilowy = -balance * price / (100 * 1000 * dt_h)   # PLN
+effective_price = price + distribution_rate(hour)  if importing (balance < 0)
+effective_price = price                              if exporting (balance > 0)
+cost_chwilowy = -balance * effective_price / (100 * 1000 * dt_h)   # PLN
 ```
 - `balance < 0` (grid import) → positive cost (spending)
 - `balance > 0` (grid export) → negative cost (revenue)
@@ -270,6 +281,71 @@ python ml_forecast.py 7        # last 7 days
 Output: `forecast.png` (time series plot) + `forecast_feature_importance.png`
 
 > Historical GHI is fetched from Open-Meteo's `past_days` parameter (same endpoint as forecast), so it covers the full training period even if `sensor.shortwave_radiation` was added to InfluxDB recently.
+
+## Distribution Fees (Tariff)
+
+On every tick, when importing from grid (`balance < 0`), the financial calculation adds a distribution tariff on top of the PSE price:
+
+```
+effective_price = pse_price + distribution_rate(hour)
+```
+
+| Zone | Hours | Rate |
+|------|-------|------|
+| Off-peak | 0-6, 13-15, 22-24 | +12 gr/kWh |
+| Peak | 6-13, 15-22 | +28 gr/kWh |
+
+Export (`balance > 0`) uses PSE price only — the grid operator does not pay you for distribution.
+
+This makes arbitrage more realistic: charging from grid during daytime peak can be unprofitable even with a low PSE price, because the 28 gr/kWh distribution fee eats the margin.
+
+## Anti-Chattering (Device Minimum On/Off Times)
+
+Controllable devices (boiler, heat pump, EV) cannot toggle more frequently than once per `DEVICE_MIN_ON_SIM_MIN` / `DEVICE_MIN_OFF_SIM_MIN` simulated minutes (default 60 min, configurable in `config.py`).
+
+A `DeviceTimer` state machine in `generators.py` tracks each device:
+
+```
+constrain(desired):
+  was_on → want_off  && timer > 0  → return current value (stay on)
+  was_off → want_on  && timer > 0  → return 0 (stay off)
+  timer expired or same state      → accept desired value, reset timer
+```
+
+- Timer bypassed in island mode emergency (SoC ≤ 5%) — new empty timer created after forced shed
+- The effective (constrained) value is written back to Modbus, so HA sees the actual device state
+- `[TIMER]` log messages show when constraints are active
+
+## Storm Safeguard (Reg 16)
+
+`input_boolean.ems_storm_safeguard` controls emergency storm protection via Modbus reg 16:
+
+| Value | Mode | Description |
+|-------|------|-------------|
+| 0 | Off | Normal operation |
+| 1 | Active | Force battery to 100% SoC, block discharge |
+
+### Behavior when active (reg 16 = 1)
+
+- **Force charge from grid**: `actual_force` is overridden to `MODE_FORCE_CHARGE` on every tick, regardless of the inverter mode set in HA (reg 2 is left untouched — user's setting preserved)
+- **Discharge blocked**: even if HA requests Force Discharge, the internal override keeps charging
+- **Dashboard**: big red button (`mdi:weather-lightning`) on Sterowanie view
+- **Deactivation**: when toggled off, the override stops and the system returns to the inverter mode stored in HA (no automatic change to Auto — respects user preference)
+
+## EV Override (Reg 17)
+
+`input_boolean.ems_ev_override` forces EV charging to max power via Modbus reg 17:
+
+| Value | Mode | Description |
+|-------|------|-------------|
+| 0 | Auto/EMS | EV controlled by scheduler, price logic, PV surplus |
+| 1 | Manual Max | EV forced to 7400W regardless of economics |
+
+### Behavior when active (reg 17 = 1)
+
+- **Bypasses all logic**: ignores price limits, PV surplus thresholds, degradation checks, and anti-chattering timer
+- **Full 7400W draw**: pulls from grid and/or battery as needed, testing peak shaving algorithms
+- **Use case**: simulate a family member who needs to leave urgently and charges at max power regardless of electricity price
 
 ## Weather Caching
 

@@ -4,8 +4,8 @@ import datetime
 
 from ems_simulator.config import TICK_S, GRID_NORMAL, GRID_BLACKOUT
 from ems_simulator.weather import fetch as w_fetch, get as w_get, needs_refresh as w_needs_refresh
-from ems_simulator.pricing import fetch as p_fetch, get as p_get, max_today as p_max_today, needs_refresh as p_needs_refresh, fallback_price as p_fallback, _price_cache as p_cache
-from ems_simulator.generators import pv_from_ghi, base_load, SpikeState, controllable_load
+from ems_simulator.pricing import fetch as p_fetch, get as p_get, max_today as p_max_today, needs_refresh as p_needs_refresh, fallback_price as p_fallback, distribution_rate as p_dist_rate, _price_cache as p_cache
+from ems_simulator.generators import pv_from_ghi, base_load, SpikeState, controllable_load, DeviceTimer
 from ems_simulator.charge_scheduler import compute_charge_window
 from ems_simulator.battery import delta as batt_delta, clamp as batt_clamp, MODE_AUTO, MODE_FORCE_CHARGE, MODE_FORCE_DISCHARGE
 from ems_simulator.server import start as srv_start, stop as srv_stop, read as srv_read, write as srv_write, banner as srv_banner
@@ -24,6 +24,9 @@ def main():
     day_step = int(now_h * 12)
     current_temp = 15.0
     spike = SpikeState()
+    timer_boiler = DeviceTimer()
+    timer_hp = DeviceTimer()
+    timer_ev = DeviceTimer()
 
     running_cost_pln = 0.0
     cost_from_db = inf_read_last("sensor.ems_koszt_kumulatywny_dzis")
@@ -44,14 +47,25 @@ def main():
                 time.sleep(TICK_S)
                 continue
 
-            soc       = regs[1]
-            force     = regs[2]
-            boiler    = regs[3]
-            hp        = regs[4]
-            ev        = regs[5]
-            curtail   = regs[10] if len(regs) > 10 else 0
-            grid_status = regs[14] if len(regs) > 14 else 0
-            anomaly = regs[15] if len(regs) > 15 else 0
+            soc          = regs[1]
+            force        = regs[2]
+            boiler       = regs[3]
+            hp           = regs[4]
+            ev           = regs[5]
+            curtail      = regs[10] if len(regs) > 10 else 0
+            grid_status  = regs[14] if len(regs) > 14 else 0
+            anomaly      = regs[15] if len(regs) > 15 else 0
+            storm_safe   = regs[16] if len(regs) > 16 else 0
+            ev_override  = regs[17] if len(regs) > 17 else 0
+            boiler_eff = timer_boiler.constrain(boiler)
+            hp_eff = timer_hp.constrain(hp)
+            ev_eff = timer_ev.constrain(ev)
+            if boiler_eff != boiler or hp_eff != hp or ev_eff != ev:
+                print(f"[TIMER] Constrained: boiler {boiler}->{boiler_eff}  HP {hp}->{hp_eff}  EV {ev}->{ev_eff}")
+            if ev_override:
+                if ev_eff != 7400:
+                    print(f"[EV_OVR] Manual override — EV forced to 7400W")
+                ev_eff = 7400
 
             day_step = (day_step + 1) % 288
             if day_step == 0:
@@ -78,7 +92,7 @@ def main():
             pv = pv_from_ghi(ghi, hour)
 
             load = base_load(hour, current_temp)
-            load += controllable_load(boiler, hp, ev)
+            load += controllable_load(boiler_eff, hp_eff, ev_eff)
 
             sp = spike.tick()
             if sp > 0:
@@ -112,21 +126,24 @@ def main():
 
             balance = pv - load
 
-            # Island mode: load shed on critical SoC
+            # Island mode: load shed on critical SoC (bypasses timers — emergency)
             if grid_status == GRID_BLACKOUT and soc <= 5 and balance < 0:
-                if boiler > 0:
+                if boiler_eff > 0:
                     print(f"[ISLAND] Shed boiler (SoC={soc:.0f}%)")
                     load -= 3000
-                    boiler = 0
-                if ev > 0:
-                    print(f"[ISLAND] Shed EV {ev}W (SoC={soc:.0f}%)")
-                    load -= ev
-                    ev = 0
-                if hp > 0:
-                    hp_save = {1: 1500, 2: 3000}.get(hp, 0)
+                    boiler_eff = 0
+                    timer_boiler = DeviceTimer()
+                if ev_eff > 0:
+                    print(f"[ISLAND] Shed EV {ev_eff}W (SoC={soc:.0f}%)")
+                    load -= ev_eff
+                    ev_eff = 0
+                    timer_ev = DeviceTimer()
+                if hp_eff > 0:
+                    hp_save = {1: 1500, 2: 3000}.get(hp_eff, 0)
                     print(f"[ISLAND] Shed HP {hp_save}W (SoC={soc:.0f}%)")
                     load -= hp_save
-                    hp = 0
+                    hp_eff = 0
+                    timer_hp = DeviceTimer()
                 balance = pv - load
                 if balance < 0:
                     print(f"[ISLAND] After shed: still deficit {balance:.0f}W")
@@ -135,10 +152,17 @@ def main():
             if grid_status == GRID_BLACKOUT:
                 pass  # no grid → no financial tracking
             else:
-                running_cost_pln += -balance * price * dt_h / (100.0 * 1000.0)
+                effective_price = price
+                if balance < 0:
+                    effective_price = price + p_dist_rate(hour)
+                running_cost_pln += -balance * effective_price * dt_h / (100.0 * 1000.0)
 
             actual_force = force
-            if grid_status == GRID_BLACKOUT and force == MODE_FORCE_CHARGE:
+            if storm_safe:
+                if actual_force != MODE_FORCE_CHARGE:
+                    print(f"[STORM] Safeguard active — force charging to 100%")
+                actual_force = MODE_FORCE_CHARGE
+            if grid_status == GRID_BLACKOUT and actual_force == MODE_FORCE_CHARGE:
                 actual_force = MODE_AUTO
 
             delta = batt_delta(balance, actual_force)
@@ -149,11 +173,13 @@ def main():
                 print(f"{tag} Peak today: {peak_today} gr/kWh, "
                       f"Current: {price} gr/kWh, Cost: {running_cost_pln:.2f} PLN")
 
-            if grid_status == GRID_BLACKOUT and force == MODE_FORCE_CHARGE:
+            if storm_safe:
+                print(f"[STORM]  Force charging  {soc:.0f} -> {new_soc:.0f}%")
+            elif grid_status == GRID_BLACKOUT and actual_force == MODE_FORCE_CHARGE:
                 print(f"[ISLAND] Force Charge ignored (no grid), running in Auto")
-            elif force == MODE_FORCE_CHARGE:
+            elif actual_force == MODE_FORCE_CHARGE:
                 print(f"[FORCE]  Charging  {soc:.0f} -> {new_soc:.0f}%")
-            elif force == MODE_FORCE_DISCHARGE:
+            elif actual_force == MODE_FORCE_DISCHARGE:
                 print(f"[FORCE]  Discharging  {soc:.0f} -> {new_soc:.0f}%")
             elif balance > 200 and new_soc > soc:
                 print(f"[PV]     Surplus +{balance:+.0f}W  SoC {soc:.0f} -> {new_soc:.0f}%")
@@ -171,9 +197,9 @@ def main():
                 int(pv),
                 int(round(new_soc)),
                 force,
-                boiler,
-                hp,
-                ev,
+                boiler_eff,
+                hp_eff,
+                ev_eff,
                 int(load),
                 price,
                 peak_today,
@@ -184,11 +210,13 @@ def main():
                 int(round(chg_pv_kwh * 10)),
                 grid_status,
                 anomaly,
+                storm_safe,
+                ev_override,
             ])
 
             inf_write(pv, round(new_soc), load, price, balance, current_temp, cloud, ghi,
                       peak_today, round(running_cost_pln, 2), curtail,
-                      chg_start, chg_duration, chg_pv_kwh, grid_status, anomaly)
+                      chg_start, chg_duration, chg_pv_kwh, grid_status, anomaly, storm_safe)
 
             _anomaly_prev = anomaly
             time.sleep(TICK_S)

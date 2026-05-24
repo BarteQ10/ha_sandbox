@@ -3,7 +3,7 @@ import datetime
 # Modbus
 MODBUS_HOST = "0.0.0.0"
 MODBUS_PORT = 5020
-NUM_REGISTERS = 16
+NUM_REGISTERS = 18
 TICK_S = 5
 
 # Location (Open-Meteo, no API key)
@@ -36,10 +36,27 @@ GRID_NORMAL = 0
 GRID_BLACKOUT = 1
 GRID_INSTABILITY = 2
 
+# Device minimum on/off times (simulated minutes) — anti-chattering
+DEVICE_MIN_ON_SIM_MIN = 60
+DEVICE_MIN_OFF_SIM_MIN = 60
+
 # Load spikes
 SPIKE_CHANCE = 0.03
 SPIKE_WATTS = [2000, 2500, 3000, 5000, 7000]
 SPIKE_MAX_TICKS = 4
+
+# Distribution tariff (gr/kWh) — applies on import only
+# Peak hours: higher rate, off-peak: lower rate
+DISTRIBUTION_LOW = 12
+DISTRIBUTION_HIGH = 28
+# (hour_start, hour_end, rate_gr) — distribution rate applies when start <= hour < end
+DISTRIBUTION_ZONES = [
+    (0, 6, 12),
+    (6, 13, 28),
+    (13, 15, 12),
+    (15, 22, 28),
+    (22, 24, 12),
+]
 
 # Price bands: (hour_start, hour_end, min_gr, max_gr)
 PRICE_BANDS = [

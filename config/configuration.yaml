@@ -88,6 +88,16 @@ modbus:
         address: 15
         unit_of_measurement: ""
         data_type: int16
+      - name: "EMS: Storm Safeguard"
+        slave: 1
+        address: 16
+        unit_of_measurement: ""
+        data_type: int16
+      - name: "EMS: EV Override"
+        slave: 1
+        address: 17
+        unit_of_measurement: ""
+        data_type: int16
     switches:
       - name: "EMS: Bojler (Grzałka 3kW)"
         slave: 1
@@ -202,6 +212,12 @@ input_boolean:
   ems_symuluj_awarie_api:
     name: "EMS: Symuluj awarie API"
     icon: mdi:alert-octagon
+  ems_storm_safeguard:
+    name: "EMS: Zabezpiecz przed burza"
+    icon: mdi:weather-lightning
+  ems_ev_override:
+    name: "EMS: EV Override (max)"
+    icon: mdi:car-electric
 
 input_select:
   ems_tryb_pompy_ciepla:

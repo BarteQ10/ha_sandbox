@@ -2,7 +2,7 @@ import datetime
 
 import requests
 
-from ems_simulator.config import PRICE_BANDS
+from ems_simulator.config import PRICE_BANDS, DISTRIBUTION_ZONES, DISTRIBUTION_LOW
 
 PSE_URL = "https://api.raporty.pse.pl/api/rce-pln"
 
@@ -83,3 +83,11 @@ def fallback_price(hour):
             import random
             return random.randint(lo_p, hi_p)
     return random.randint(20, 35)
+
+
+def distribution_rate(hour):
+    h = int(hour) % 24
+    for lo_h, hi_h, rate in DISTRIBUTION_ZONES:
+        if lo_h <= h < hi_h:
+            return rate
+    return DISTRIBUTION_LOW

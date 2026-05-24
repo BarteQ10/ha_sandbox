@@ -132,6 +132,16 @@ views:
             entity: input_boolean.ems_symuluj_awarie_api
             name: Awarie API
             icon: mdi:alert-octagon
+          - type: tile
+            entity: input_boolean.ems_storm_safeguard
+            name: Zabezpiecz przed burza
+            icon: mdi:weather-lightning
+            color_when_on: red
+          - type: tile
+            entity: input_boolean.ems_ev_override
+            name: EV override
+            icon: mdi:car-electric
+            color_when_on: orange
 
       - type: grid
         cards:
