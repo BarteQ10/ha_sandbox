@@ -1,5 +1,6 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "instructions": ["AGENTS.md"],
   "model": "openai/google/gemma-4-e4b",
   "provider": {
     "openai": {

@@ -1,0 +1,2 @@
+- NEVER commit, push, or create PRs unless the user explicitly asks you to.
+- Always wait for explicit "commit" or "zrób commit" before staging/committing.
