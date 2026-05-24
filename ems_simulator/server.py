@@ -29,4 +29,5 @@ def banner():
     print("  [R] 7  Energy Price               (gr/kWh)")
     print("  [R] 8  Peak Price Today           (gr/kWh)")
     print("  [R] 9  Running Cost Today          (grosze)")
+    print("  [W] 10 PV Curtailment              (0=Auto 1=Curtail)")
     print("=" * 64)

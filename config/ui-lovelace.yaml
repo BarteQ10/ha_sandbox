@@ -109,6 +109,10 @@ views:
             name: Bojler 3kW
             icon: mdi:water-heater
           - type: tile
+            entity: input_select.ems_tryb_inwertera
+            name: Tryb inwertera
+            icon: mdi:battery
+          - type: tile
             entity: input_select.ems_tryb_pompy_ciepla
             name: Pompa ciepla
             icon: mdi:heat-pump
@@ -117,26 +121,9 @@ views:
             name: EV ladowanie
             icon: mdi:car-electric
           - type: tile
-            entity: input_select.ems_tryb_inwertera
-            name: Tryb inwertera
-            icon: mdi:battery
-
-      - type: grid
-        cards:
-          - type: heading
-            heading: Peak Shaving
-          - type: tile
-            entity: input_boolean.ems_peak_shaving_active
-            name: Peak Shaving
-            icon: mdi:flash-alert
-          - type: tile
-            entity: input_number.ems_max_pobor_sieci
-            name: Max pobor z sieci
-            icon: mdi:transmission-tower
-          - type: tile
-            entity: input_select.ems_tryb_inwertera
-            name: Tryb inwertera
-            icon: mdi:battery
+            entity: switch.ems_ograniczenie_pv
+            name: Ogranicznik PV
+            icon: mdi:solar-power-variant
 
       - type: grid
         cards:

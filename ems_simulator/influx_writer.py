@@ -26,7 +26,7 @@ def start():
         _failed = True
 
 
-def write(pv, soc, load, price, balance, temp, cloud=None, ghi=None, peak_price=None, running_cost=None):
+def write(pv, soc, load, price, balance, temp, cloud=None, ghi=None, peak_price=None, running_cost=None, curtail=None):
     global _failed
     if _failed or _write is None:
         return
@@ -64,6 +64,10 @@ def write(pv, soc, load, price, balance, temp, cloud=None, ghi=None, peak_price=
         if running_cost is not None:
             points.append(
                 Point("sensor.ems_koszt_kumulatywny_dzis").time(now).field("value", float(running_cost))
+            )
+        if curtail is not None:
+            points.append(
+                Point("sensor.ems_ograniczenie_pv").time(now).field("value", float(curtail))
             )
 
         _write.write(bucket=BUCKET, record=points)

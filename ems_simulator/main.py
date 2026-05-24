@@ -42,6 +42,7 @@ def main():
             boiler    = regs[3]
             hp        = regs[4]
             ev        = regs[5]
+            curtail   = regs[10] if len(regs) > 10 else 0
 
             day_step = (day_step + 1) % 288
             if day_step == 0:
@@ -69,6 +70,11 @@ def main():
                 print(f"[SPIKE] +{sp}W for {spike.remaining + 1}tics")
             if spike.just_ended:
                 print(f"[SPIKE] Ended")
+
+            if curtail == 1 and pv > load:
+                old_pv = pv
+                pv = int(load)
+                print(f"[CURTAIL] PV {old_pv}W -> {pv}W (zero-export)")
 
             rce = p_get(hour)
             price = int(rce) if rce is not None else p_fallback(hour)
@@ -110,9 +116,10 @@ def main():
                 price,
                 peak_today,
                 cost_int,
+                curtail,
             ])
 
-            inf_write(pv, round(new_soc), load, price, balance, current_temp, cloud, ghi, peak_today, round(running_cost_pln, 2))
+            inf_write(pv, round(new_soc), load, price, balance, current_temp, cloud, ghi, peak_today, round(running_cost_pln, 2), curtail)
 
             time.sleep(TICK_S)
 

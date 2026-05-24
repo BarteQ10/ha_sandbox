@@ -58,8 +58,24 @@ modbus:
         address: 2
         unit_of_measurement: ""
         data_type: int16
+      - name: "EMS: Ograniczenie PV"
+        slave: 1
+        address: 10
+        unit_of_measurement: ""
+        data_type: int16
     switches:
       - name: "EMS: Bojler (Grzałka 3kW)"
+        slave: 1
+        address: 3
+        write_type: holding
+        command_on: 1
+        command_off: 0
+      - name: "EMS: Ograniczenie PV"
+        slave: 1
+        address: 10
+        write_type: holding
+        command_on: 1
+        command_off: 0
         slave: 1
         address: 3
         write_type: holding
@@ -126,7 +142,7 @@ template:
       - name: "EMS: Bilans finansowy dzis"
         unit_of_measurement: "PLN"
         state: >
-          {{ (states('sensor.ems_koszt_kumulatywny_dzis') | int(0) / 100) }}
+          {{ -(states('sensor.ems_koszt_kumulatywny_dzis') | int(0) / 100) }}
         icon: mdi:currency-usd
 
 sensor:

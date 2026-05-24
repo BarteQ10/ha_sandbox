@@ -60,6 +60,7 @@ simulator (Modbus) → HA (Modbus TCP) → automations
 | 7 | 40008 | R | Energy Price | 15-80 gr/kWh (TGE simulation) |
 | 8 | 40009 | R | Peak Price Today | gr/kWh (PSE 24h forecast peak) |
 | 9 | 40010 | R | Running Cost Today | grosze (cumulative financial balance) |
+| 10 | 40011 | RW | PV Curtailment | 0=Auto, 1=Zero-Export (curtail) |
 
 ## Simulation
 
@@ -78,6 +79,7 @@ simulator (Modbus) → HA (Modbus TCP) → automations
 - `sensor.ems_pobor_domu_bazowy` — House load (W)
 - `sensor.ems_biezaca_cena_energii` — Price (gr/kWh)
 - `switch.ems_bojler_grzalka_3kw` — Boiler Modbus (reg 3)
+- `switch.ems_ograniczenie_pv` — PV Curtailment (reg 10)
 
 ### REST (Open-Meteo)
 - `sensor.open_meteo_ghi` — GHI forecast data (hourly, refreshed every hour)
@@ -126,6 +128,9 @@ Without these sync automations, changing HA entities has no effect on the simula
 11. **Arbitrage: Discharge on peak** — when price >55 gr, SoC >20%, switches to Force Discharge
 12. **Arbitrage: Charge on low price** — when price <25 gr, SoC <80%, switches to Force Charge (checks degradation)
 13. **Arbitrage: Return to Auto** — when 25 ≤ price ≤ 55 or SoC critical, switches back to Auto
+14. **Negative prices: Smart load dispatch** — when price < 0: always boiler + Force Charge; if SoC > 30% adds EV 7400W; if SoC > 50% adds HP Boost
+15. **Negative prices: PV curtailment** — when price < 0, SoC > 95%, and still exporting → enables zero-export (curtail PV)
+16. **Negative prices: Restore normal** — when price returns above 0, disables curtailment, returns inverter to Auto, turns off loads
 
 ## Dashboard
 
@@ -151,6 +156,7 @@ Written every 5s by `influx_writer.py` to bucket `ems` (token: `ems-token`, org:
 | `sensor.ems_koszt_chwilowy_pln` | Instantaneous financial cost (+spend, -revenue) | PLN/tick |
 | `sensor.ems_koszt_kumulatywny_dzis` | Cumulative daily financial balance | PLN |
 | `sensor.ems_szczyt_cena_dzis` | Today's peak price (PSE 24h forecast) | gr/kWh |
+| `sensor.ems_ograniczenie_pv` | PV curtailment status (0=Auto, 1=Curtail) | — |
 
 ## Financial Counter & Battery Degradation
 

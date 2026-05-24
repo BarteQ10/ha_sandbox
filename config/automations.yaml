@@ -475,3 +475,152 @@
       title: "EMS: Koniec ladowania nocnego"
       message: "Zakonczono ladowanie baterii (pelna lub koniec taniej taryfy)"
   mode: single
+
+- id: '1779394737439'
+  alias: 'EMS: Ujemne ceny - smart load dispatch'
+  description: >
+    Gdy cena <0, smart priorytety: zawsze bojler + Force Charge,
+    gdy SoC>30% doklada EV, gdy SoC>50% doklada HP Boost.
+  triggers:
+  - entity_id: sensor.ems_biezaca_cena_energii
+    trigger: state
+  - entity_id: sensor.sztuczny_stan_baterii_soc
+    trigger: state
+  - trigger: time_pattern
+    minutes: '/1'
+  conditions:
+  - condition: numeric_state
+    entity_id: sensor.ems_biezaca_cena_energii
+    below: 0
+  actions:
+  - variables:
+      soc: "{{ states('sensor.sztuczny_stan_baterii_soc') | int(0) }}"
+  - action: input_boolean.turn_on
+    target:
+      entity_id: input_boolean.wirtualny_bojler
+  - action: input_select.select_option
+    target:
+      entity_id: input_select.ems_tryb_inwertera
+    data:
+      option: "Force Charge"
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: "{{ soc > 30 }}"
+      sequence:
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.ems_limit_ladowania_ev
+        data:
+          value: 7400
+    default:
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.ems_limit_ladowania_ev
+        data:
+          value: 0
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: "{{ soc > 50 }}"
+      sequence:
+      - action: input_select.select_option
+        target:
+          entity_id: input_select.ems_tryb_pompy_ciepla
+        data:
+          option: "Boost"
+    default:
+      - action: input_select.select_option
+        target:
+          entity_id: input_select.ems_tryb_pompy_ciepla
+        data:
+          option: "Wylaczona"
+  - action: notify.persistent_notification
+    data:
+      title: "EMS: Ujemne ceny"
+      message: >
+        Cena ujemna ({{ states('sensor.ems_biezaca_cena_energii') }} gr/kWh).
+        Bojler ON, Force Charge.
+        SoC={{ soc }}%: EV={% if soc>30 %}7400W{% else %}0W{% endif %},
+        HP={% if soc>50 %}Boost{% else %}Off{% endif %}.
+  mode: single
+
+- id: '1779394737440'
+  alias: 'EMS: Ujemne ceny - zalacz ograniczenie PV'
+  description: >
+    Gdy cena ujemna, bateria pelna, a wciaz eksportujesz - wlacza
+    ograniczenie PV (zero-export), by nie placic za oddawanie pradu.
+  triggers:
+  - entity_id: sensor.ems_biezaca_cena_energii
+    trigger: state
+  - entity_id: sensor.sztuczny_stan_baterii_soc
+    trigger: state
+  - entity_id: sensor.ems_moc_netto_bilans
+    trigger: state
+  conditions:
+  - condition: numeric_state
+    entity_id: sensor.ems_biezaca_cena_energii
+    below: 0
+  - condition: numeric_state
+    entity_id: sensor.sztuczny_stan_baterii_soc
+    above: 95
+  - condition: numeric_state
+    entity_id: sensor.ems_moc_netto_bilans
+    above: 100
+  - condition: template
+    value_template: "{{ states('switch.ems_ograniczenie_pv') == 'off' }}"
+  actions:
+  - action: switch.turn_on
+    target:
+      entity_id: switch.ems_ograniczenie_pv
+  - action: notify.persistent_notification
+    data:
+      title: "EMS: Ujemne ceny"
+      message: >
+        Bateria pelna, wciaz eksport przy ujemnej cenie.
+        Wlaczono ograniczenie PV (zero-export).
+  mode: single
+
+- id: '1779394737441'
+  alias: 'EMS: Ujemne ceny - powrot do normalnego trybu'
+  description: >
+    Gdy cena wroci do dodatniej, wylacza ograniczenie PV
+    i przywraca normalne sterowanie odbiornikami.
+  triggers:
+  - entity_id: sensor.ems_biezaca_cena_energii
+    trigger: state
+  conditions:
+  - condition: numeric_state
+    entity_id: sensor.ems_biezaca_cena_energii
+    above: 0
+  - condition: template
+    value_template: >
+      {{ states('switch.ems_ograniczenie_pv') == 'on'
+      or states('input_select.ems_tryb_inwertera') == 'Force Charge' }}
+  actions:
+  - action: switch.turn_off
+    target:
+      entity_id: switch.ems_ograniczenie_pv
+  - action: input_select.select_option
+    target:
+      entity_id: input_select.ems_tryb_inwertera
+    data:
+      option: "Auto"
+  - action: input_boolean.turn_off
+    target:
+      entity_id: input_boolean.wirtualny_bojler
+  - action: input_select.select_option
+    target:
+      entity_id: input_select.ems_tryb_pompy_ciepla
+    data:
+      option: "Wylaczona"
+  - action: input_number.set_value
+    target:
+      entity_id: input_number.ems_limit_ladowania_ev
+    data:
+      value: 0
+  - action: notify.persistent_notification
+    data:
+      title: "EMS: Ujemne ceny"
+      message: "Cena wrocila do dodatniej, przywrocono normalny tryb."
+  mode: single
