@@ -1,5 +1,6 @@
 import time
 import random as _random
+import datetime
 
 from ems_simulator.config import TICK_S
 from ems_simulator.weather import fetch as w_fetch, get as w_get, needs_refresh as w_needs_refresh
@@ -18,7 +19,8 @@ def main():
     w_fetch()
     p_fetch()
 
-    day_step = 0
+    now_h = datetime.datetime.now().hour
+    day_step = int(now_h * 12)
     current_temp = 15.0
     spike = SpikeState()
 
