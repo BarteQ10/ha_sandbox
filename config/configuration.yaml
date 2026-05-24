@@ -43,6 +43,16 @@ modbus:
         address: 7
         unit_of_measurement: "gr/kWh"
         data_type: int16
+      - name: "EMS: Szczyt cena dzis"
+        slave: 1
+        address: 8
+        unit_of_measurement: "gr/kWh"
+        data_type: int16
+      - name: "EMS: Koszt kumulatywny dzis"
+        slave: 1
+        address: 9
+        unit_of_measurement: "gr"
+        data_type: int16
     switches:
       - name: "Inwerter: Wymus ladowanie z sieci"
         slave: 1
@@ -114,6 +124,11 @@ template:
           {% endfor %}
           {{ ns.max | int }}
           {% endif %}
+      - name: "EMS: Bilans finansowy dzis"
+        unit_of_measurement: "PLN"
+        state: >
+          {{ (states('sensor.ems_koszt_kumulatywny_dzis') | int(0) / 100) }}
+        icon: mdi:currency-usd
 
 sensor:
   - platform: rest
@@ -184,3 +199,11 @@ input_number:
     initial: 0
     unit_of_measurement: "W"
     icon: mdi:car-electric
+  ems_koszt_degradacji_baterii:
+    name: "EMS: Koszt degradacji baterii"
+    min: 0
+    max: 50
+    step: 1
+    initial: 15
+    unit_of_measurement: "gr/kWh"
+    icon: mdi:battery-alert

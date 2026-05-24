@@ -58,6 +58,8 @@ simulator (Modbus) → HA (Modbus TCP) → automations
 | 5 | 40006 | RW | EV Charging Limit | 0-7400 W |
 | 6 | 40007 | R | Total House Load | W (base + all devices + spikes) |
 | 7 | 40008 | R | Energy Price | 15-80 gr/kWh (TGE simulation) |
+| 8 | 40009 | R | Peak Price Today | gr/kWh (PSE 24h forecast peak) |
+| 9 | 40010 | R | Running Cost Today | grosze (cumulative financial balance) |
 
 ## Simulation
 
@@ -86,6 +88,9 @@ simulator (Modbus) → HA (Modbus TCP) → automations
 - `sensor.ems_czas_do_rozladowania` — Estimated minutes until empty
 - `sensor.ems_czas_do_pelnego_naladowania` — Estimated minutes until full
 - `sensor.ems_prognoza_pv_jutro_szczyt_ghi` — Tomorrow's peak GHI (W/m²) for charging decisions
+- `sensor.ems_koszt_kumulatywny_dzis` — Cumulative daily financial balance (grosze, from Modbus reg 9)
+- `sensor.ems_bilans_finansowy_dzis` — Same in PLN (template sensor)
+- `sensor.ems_szczyt_cena_dzis` — Today's peak price from PSE 24h forecast (gr/kWh, Modbus reg 8)
 
 ### Critical: HA → Modbus sync (3 automations)
 - `input_boolean.wirtualny_bojler` → `switch.ems_bojler_grzalka_3kw` → reg 3
@@ -104,6 +109,7 @@ Without these sync automations, changing HA entities has no effect on the simula
 - `input_number.ems_limit_ladowania_ev` — EV charge limit (0-7400W)
 - `input_number.ems_max_pobor_sieci` — Peak shaving threshold
 - `input_boolean.ems_peak_shaving_active` — Peak shaving flag
+- `input_number.ems_koszt_degradacji_baterii` — Battery degradation cost (gr/kWh, default 15)
 
 ## Automations
 
@@ -114,14 +120,15 @@ Without these sync automations, changing HA entities has no effect on the simula
 5. **Bojler Sync** — synchronizes input_boolean → Modbus reg 3
 6. **HP Sync** — synchronizes input_select → Modbus reg 4 (0/1/2)
 7. **EV Sync** — synchronizes input_number → Modbus reg 5
-8. **Night Charging** — charges battery from grid at cheap hours (02:00-05:00, <30 gr/kWh); skips if tomorrow's GHI peak >400 W/m² (sun will charge for free)
+8. **Night Charging** — charges battery from grid at cheap hours (02:00-05:00, <30 gr/kWh); checks battery degradation cost (spread = PSE peak forecast - current > degradation_cost); skips if tomorrow's GHI peak >400 W/m² (sun will charge for free)
+9. **Smart EV (degradation)** — same degradation cost check before grid charging EV at <20 gr/kWh
 
 ## Dashboard
 
 3 views defined in `ui-lovelace.yaml`:
 - **Przeplywy** — gauges, daily stats, battery runtime, 12h history
-- **Sterowanie** — all controllable devices, peak shaving controls, prices, GHI forecast
-- **Energy** — Riemann integrals, 24h price chart
+- **Sterowanie** — all controllable devices, peak shaving controls, battery degradation cost, prices with peak forecast, GHI forecast, financial balance
+- **Energy** — Riemann integrals, 24h price chart, daily financial balance with peak price
 
 ## InfluxDB Measurements
 
@@ -137,6 +144,34 @@ Written every 5s by `influx_writer.py` to bucket `ems` (token: `ems-token`, org:
 | `sensor.current_temp` | Outdoor temperature | °C |
 | `sensor.cloud_cover` | Cloud cover | % |
 | `sensor.shortwave_radiation` | GHI (Global Horizontal Irradiance) | W/m² |
+| `sensor.ems_koszt_chwilowy_pln` | Instantaneous financial cost (+spend, -revenue) | PLN/tick |
+| `sensor.ems_koszt_kumulatywny_dzis` | Cumulative daily financial balance | PLN |
+| `sensor.ems_szczyt_cena_dzis` | Today's peak price (PSE 24h forecast) | gr/kWh |
+
+## Financial Counter & Battery Degradation
+
+### Real-time cost tracking
+Every tick (`TICK_S=5s`, 60× speed → 5 simulated min), the simulator computes:
+```
+dt_h = 5 * 60 / 3600 = 1/12 h       # simulated hours per tick
+cost_chwilowy = -balance * price / (100 * 1000 * dt_h)   # PLN
+```
+- `balance < 0` (grid import) → positive cost (spending)
+- `balance > 0` (grid export) → negative cost (revenue)
+- Written to InfluxDB as `sensor.ems_koszt_chwilowy_pln`
+- Cumulative `running_cost_pln` resets at simulated midnight (`day_step == 0`)
+- On restart, restored from InfluxDB last value (via `inf_read_last`)
+
+### Battery degradation cost
+`input_number.ems_koszt_degradacji_baterii` (default 15 gr/kWh) represents the real cost of cycling the battery (15kWh ÷ 6000 cycles × 15000 zl ≈ 15 gr/kWh).
+
+Night charging and EV grid charging only fire when:
+```
+PSE_peak_forecast - current_price > degradation_cost
+```
+
+### Peak price from PSE forecast
+`pricing.max_today()` returns the maximum price from the cached 24h PSE data (all hours already fetched at once). If PSE API fails, falls back to max price band (80 gr/kWh). Exposed via Modbus reg 8 as `sensor.ems_szczyt_cena_dzis`.
 
 ## ML Forecast (`ml_forecast.py`)
 

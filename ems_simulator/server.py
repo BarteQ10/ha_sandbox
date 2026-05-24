@@ -27,4 +27,6 @@ def banner():
     print("  [W] 5  EV Charging Limit          (0-7400W)")
     print("  [R] 6  Total House Load           (W)")
     print("  [R] 7  Energy Price               (gr/kWh)")
+    print("  [R] 8  Peak Price Today           (gr/kWh)")
+    print("  [R] 9  Running Cost Today          (grosze)")
     print("=" * 64)

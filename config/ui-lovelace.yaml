@@ -141,6 +141,15 @@ views:
       - type: grid
         cards:
           - type: heading
+            heading: Koszt degradacji
+          - type: tile
+            entity: input_number.ems_koszt_degradacji_baterii
+            name: Koszt degradacji
+            icon: mdi:battery-alert
+            unit: gr/kWh
+      - type: grid
+        cards:
+          - type: heading
             heading: Ceny i prognoza
           - type: tile
             entity: sensor.ems_biezaca_cena_energii
@@ -156,6 +165,14 @@ views:
             icon: mdi:weather-sunny
             unit: W/m^2
             show_entity_picture: false
+          - type: tile
+            entity: sensor.ems_szczyt_cena_dzis
+            name: Szczyt ceny dzis
+            icon: mdi:cash-100
+          - type: tile
+            entity: sensor.ems_bilans_finansowy_dzis
+            name: Bilans finansowy
+            icon: mdi:currency-usd
 
   - title: Energy
     path: energy
@@ -188,6 +205,23 @@ views:
       - type: grid
         cards:
           - type: heading
+            heading: Finanse dzis
+          - type: statistic
+            entity: sensor.ems_bilans_finansowy_dzis
+            name: Bilans finansowy
+            period:
+              calendar:
+                period: day
+            stat_type: max
+            unit: PLN
+          - type: tile
+            entity: sensor.ems_szczyt_cena_dzis
+            name: Szczyt ceny
+            icon: mdi:cash-100
+
+      - type: grid
+        cards:
+          - type: heading
             heading: Szczegoly
           - type: entity
             entity: sensor.ems_energia_pv_riemann
@@ -197,3 +231,5 @@ views:
             entity: sensor.ems_pobor_domu_bazowy
           - type: entity
             entity: sensor.sztuczny_stan_baterii_soc
+          - type: entity
+            entity: sensor.ems_bilans_finansowy_dzis

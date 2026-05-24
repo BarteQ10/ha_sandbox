@@ -70,6 +70,13 @@ def needs_refresh(hour, day_step):
     return False
 
 
+def max_today():
+    valid = [v for v in _price_cache if v is not None] if isinstance(_price_cache, list) else []
+    if valid:
+        return max(valid) / 10.0
+    return max(hi_p for _, _, _, hi_p in PRICE_BANDS)
+
+
 def fallback_price(hour):
     for lo_h, hi_h, lo_p, hi_p in PRICE_BANDS:
         if lo_h <= hour < hi_h:

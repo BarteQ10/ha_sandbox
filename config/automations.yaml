@@ -117,6 +117,12 @@
       - condition: numeric_state
         entity_id: sensor.ems_biezaca_cena_energii
         below: 20
+      - condition: template
+        value_template: >
+          {% set peak = states('sensor.ems_szczyt_cena_dzis') | int(60) %}
+          {% set price = states('sensor.ems_biezaca_cena_energii') | int(0) %}
+          {% set deg = states('input_number.ems_koszt_degradacji_baterii') | int(15) %}
+          {{ (peak - price) > deg }}
       sequence:
       - action: input_number.set_value
         target:
@@ -259,7 +265,8 @@
   alias: 'EMS: Ladowanie nocne - tania energia'
   description: >
     Laduje baterie z sieci w najtanszych godzinach 2:00-5:00.
-    Pomin ladowanie gdy jutro bedzie slonecznie (GHI>400) - PV zaladuje baterie za darmo.
+    Uwzglednia koszt degradacji baterii (spread > koszt_deg).
+    Pomin ladowanie gdy jutro bedzie slonecznie (GHI>400).
   triggers:
   - trigger: time_pattern
     hours: '*'
@@ -274,6 +281,12 @@
   - condition: numeric_state
     entity_id: sensor.ems_biezaca_cena_energii
     below: 30
+  - condition: template
+    value_template: >
+      {% set peak = states('sensor.ems_szczyt_cena_dzis') | int(60) %}
+      {% set price = states('sensor.ems_biezaca_cena_energii') | int(0) %}
+      {% set deg = states('input_number.ems_koszt_degradacji_baterii') | int(15) %}
+      {{ (peak - price) > deg }}
   - condition: template
     value_template: >
       {{ states('sensor.ems_prognoza_pv_jutro_szczyt_ghi') | int(0) < 400 }}

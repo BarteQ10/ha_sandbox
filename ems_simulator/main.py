@@ -4,11 +4,11 @@ import datetime
 
 from ems_simulator.config import TICK_S
 from ems_simulator.weather import fetch as w_fetch, get as w_get, needs_refresh as w_needs_refresh
-from ems_simulator.pricing import fetch as p_fetch, get as p_get, needs_refresh as p_needs_refresh, fallback_price as p_fallback
+from ems_simulator.pricing import fetch as p_fetch, get as p_get, max_today as p_max_today, needs_refresh as p_needs_refresh, fallback_price as p_fallback
 from ems_simulator.generators import pv_from_ghi, base_load, SpikeState, controllable_load
 from ems_simulator.battery import delta as batt_delta, clamp as batt_clamp
 from ems_simulator.server import start as srv_start, stop as srv_stop, read as srv_read, write as srv_write, banner as srv_banner
-from ems_simulator.influx_writer import start as inf_start, write as inf_write, stop as inf_stop
+from ems_simulator.influx_writer import start as inf_start, write as inf_write, stop as inf_stop, read_last as inf_read_last
 
 
 def main():
@@ -24,6 +24,12 @@ def main():
     current_temp = 15.0
     spike = SpikeState()
 
+    running_cost_pln = 0.0
+    cost_from_db = inf_read_last("sensor.ems_koszt_kumulatywny_dzis")
+    if cost_from_db is not None:
+        running_cost_pln = float(cost_from_db)
+        print(f"[STATE] Restored running cost: {running_cost_pln:.2f} PLN from InfluxDB")
+
     try:
         while True:
             regs = srv_read()
@@ -38,6 +44,8 @@ def main():
             ev        = regs[5]
 
             day_step = (day_step + 1) % 288
+            if day_step == 0:
+                running_cost_pln = 0.0
             hour = day_step / 12.0
 
             if w_needs_refresh(hour, day_step):
@@ -64,10 +72,17 @@ def main():
 
             rce = p_get(hour)
             price = int(rce) if rce is not None else p_fallback(hour)
+            peak_today = int(round(p_max_today()))
 
             balance = pv - load
+            dt_h = TICK_S * 60.0 / 3600.0
+            running_cost_pln += -balance * price * dt_h / (100.0 * 1000.0)
             delta = batt_delta(balance, force)
             new_soc = batt_clamp(soc + delta)
+
+            if day_step % 60 == 0:
+                print(f"[PEAK]  Peak today: {peak_today} gr/kWh, "
+                      f"Current: {price} gr/kWh, Cost: {running_cost_pln:.2f} PLN")
 
             if force == 1:
                 print(f"[FORCE]  Charging  {soc:.0f} -> {new_soc:.0f}%")
@@ -80,6 +95,8 @@ def main():
             elif new_soc <= 0:
                 print(f"[GRID]   Battery empty, draw {-balance:.0f}W at {price}gr/kWh")
 
+            cost_int = int(round(running_cost_pln * 100))
+
             srv_write([
                 int(pv),
                 int(round(new_soc)),
@@ -89,9 +106,11 @@ def main():
                 ev,
                 int(load),
                 price,
+                peak_today,
+                cost_int,
             ])
 
-            inf_write(pv, round(new_soc), load, price, balance, current_temp, cloud, ghi)
+            inf_write(pv, round(new_soc), load, price, balance, current_temp, cloud, ghi, peak_today, round(running_cost_pln, 2))
 
             time.sleep(TICK_S)
 
