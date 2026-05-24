@@ -78,10 +78,14 @@ simulator (Modbus) → HA (Modbus TCP) → automations
 - `switch.inwerter_wymus_ladowanie_z_sieci` — Force charge
 - `switch.ems_bojler_grzalka_3kw` — Boiler Modbus (reg 3)
 
+### REST (Open-Meteo)
+- `sensor.open_meteo_ghi` — GHI forecast data (hourly, refreshed every hour)
+
 ### Template
 - `sensor.ems_moc_netto_bilans` — PV - house load (W)
 - `sensor.ems_czas_do_rozladowania` — Estimated minutes until empty
 - `sensor.ems_czas_do_pelnego_naladowania` — Estimated minutes until full
+- `sensor.ems_prognoza_pv_jutro_szczyt_ghi` — Tomorrow's peak GHI (W/m²) for charging decisions
 
 ### Critical: HA → Modbus sync (3 automations)
 - `input_boolean.wirtualny_bojler` → `switch.ems_bojler_grzalka_3kw` → reg 3
@@ -110,13 +114,13 @@ Without these sync automations, changing HA entities has no effect on the simula
 5. **Bojler Sync** — synchronizes input_boolean → Modbus reg 3
 6. **HP Sync** — synchronizes input_select → Modbus reg 4 (0/1/2)
 7. **EV Sync** — synchronizes input_number → Modbus reg 5
-8. **Night Charging** — charges battery from grid at cheap hours (02:00-05:00, <30 gr/kWh)
+8. **Night Charging** — charges battery from grid at cheap hours (02:00-05:00, <30 gr/kWh); skips if tomorrow's GHI peak >400 W/m² (sun will charge for free)
 
 ## Dashboard
 
 3 views defined in `ui-lovelace.yaml`:
 - **Przeplywy** — gauges, daily stats, battery runtime, 12h history
-- **Sterowanie** — all controllable devices, peak shaving controls, prices
+- **Sterowanie** — all controllable devices, peak shaving controls, prices, GHI forecast
 - **Energy** — Riemann integrals, 24h price chart
 
 ## InfluxDB Measurements
