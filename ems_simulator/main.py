@@ -5,7 +5,7 @@ import datetime
 from ems_simulator.config import TICK_S, GRID_NORMAL, GRID_BLACKOUT
 from ems_simulator.weather import fetch as w_fetch, get as w_get, needs_refresh as w_needs_refresh
 from ems_simulator.pricing import fetch as p_fetch, get as p_get, max_today as p_max_today, needs_refresh as p_needs_refresh, fallback_price as p_fallback, distribution_rate as p_dist_rate, _price_cache as p_cache
-from ems_simulator.generators import pv_from_ghi, base_load, SpikeState, controllable_load, DeviceTimer
+from ems_simulator.generators import pv_from_ghi, base_load, SpikeState, controllable_load, DeviceTimer, SoilingState, hp_cop, EVProfile, make_scheduled_appliances
 from ems_simulator.charge_scheduler import compute_charge_window
 from ems_simulator.battery import delta as batt_delta, clamp as batt_clamp, MODE_AUTO, MODE_FORCE_CHARGE, MODE_FORCE_DISCHARGE
 from ems_simulator.server import start as srv_start, stop as srv_stop, read as srv_read, write as srv_write, banner as srv_banner
@@ -24,11 +24,15 @@ def main():
     day_step = int(now_h * 12)
     current_temp = 15.0
     spike = SpikeState()
+    soiling = SoilingState()
     timer_boiler = DeviceTimer()
     timer_hp = DeviceTimer()
     timer_ev = DeviceTimer()
+    ev_profile = EVProfile()
+    appliances = make_scheduled_appliances()
 
     running_cost_pln = 0.0
+    _total_sim_days = 0.0  # for calendar aging
     cost_from_db = inf_read_last("sensor.ems_koszt_kumulatywny_dzis")
     if cost_from_db is not None:
         running_cost_pln = float(cost_from_db)
@@ -89,10 +93,38 @@ def main():
 
                 rce = p_get(hour)
 
-            pv = pv_from_ghi(ghi, hour)
+            soiling.tick(hour)
+            pv = pv_from_ghi(ghi, hour, soiling)
 
+            ev_plugged, ev_needed = ev_profile.tick(day_step, hour, ev_override)
+            if ev_plugged and ev_needed > 1.0 and ev_eff == 0:
+                ev_eff = 3700
+            elif ev_plugged and ev_needed <= 1.0:
+                ev_eff = 0
+            if ev_eff > 0 and ev_plugged:
+                tick_energy = ev_eff * TICK_S * 60.0 / (3600.0 * 1000.0)
+                ev_profile.add_energy(tick_energy)
+                if ev_needed < tick_energy:
+                    ev_eff = 0
+
+            cop = hp_cop(current_temp)
+            ctrl_load, hp_thermal = controllable_load(boiler_eff, hp_eff, ev_eff, cop)
             load = base_load(hour, current_temp)
-            load += controllable_load(boiler_eff, hp_eff, ev_eff)
+            if hp_eff > 0 and current_temp is not None and current_temp < 18:
+                heat_demand = min(int((18 - current_temp) * 60), 2000)
+                hp_thermal_w = int(hp_thermal)
+                overlap = min(hp_thermal_w, heat_demand)
+                if overlap > 200:
+                    load -= int(overlap * 0.8)
+                    if day_step % 12 == 0:
+                        print(f"[COP]  temp={current_temp:.0f}C  COP={cop:.1f}  "
+                              f"HP_thermal={hp_thermal_w}W  heat_demand={heat_demand}W  saved={int(overlap*0.8)}W")
+            load += ctrl_load
+
+            for app in appliances:
+                app_load = app.tick(hour, price)
+                if app_load > 0:
+                    load += app_load
 
             sp = spike.tick()
             if sp > 0:
@@ -125,6 +157,22 @@ def main():
                 print(f"[ANOMALY] Charge scheduler paused (no API data)")
 
             balance = pv - load
+
+            if grid_status == GRID_NORMAL and balance < 0 and soc < 20:
+                shed_w = 0
+                if ev_eff > 0:
+                    shed_w += ev_eff
+                    print(f"[PRIO] Shed EV {ev_eff}W (SoC={soc:.0f}%, balance={balance:.0f}W)")
+                if shed_w == 0 and hp_eff > 0:
+                    hp_save = {1: 1500, 2: 3000}.get(hp_eff, 0)
+                    shed_w += hp_save
+                    print(f"[PRIO] Shed HP {hp_save}W (SoC={soc:.0f}%)")
+                if shed_w == 0 and boiler_eff > 0:
+                    shed_w += 3000
+                    print(f"[PRIO] Shed boiler 3000W (SoC={soc:.0f}%)")
+                if shed_w > 0:
+                    load -= shed_w
+                    balance = pv - load
 
             # Island mode: load shed on critical SoC (bypasses timers — emergency)
             if grid_status == GRID_BLACKOUT and soc <= 5 and balance < 0:
@@ -165,7 +213,12 @@ def main():
             if grid_status == GRID_BLACKOUT and actual_force == MODE_FORCE_CHARGE:
                 actual_force = MODE_AUTO
 
-            delta = batt_delta(balance, actual_force)
+            _total_sim_days += 1.0 / 288.0
+            aging_factor = max(0.70, 1.0 - _total_sim_days * 0.02 / 365.0)
+            if day_step % 60 == 0 and aging_factor < 0.995:
+                print(f"[AGING] Battery capacity: {aging_factor*100:.1f}% of original "
+                      f"(sim day {_total_sim_days:.0f})")
+            delta = batt_delta(balance, actual_force, aging_factor)
             new_soc = batt_clamp(soc + delta)
 
             if day_step % 60 == 0:

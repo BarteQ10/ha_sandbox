@@ -15,10 +15,10 @@ HA connects to `192.168.0.18:5020` (Modbus TCP).
 
 ```
 ems_simulator/
-├── config.py              # Location, PV kWp, battery kWh, price/distribution bands
+├── config.py              # Location, PV/inverter kW, battery kWh, COP/price/soiling/EV config
 ├── weather.py             # Open-Meteo API: GHI + temperature + cloud cover
 ├── pricing.py             # PSE API + distribution_rate() tariff helper
-├── generators.py          # PV, load, spike simulation, DeviceTimer (anti-chatter)
+├── generators.py          # PV (clip + soiling), load, spike, DeviceTimer, COP, EVProfile, ScheduledAppliance
 ├── battery.py             # SoC delta from power balance
 ├── charge_scheduler.py    # Dynamic charge window (PV forecast + price bands)
 ├── server.py              # Modbus TCP server (pyModbusTCP)
@@ -73,12 +73,15 @@ simulator (Modbus) → HA (Modbus TCP) → automations
 ## Simulation
 
 - **PV**: 5kWp × **real GHI (shortwave_radiation) from Open-Meteo** — GHI integrates sun angle + cloud cover in a single number, 0 at night, peak ~3850W on sunny noon, dips when clouds pass
+- **PV clipping**: inverter max 5000W — excess power clipped (inverter rating)
+- **PV soiling**: seasonal soiling factor (summer 0.96, winter 0.88 + random snow events that reduce output to 30% for ~2h)
 - **Cloud cover**: Stored in InfluxDB as `sensor.cloud_cover` (0-100%) for ML feature engineering
 - **House**: daily profile + **temperature-dependent load** (heating when <18C, cooling when >26C)
 - **Spikes**: random 2-7kW events (kettle, oven, induction) every ~2-8 min
 - **Prices**: **real RCE from PSE API** (`api.raporty.pse.pl`) — 15-min aggregated to hourly; shows duck curve (near-zero at solar noon, peak evening)
 - **Distribution fees**: on import (`balance < 0`), distribution cost added to PSE price: peak hours (6-13, 15-22) +28 gr/kWh, off-peak +12 gr/kWh. Export uses PSE price only (no distribution paid by operator).
 - **Battery**: 15kWh LiFePO4, smooth SoC delta from real-time power balance
+- **Calendar aging**: 2% capacity loss per year — effective capacity decreases over simulated time
 
 ## HA Entities
 
@@ -298,6 +301,64 @@ effective_price = pse_price + distribution_rate(hour)
 Export (`balance > 0`) uses PSE price only — the grid operator does not pay you for distribution.
 
 This makes arbitrage more realistic: charging from grid during daytime peak can be unprofitable even with a low PSE price, because the 28 gr/kWh distribution fee eats the margin.
+
+## HP COP (Coefficient of Performance)
+
+`hp_cop(temp)` in `generators.py` interpolates a COP curve from config:
+
+| Temperature | COP |
+|-------------|-----|
+| -15°C | 1.5 |
+| -5°C | 2.5 |
+| +5°C | 3.5 |
+| +15°C | 4.5 |
+| +25°C | 5.0 (clamped) |
+
+When HP is active and outdoor temp < 18°C, the thermal output (`HP_power × COP`) covers part of the heating base load. The electrical base load is reduced by 80% of the overlap — the HP provides heat more efficiently than resistive heating.
+
+## EV Profile (Profil ładowania)
+
+`EVProfile` in `generators.py` models a real EV owner pattern:
+
+- **Arrival**: 17:00 (car plugged in at home)
+- **Departure**: 7:00 (car leaves)
+- **Daily need**: 15 kWh (configurable via `EV_DAILY_KWH_NEEDED`)
+- **Auto-charge**: when plugged in and >1 kWh still needed, EV set to 3700W base charge
+
+Energy delivered is tracked per simulated day and resets at midnight. The profile interacts with the EV Override (reg 17) — when override is active, the profile ignores plugged state and delivers full 7400W.
+
+## Scheduled Appliances (Urządzenia opóźnialne)
+
+`ScheduledAppliance` in `generators.py` models deferrable loads with a time window:
+
+| Appliance | Power | Duration | Window |
+|-----------|-------|----------|--------|
+| Pralka | 2000W | 1.5h | 8:00-22:00 |
+| Zmywarka | 1500W | 1.0h | 22:00-6:00 |
+
+Each appliance has a state machine: `idle → running → done`. When the time window opens, the appliance starts automatically and runs for the configured duration. After finishing, it stays `done` for the rest of the simulated day.
+
+## Self-Consumption Priority (Priorytetyzacja odbiorników)
+
+When grid-connected (`GRID_NORMAL`) and SoC drops below 20% with a power deficit (`balance < 0`), the system sheds non-essential loads by priority:
+
+1. **EV** (first to shed — lowest priority)
+2. **HP** (shed only if EV already off)
+3. **Boiler** (shed only if HP already off)
+4. **Base load** (never shed — essential)
+
+This prevents deep battery discharge and reduces expensive grid import during high-price periods.
+
+## Calendar Aging (Starzenie kalendarzowe baterii)
+
+In addition to the per-cycle degradation cost (15 gr/kWh), the battery loses 2% of its capacity per simulated year (`CALENDAR_AGING_PCT_PER_YEAR` in `config.py`).
+
+The `aging_factor` is applied to `SOC_DELTA_DENOM` in `battery.delta()`:
+- After 1 simulated year: effective capacity = 98%
+- After 5 years: effective capacity = 90%
+- After 15 years: clamped at 70% (end of life)
+
+This interacts with cycle degradation: as the battery holds less energy, arbitrage revenues decrease because the same SoC swing moves fewer kWh.
 
 ## Anti-Chattering (Device Minimum On/Off Times)
 

@@ -25,16 +25,54 @@ WEATHER_ML_URL = (
 
 # PV system
 PV_PEAK_KW = 5.0
+INVERTER_MAX_W = 5000  # Max AC output of inverter (clipping)
+
+# PV soiling / snow (seasonal loss factor)
+SOILING_BASE_SUMMER = 0.96  # 4% loss in summer (dust)
+SOILING_BASE_WINTER = 0.88  # 12% loss in winter (snow, dirt)
+SNOW_EVENT_CHANCE = 0.002   # ~2% of winter ticks get snow cover
+SNOW_RECOVERY_TICKS = 24    # 24 ticks = 2h simulated to recover from snow
 
 # Battery (60x simulated-speed factor baked in)
 BATTERY_KWH = 15.0
 SOC_DELTA_DENOM = 1080.0
 INVERTER_EFFICIENCY = 0.92  # Round-trip AC↔DC conversion loss (8%)
+CALENDAR_AGING_PCT_PER_YEAR = 2.0  # capacity loss per year (calendar, not cycle)
+
+# HP COP (Coefficient of Performance) as function of outdoor temperature
+# (temp_celsius, cop)
+HP_COP_CURVE = [
+    (-15, 1.5),
+    (-10, 2.0),
+    (-5, 2.5),
+    (0, 3.0),
+    (5, 3.5),
+    (10, 4.0),
+    (15, 4.5),
+    (20, 5.0),
+]
 
 # Grid status
 GRID_NORMAL = 0
 GRID_BLACKOUT = 1
 GRID_INSTABILITY = 2
+
+# EV profile
+EV_ARRIVAL_HOUR = 17
+EV_DEPARTURE_HOUR = 7
+EV_DAILY_KWH_NEEDED = 15.0  # kWh needed to fill the car each day
+EV_CHARGE_MAX_W = 7400  # max charging power
+
+# Scheduled deferrable appliances
+# (name, power_w, duration_h, window_start_h, window_end_h)
+SCHEDULED_APPLIANCES = [
+    ("Pralka", 2000, 1.5, 8, 22),
+    ("Zmywarka", 1500, 1.0, 22, 6),
+]
+
+# Self-consumption priority (order to shed loads when grid import exceeds limit)
+# Base load cannot be shed
+PRIORITY_ORDER = ["EV", "HP", "Boiler"]
 
 # Device minimum on/off times (simulated minutes) — anti-chattering
 DEVICE_MIN_ON_SIM_MIN = 60
