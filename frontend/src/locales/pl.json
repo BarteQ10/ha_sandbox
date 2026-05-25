@@ -1,0 +1,71 @@
+{
+  "nav": {
+    "title": "EMS",
+    "flow": "Przepływy",
+    "controls": "Sterowanie",
+    "energy": "Energia"
+  },
+  "connection": {
+    "ok": "HA OK",
+    "offline": "OFFLINE"
+  },
+  "flow": {
+    "title": "Przepływy energii",
+    "pv": "PV",
+    "battery": "Bateria (SoC)",
+    "load": "Dom (pobór)",
+    "import": "Import",
+    "export": "Eksport",
+    "balance": "Bilans finansowy",
+    "price": "Cena",
+    "devices": "Odbiorniki",
+    "boiler": "Bojler",
+    "heatPump": "Pompa ciepła",
+    "ev": "EV",
+    "inverter": "Inwerter",
+    "grid": "Sieć",
+    "history": "Historia",
+    "pvHistory": "PV produkcja (12h)",
+    "batteryHistory": "Stan baterii (12h)",
+    "on": "ON",
+    "off": "OFF"
+  },
+  "controls": {
+    "title": "Sterowanie",
+    "inverterMode": "Tryb inwertera",
+    "heatPumpMode": "Pompa ciepła",
+    "gridStatus": "Status sieci",
+    "boiler": "Bojler 3kW",
+    "pvLimit": "Ogranicznik PV",
+    "apiAnomaly": "Symuluj awarie API",
+    "stormSafeguard": "Storm Safeguard",
+    "stormActivate": "AKTYWUJ",
+    "stormDeactivate": "Dezaktywuj",
+    "evOverride": "EV Override",
+    "evOn": "WŁĄCZ (7400W)",
+    "evAuto": "Auto",
+    "evLimit": "Limit ładowania EV",
+    "degradationCost": "Koszt degradacji baterii"
+  },
+  "energy": {
+    "title": "Energia & Finanse",
+    "pvToday": "PV dzisiaj",
+    "netBalance": "Bilans netto",
+    "balance": "Bilans finansowy",
+    "peakPrice": "Szczyt ceny",
+    "chargeWindow": "Okno ładowania",
+    "start": "Start",
+    "duration": "Czas",
+    "none": "Brak",
+    "pvForecast": "Prognoza PV jutro",
+    "energy": "Energia",
+    "peakGhi": "Szczyt GHI",
+    "details": "Szczegóły",
+    "priceHistory": "Historia cen (24h)"
+  },
+  "inverterOptions": {
+    "auto": "Auto",
+    "forceCharge": "Force Charge",
+    "forceDischarge": "Force Discharge"
+  }
+}

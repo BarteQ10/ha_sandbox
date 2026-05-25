@@ -1,0 +1,71 @@
+{
+  "nav": {
+    "title": "EMS",
+    "flow": "Flow",
+    "controls": "Controls",
+    "energy": "Energy"
+  },
+  "connection": {
+    "ok": "HA OK",
+    "offline": "OFFLINE"
+  },
+  "flow": {
+    "title": "Energy Flow",
+    "pv": "PV",
+    "battery": "Battery (SoC)",
+    "load": "Home Load",
+    "import": "Import",
+    "export": "Export",
+    "balance": "Financial Balance",
+    "price": "Price",
+    "devices": "Controllable Loads",
+    "boiler": "Boiler",
+    "heatPump": "Heat Pump",
+    "ev": "EV",
+    "inverter": "Inverter",
+    "grid": "Grid",
+    "history": "History",
+    "pvHistory": "PV production (12h)",
+    "batteryHistory": "Battery state (12h)",
+    "on": "ON",
+    "off": "OFF"
+  },
+  "controls": {
+    "title": "Controls",
+    "inverterMode": "Inverter Mode",
+    "heatPumpMode": "Heat Pump",
+    "gridStatus": "Grid Status",
+    "boiler": "Boiler 3kW",
+    "pvLimit": "PV Curtailment",
+    "apiAnomaly": "API Anomaly Sim",
+    "stormSafeguard": "Storm Safeguard",
+    "stormActivate": "ACTIVATE",
+    "stormDeactivate": "Deactivate",
+    "evOverride": "EV Override",
+    "evOn": "TURN ON (7400W)",
+    "evAuto": "Auto",
+    "evLimit": "EV Charge Limit",
+    "degradationCost": "Battery Degradation Cost"
+  },
+  "energy": {
+    "title": "Energy & Finance",
+    "pvToday": "PV Today",
+    "netBalance": "Net Balance",
+    "balance": "Financial Balance",
+    "peakPrice": "Peak Price",
+    "chargeWindow": "Charge Window",
+    "start": "Start",
+    "duration": "Duration",
+    "none": "None",
+    "pvForecast": "PV Forecast Tomorrow",
+    "energy": "Energy",
+    "peakGhi": "Peak GHI",
+    "details": "Details",
+    "priceHistory": "Price History (24h)"
+  },
+  "inverterOptions": {
+    "auto": "Auto",
+    "forceCharge": "Force Charge",
+    "forceDischarge": "Force Discharge"
+  }
+}

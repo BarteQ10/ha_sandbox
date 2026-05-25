@@ -36,7 +36,8 @@ run.py                # Top-level launcher
 | MQTT | Mosquitto (Docker, port 1883) |
 | Telemetry DB | InfluxDB 2.7 (Docker, port 8086) — direct writes |
 | ML | `ml_forecast.py` (RandomForest, GHI from Open-Meteo past_days) |
-| Dashboard | Lovelace YAML (`ui-lovelace.yaml`) |
+| Dashboard | React TS (`frontend/`) — optional, connects via HA REST + WebSocket |
+| Legacy Dashboard | Lovelace YAML (`ui-lovelace.yaml`) |
 
 ### Data flow
 
@@ -411,3 +412,71 @@ constrain(desired):
 ## Weather Caching
 
 `weather.py` stores forecast data keyed by `(date, hour)` tuple, so `get(hour)` always returns today's data (not overwritten by tomorrow's). Full forecast rows are cached in `_forecast_rows` on `fetch()` — `forecast_df()` returns them without a second HTTP call.
+
+## React Frontend (`frontend/`)
+
+Optional standalone dashboard replacing or complementing the HA Lovelace UI.
+
+### Quick Start
+
+```bash
+cd frontend
+cp .env.example .env
+# Edit .env — set VITE_HA_TOKEN from http://localhost:8123/profile
+npm install
+npm run dev
+```
+
+Open `http://localhost:5173`.
+
+### Stack
+
+| Component | Technology |
+|-----------|-----------|
+| Framework | React 19 + TypeScript + Vite |
+| UI | shadcn/ui (Radix primitives + Tailwind CSS v4) |
+| Charts | recharts |
+| Icons | lucide-react |
+| i18n | react-i18next + i18next-browser-languagedetector |
+| HA API | `home-assistant-js-websocket` (WebSocket for live state + service calls) |
+
+### Architecture
+
+```
+React ←→ HA WebSocket (live state_changed events + service calls)
+React → HA REST API (initial state fetch + history for charts)
+HA → Modbus TCP → Python Simulator
+```
+
+### Features
+
+- **Live dashboard**: PV, SoC, load gauges updated in real-time via HA WebSocket
+- **Controls**: inverter mode, boiler, heat pump, EV limit, PV curtailment, grid status, storm safeguard, EV override, API anomaly sim
+- **Energy view**: daily PV energy, net balance, financial balance, peak price, charge window, PV forecast
+- **History charts**: 12h PV/battery history, 24h price chart with proper time-scaled X-axis
+- **Dark/light theme**: toggle with system preference detection, persisted to localStorage
+- **i18n**: Polish/English, persisted to localStorage, toggle in header
+
+### Structure
+
+```
+frontend/src/
+├── api/haClient.ts          # HA connection (WS + REST history)
+├── hooks/
+│   ├── useHA.tsx            # HA context + entity hooks
+│   └── useTheme.tsx         # Dark/light theme toggle
+├── components/
+│   ├── Flow.tsx             # Energy flow view
+│   ├── Controls.tsx         # Device controls
+│   ├── Energy.tsx           # Energy & finance
+│   ├── charts/
+│   │   ├── FlowGauge.tsx    # SVG ring gauge
+│   │   └── MiniChart.tsx    # Line chart with HA history
+│   └── ui/                  # shadcn/ui components
+├── locales/
+│   ├── pl.json              # Polish translations
+│   └── en.json              # English translations
+├── lib/utils.ts             # cn() utility
+├── App.tsx                  # Root with tabs, theme, lang switcher
+└── i18n.ts                  # i18next configuration
+```
