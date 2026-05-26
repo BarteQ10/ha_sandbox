@@ -48,8 +48,8 @@ function AppContent() {
   const { t } = useTranslation()
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <header className="sticky top-0 z-50 border-b bg-card text-card-foreground">
+    <div className="min-h-screen bg-transparent text-foreground">
+      <header className="sticky top-0 z-50 border-b bg-card text-card-foreground backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-2">
           <h1 className="text-lg font-bold tracking-wider">{t("nav.title")}</h1>
           <Tabs value={tab} onValueChange={setTab}>

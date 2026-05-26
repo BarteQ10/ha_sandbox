@@ -9,6 +9,22 @@ import {
   Lightbulb, Thermometer, Droplets, Blinds,
 } from "lucide-react"
 
+function kelvinToRgb(k: number): string {
+  const t = k / 100
+  let r: number, g: number, b: number
+  if (t <= 66) {
+    r = 255
+    g = 99.4708025861 * Math.log(t) - 161.1195681661
+    b = t <= 20 ? 0 : 138.5177312231 * Math.log(t - 10) - 305.0447927307
+  } else {
+    r = 329.698727446 * Math.pow(t - 60, -0.1332047592)
+    g = 288.1221695283 * Math.pow(t - 60, -0.0755148492)
+    b = 255
+  }
+  const clamp = (v: number) => Math.min(255, Math.max(0, Math.round(v)))
+  return `rgb(${clamp(r)}, ${clamp(g)}, ${clamp(b)})`
+}
+
 interface LightConfig {
   entityId: string
   name: string
@@ -236,8 +252,9 @@ function RoomCard({ room }: { room: RoomConfig }) {
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] text-muted-foreground w-6">Jas</span>
                     <Slider
+                      key={light.brightnessEntity}
                       value={[brightness]}
-                      min={1}
+                      min={0}
                       max={100}
                       step={1}
                       className="flex-1"
@@ -254,10 +271,15 @@ function RoomCard({ room }: { room: RoomConfig }) {
                   </div>
                 )}
 
-                {isOn && colorTemp !== null && (
+                  {isOn && colorTemp !== null && (
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-muted-foreground w-6">K</span>
+                    <span
+                      className="inline-block h-3 w-3 rounded-full shrink-0"
+                      style={{ backgroundColor: kelvinToRgb(colorTemp) }}
+                    />
                     <Slider
+                      key={light.colorTempEntity}
+                      color={kelvinToRgb(colorTemp)}
                       value={[colorTemp]}
                       min={2700}
                       max={6500}
