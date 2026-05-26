@@ -1,0 +1,33 @@
+name: Deploy to Server
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT || '22' }}
+          script: |
+            cd ${{ secrets.PROJECT_PATH }}
+            git pull
+            pip install -r requirements.txt 2>/dev/null || true
+            cd frontend
+            npm ci --omit=dev --ignore-scripts 2>/dev/null || npm ci 2>/dev/null || npm install
+            npm run build
+            cd ..
+            if systemctl is-active --quiet ems-simulator 2>/dev/null; then
+              sudo systemctl restart ems-simulator
+            elif systemctl is-active --quiet hass 2>/dev/null; then
+              echo "Simulator not managed by systemd. Restart manually if needed."
+            fi
+            echo "Deploy complete: $(date)"

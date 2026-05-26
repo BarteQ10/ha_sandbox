@@ -40,8 +40,13 @@ Open `http://localhost:5173`.
 
 Each room card shows individual light toggles with:
 - **Dimmer slider** (1-100%) on select lights (lampa stojaca, wyspa, glowne sypialnia, lampki nocne, lustro LED)
-- **Color temperature slider** (2700-6500K) on select lights (lampa stojaca, LED paski, lampki nocne, lustro LED)
+- **Color temperature slider** (2700-6500K) on select lights (lampa stojaca, lampki nocne, lustro LED)
+- **RGB sliders** (R/G/B 0-255) on LED strips (Salon, Kuchnia)
 - **All ON/OFF** quick buttons per room
+
+### Thermostat
+
+Salon, Kuchnia, Sypialnia have +/- target temperature control (16-30°C, step 0.5).
 
 ## Stack
 

@@ -163,9 +163,30 @@ Without these sync automations, changing HA entities has no effect on the simula
 - **Sterowanie** — all controllable devices, peak shaving controls, battery degradation cost, prices with peak forecast, GHI forecast, financial balance
 - **Energy** — Riemann integrals, 24h price chart, daily financial balance with peak price
 
-## InfluxDB Measurements
+## CI/CD Deployment
 
-Written every 5s by `influx_writer.py` to bucket `ems` (token: `ems-token`, org: `home`):
+On push to `master`, GitHub Actions deploys to a Linux server / Raspberry Pi via SSH:
+
+1. `git pull` on the server
+2. `pip install -r requirements.txt`
+3. `npm ci && npm run build` in `frontend/`
+4. Restart `ems-simulator` systemd service (if managed)
+
+### Setup
+
+Add these secrets to GitHub repo → Settings → Secrets and variables → Actions:
+
+| Secret | Description |
+|--------|-------------|
+| `SERVER_HOST` | Server IP or domain |
+| `SERVER_USER` | SSH username |
+| `SSH_KEY` | Private SSH key (deploy key) |
+| `SERVER_PORT` | SSH port (default 22) |
+| `PROJECT_PATH` | Absolute path to project on server |
+
+Or deploy manually: `./deploy.sh /path/to/project`
+
+## InfluxDB Measurements
 
 | Measurement | Description | Unit |
 |-------------|-------------|------|
@@ -451,10 +472,12 @@ HA → Modbus TCP → Python Simulator
 ### Features
 
 - **Smart Home dashboard**: room cards (Salon, Kuchnia, Sypialnia, Lazienka, Ogrod) with temperature, humidity, blinds, and multi-light controls per room
-- **Multi-light control**: individual light toggles with dimmer (1-100%) and color temperature (2700-6500K) sliders on select lights, plus All-ON/OFF per room
+- **Multi-light control**: individual light toggles with dimmer (1-100%) and color temperature (2700-6500K) or RGB (R/G/B 0-255) sliders, plus All-ON/OFF per room
+- **Thermostat setpoint**: +/- buttons in Salon, Kuchnia, Sypialnia for target temperature (16-30°C, step 0.5)
 - **Room sub-views**: Wspolne / Prywatne / Ogrod tabs
 - **System view**: energy flow gauges, inverter/boiler/HP controls, daily stats, price history, charge window, PV forecast
 - **History charts**: 12h PV/battery history, 24h price chart with proper time-scaled X-axis
+- **Glassmorphism UI**: semi-transparent cards with backdrop blur, gradient backgrounds
 - **Dark/light theme**: toggle with system preference detection, persisted to localStorage
 - **i18n**: Polish/English, persisted to localStorage, toggle in header
 

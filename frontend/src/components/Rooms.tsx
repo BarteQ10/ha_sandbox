@@ -48,6 +48,7 @@ interface RoomConfig {
   lights: LightConfig[]
   shutterEntity?: string
   humidityEntity?: string
+  setpointEntity?: string
 }
 
 const rooms: RoomConfig[] = [
@@ -57,6 +58,7 @@ const rooms: RoomConfig[] = [
     icon: Sofa,
     color: "#ffa726",
     tempEntity: "input_number.wirtualna_temp_salon",
+    setpointEntity: "input_number.wirtualne_ustawienie_temp_salon",
     lights: [
       { entityId: "input_boolean.wirtualne_swiatlo_salon_glowne", name: "Główne" },
       {
@@ -83,6 +85,7 @@ const rooms: RoomConfig[] = [
     icon: CookingPot,
     color: "#66bb6a",
     tempEntity: "input_number.wirtualna_temp_kuchnia",
+    setpointEntity: "input_number.wirtualne_ustawienie_temp_kuchnia",
     lights: [
       { entityId: "input_boolean.wirtualne_swiatlo_kuchnia_glowne", name: "Główne" },
       {
@@ -108,6 +111,7 @@ const rooms: RoomConfig[] = [
     icon: Bed,
     color: "#4fc3f7",
     tempEntity: "input_number.wirtualna_temp_sypialnia",
+    setpointEntity: "input_number.wirtualne_ustawienie_temp_sypialnia",
     lights: [
       {
         entityId: "input_boolean.wirtualne_swiatlo_sypialnia_glowne",
@@ -300,6 +304,7 @@ function RoomCard({ room }: { room: RoomConfig }) {
   const RoomIcon = room.icon
   const lightStates = room.lights.map((l) => useEntityState(l.entityId) === "on")
   const anyOn = lightStates.some(Boolean)
+  const setpoint = useEntityNum(room.setpointEntity ?? "", 21)
 
   function setAll(target: "on" | "off") {
     room.lights.forEach((l, i) => {
@@ -319,13 +324,45 @@ function RoomCard({ room }: { room: RoomConfig }) {
             <RoomIcon className="h-5 w-5" style={{ color: room.color }} />
             <h3 className="font-semibold">{t(room.nameKey)}</h3>
           </div>
-          <div className="flex items-center gap-1 text-lg font-bold">
-            <Thermometer className="h-4 w-4 text-muted-foreground" />
-            {temp.toFixed(1)}°
-            {humidity !== null && (
-              <span className="ml-2 text-xs font-normal text-muted-foreground">
-                <Droplets className="inline h-3 w-3" /> {humidity}%
-              </span>
+          <div className="flex flex-col items-end gap-0.5">
+            <div className="flex items-center gap-1 text-lg font-bold">
+              <Thermometer className="h-4 w-4 text-muted-foreground" />
+              {temp.toFixed(1)}°
+              {humidity !== null && (
+                <span className="ml-1 text-xs font-normal text-muted-foreground">
+                  <Droplets className="inline h-3 w-3" /> {humidity}%
+                </span>
+              )}
+            </div>
+            {room.setpointEntity && (
+              <div className="flex items-center gap-1">
+                <span className="text-[10px] text-muted-foreground">Ustaw</span>
+                <button
+                  className="flex h-5 w-5 items-center justify-center rounded-full border text-xs leading-none hover:bg-accent"
+                  onClick={() =>
+                    callService("input_number", "set_value", {
+                      entity_id: room.setpointEntity,
+                      value: Math.round((setpoint - 0.5) * 10) / 10,
+                    })
+                  }
+                >
+                  -
+                </button>
+                <span className="min-w-[3ch] text-center text-xs font-semibold tabular-nums">
+                  {setpoint.toFixed(1)}
+                </span>
+                <button
+                  className="flex h-5 w-5 items-center justify-center rounded-full border text-xs leading-none hover:bg-accent"
+                  onClick={() =>
+                    callService("input_number", "set_value", {
+                      entity_id: room.setpointEntity,
+                      value: Math.round((setpoint + 0.5) * 10) / 10,
+                    })
+                  }
+                >
+                  +
+                </button>
+              </div>
             )}
           </div>
         </div>
