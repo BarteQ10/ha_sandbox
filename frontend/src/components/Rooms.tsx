@@ -25,11 +25,18 @@ function kelvinToRgb(k: number): string {
   return `rgb(${clamp(r)}, ${clamp(g)}, ${clamp(b)})`
 }
 
+interface RgbChannels {
+  r: string
+  g: string
+  b: string
+}
+
 interface LightConfig {
   entityId: string
   name: string
   brightnessEntity?: string
   colorTempEntity?: string
+  rgbEntities?: RgbChannels
 }
 
 interface RoomConfig {
@@ -61,7 +68,11 @@ const rooms: RoomConfig[] = [
       {
         entityId: "input_boolean.wirtualne_swiatlo_salon_led",
         name: "LED",
-        colorTempEntity: "input_number.wirtualne_barwa_salon_led",
+        rgbEntities: {
+          r: "input_number.wirtualne_rgb_salon_led_r",
+          g: "input_number.wirtualne_rgb_salon_led_g",
+          b: "input_number.wirtualne_rgb_salon_led_b",
+        },
       },
     ],
     shutterEntity: "input_number.wirtualne_rolety_salon",
@@ -82,7 +93,11 @@ const rooms: RoomConfig[] = [
       {
         entityId: "input_boolean.wirtualne_swiatlo_kuchnia_led",
         name: "LED",
-        colorTempEntity: "input_number.wirtualne_barwa_kuchnia_led",
+        rgbEntities: {
+          r: "input_number.wirtualne_rgb_kuchnia_led_r",
+          g: "input_number.wirtualne_rgb_kuchnia_led_g",
+          b: "input_number.wirtualne_rgb_kuchnia_led_b",
+        },
       },
     ],
     shutterEntity: "input_number.wirtualne_rolety_kuchnia",
@@ -218,6 +233,9 @@ function RoomCard({ room }: { room: RoomConfig }) {
             const colorTemp = light.colorTempEntity
               ? useEntityNum(light.colorTempEntity, 4000)
               : null
+            const r = light.rgbEntities ? useEntityNum(light.rgbEntities.r, 255) : null
+            const g = light.rgbEntities ? useEntityNum(light.rgbEntities.g, 255) : null
+            const b = light.rgbEntities ? useEntityNum(light.rgbEntities.b, 255) : null
 
             return (
               <div
@@ -271,7 +289,49 @@ function RoomCard({ room }: { room: RoomConfig }) {
                   </div>
                 )}
 
-                  {isOn && colorTemp !== null && (
+                {isOn && r !== null && g !== null && b !== null && (
+                  <div className="space-y-1.5 pt-1">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="inline-block h-3 w-3 rounded-full shrink-0"
+                        style={{ backgroundColor: `rgb(${r},${g},${b})` }}
+                      />
+                      <span className="text-[10px] text-muted-foreground">RGB</span>
+                    </div>
+                    {([
+                      { ch: "r", label: "R", val: r, entity: light.rgbEntities!.r },
+                      { ch: "g", label: "G", val: g, entity: light.rgbEntities!.g },
+                      { ch: "b", label: "B", val: b, entity: light.rgbEntities!.b },
+                    ] as const).map(({ ch, label, val, entity }) => (
+                      <div className="flex items-center gap-2" key={ch}>
+                        <span
+                          className="text-[10px] font-bold w-3"
+                          style={{ color: ch === "r" ? "#ef4444" : ch === "g" ? "#22c55e" : "#3b82f6" }}
+                        >
+                          {label}
+                        </span>
+                        <Slider
+                          key={entity}
+                          color={`rgb(${r},${g},${b})`}
+                          value={[val]}
+                          min={0}
+                          max={255}
+                          step={1}
+                          className="flex-1"
+                          onValueChange={([v]) =>
+                            callService("input_number", "set_value", {
+                              entity_id: entity,
+                              value: v,
+                            })
+                          }
+                        />
+                        <span className="text-[10px] text-muted-foreground w-6 text-right">{val}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {isOn && colorTemp !== null && (
                   <div className="flex items-center gap-2">
                     <span
                       className="inline-block h-3 w-3 rounded-full shrink-0"

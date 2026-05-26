@@ -463,22 +463,48 @@ input_number:
     initial: 3000
     unit_of_measurement: "K"
     icon: mdi:thermometer
-  wirtualne_barwa_salon_led:
-    name: "Barwa - LED Salon"
-    min: 2700
-    max: 6500
-    step: 100
-    initial: 4000
-    unit_of_measurement: "K"
-    icon: mdi:thermometer
-  wirtualne_barwa_kuchnia_led:
-    name: "Barwa - LED Kuchnia"
-    min: 2700
-    max: 6500
-    step: 100
-    initial: 4000
-    unit_of_measurement: "K"
-    icon: mdi:thermometer
+  wirtualne_rgb_salon_led_r:
+    name: "RGB R - LED Salon"
+    min: 0
+    max: 255
+    step: 1
+    initial: 255
+    icon: mdi:palette
+  wirtualne_rgb_salon_led_g:
+    name: "RGB G - LED Salon"
+    min: 0
+    max: 255
+    step: 1
+    initial: 200
+    icon: mdi:palette
+  wirtualne_rgb_salon_led_b:
+    name: "RGB B - LED Salon"
+    min: 0
+    max: 255
+    step: 1
+    initial: 150
+    icon: mdi:palette
+  wirtualne_rgb_kuchnia_led_r:
+    name: "RGB R - LED Kuchnia"
+    min: 0
+    max: 255
+    step: 1
+    initial: 180
+    icon: mdi:palette
+  wirtualne_rgb_kuchnia_led_g:
+    name: "RGB G - LED Kuchnia"
+    min: 0
+    max: 255
+    step: 1
+    initial: 220
+    icon: mdi:palette
+  wirtualne_rgb_kuchnia_led_b:
+    name: "RGB B - LED Kuchnia"
+    min: 0
+    max: 255
+    step: 1
+    initial: 255
+    icon: mdi:palette
   wirtualne_barwa_sypialnia_lampka1:
     name: "Barwa - Lampka 1 Sypialnia"
     min: 2700
