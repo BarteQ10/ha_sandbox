@@ -161,6 +161,134 @@ const rooms: RoomConfig[] = [
   },
 ]
 
+function LightControl({ light, color }: { light: LightConfig; color: string }) {
+  const { callService } = useHA()
+  const isOn = useEntityState(light.entityId) === "on"
+  const brightness = useEntityNum(light.brightnessEntity ?? "", 100)
+  const colorTemp = useEntityNum(light.colorTempEntity ?? "", 4000)
+  const r = useEntityNum(light.rgbEntities?.r ?? "", 255)
+  const g = useEntityNum(light.rgbEntities?.g ?? "", 255)
+  const b = useEntityNum(light.rgbEntities?.b ?? "", 255)
+
+  return (
+    <div
+      className="rounded-md border p-2.5 space-y-2"
+      style={{
+        borderColor: isOn ? color : "var(--border)",
+        backgroundColor: isOn ? `${color}12` : "transparent",
+      }}
+    >
+      <div className="flex items-center justify-between">
+        <span className="flex items-center gap-1.5 text-xs">
+          <Lightbulb
+            className="h-3.5 w-3.5 shrink-0"
+            style={{ color: isOn ? color : undefined }}
+            fill={isOn ? color : "none"}
+          />
+          {light.name}
+        </span>
+        <Switch
+          checked={isOn}
+          className="scale-75"
+          onCheckedChange={() =>
+            callService("input_boolean", isOn ? "turn_off" : "turn_on", {
+              entity_id: light.entityId,
+            })
+          }
+        />
+      </div>
+
+      {isOn && light.brightnessEntity && (
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-muted-foreground w-6">Jas</span>
+          <Slider
+            key={light.brightnessEntity}
+            value={[brightness]}
+            min={0}
+            max={100}
+            step={1}
+            className="flex-1"
+            onValueChange={([v]) =>
+              callService("input_number", "set_value", {
+                entity_id: light.brightnessEntity,
+                value: v,
+              })
+            }
+          />
+          <span className="text-[10px] text-muted-foreground w-6 text-right">{brightness}%</span>
+        </div>
+      )}
+
+      {isOn && light.rgbEntities && (
+        <div className="space-y-1.5 pt-1">
+          <div className="flex items-center gap-2">
+            <span
+              className="inline-block h-3 w-3 rounded-full shrink-0"
+              style={{ backgroundColor: `rgb(${r},${g},${b})` }}
+            />
+            <span className="text-[10px] text-muted-foreground">RGB</span>
+          </div>
+          {[
+            { ch: "r", label: "R", val: r, entity: light.rgbEntities.r },
+            { ch: "g", label: "G", val: g, entity: light.rgbEntities.g },
+            { ch: "b", label: "B", val: b, entity: light.rgbEntities.b },
+          ].map(({ ch, label, val, entity }) => (
+            <div className="flex items-center gap-2" key={ch}>
+              <span
+                className="text-[10px] font-bold w-3"
+                style={{ color: ch === "r" ? "#ef4444" : ch === "g" ? "#22c55e" : "#3b82f6" }}
+              >
+                {label}
+              </span>
+              <Slider
+                key={entity}
+                color={`rgb(${r},${g},${b})`}
+                value={[val]}
+                min={0}
+                max={255}
+                step={1}
+                className="flex-1"
+                onValueChange={([v]) =>
+                  callService("input_number", "set_value", {
+                    entity_id: entity,
+                    value: v,
+                  })
+                }
+              />
+              <span className="text-[10px] text-muted-foreground w-6 text-right">{val}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {isOn && light.colorTempEntity && (
+        <div className="flex items-center gap-2">
+          <span
+            className="inline-block h-3 w-3 rounded-full shrink-0"
+            style={{ backgroundColor: kelvinToRgb(colorTemp) }}
+          />
+          <Slider
+            key={light.colorTempEntity}
+            color={kelvinToRgb(colorTemp)}
+            value={[colorTemp]}
+            min={2700}
+            max={6500}
+            step={100}
+            className="flex-1"
+            onValueChange={([v]) =>
+              callService("input_number", "set_value", {
+                entity_id: light.colorTempEntity,
+                value: v,
+              })
+            }
+          />
+          <span className="text-[10px] text-muted-foreground w-10 text-right">{colorTemp}K</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function RoomCard({ room }: { room: RoomConfig }) {
   const { t } = useTranslation()
   const { callService } = useHA()
@@ -225,141 +353,9 @@ function RoomCard({ room }: { room: RoomConfig }) {
         </div>
 
         <div className="space-y-1.5">
-          {room.lights.map((light) => {
-            const isOn = useEntityState(light.entityId) === "on"
-            const brightness = light.brightnessEntity
-              ? useEntityNum(light.brightnessEntity, 100)
-              : null
-            const colorTemp = light.colorTempEntity
-              ? useEntityNum(light.colorTempEntity, 4000)
-              : null
-            const r = light.rgbEntities ? useEntityNum(light.rgbEntities.r, 255) : null
-            const g = light.rgbEntities ? useEntityNum(light.rgbEntities.g, 255) : null
-            const b = light.rgbEntities ? useEntityNum(light.rgbEntities.b, 255) : null
-
-            return (
-              <div
-                key={light.entityId}
-                className="rounded-md border p-2.5 space-y-2"
-                style={{
-                  borderColor: isOn ? room.color : "var(--border)",
-                  backgroundColor: isOn ? `${room.color}12` : "transparent",
-                }}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-1.5 text-xs">
-                    <Lightbulb
-                      className="h-3.5 w-3.5 shrink-0"
-                      style={{ color: isOn ? room.color : undefined }}
-                      fill={isOn ? room.color : "none"}
-                    />
-                    {light.name}
-                  </span>
-                  <Switch
-                    checked={isOn}
-                    className="scale-75"
-                    onCheckedChange={() =>
-                      callService("input_boolean", isOn ? "turn_off" : "turn_on", {
-                        entity_id: light.entityId,
-                      })
-                    }
-                  />
-                </div>
-
-                {isOn && brightness !== null && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-muted-foreground w-6">Jas</span>
-                    <Slider
-                      key={light.brightnessEntity}
-                      value={[brightness]}
-                      min={0}
-                      max={100}
-                      step={1}
-                      className="flex-1"
-                      onValueChange={([v]) =>
-                        callService("input_number", "set_value", {
-                          entity_id: light.brightnessEntity,
-                          value: v,
-                        })
-                      }
-                    />
-                    <span className="text-[10px] text-muted-foreground w-6 text-right">
-                      {brightness}%
-                    </span>
-                  </div>
-                )}
-
-                {isOn && r !== null && g !== null && b !== null && (
-                  <div className="space-y-1.5 pt-1">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="inline-block h-3 w-3 rounded-full shrink-0"
-                        style={{ backgroundColor: `rgb(${r},${g},${b})` }}
-                      />
-                      <span className="text-[10px] text-muted-foreground">RGB</span>
-                    </div>
-                    {([
-                      { ch: "r", label: "R", val: r, entity: light.rgbEntities!.r },
-                      { ch: "g", label: "G", val: g, entity: light.rgbEntities!.g },
-                      { ch: "b", label: "B", val: b, entity: light.rgbEntities!.b },
-                    ] as const).map(({ ch, label, val, entity }) => (
-                      <div className="flex items-center gap-2" key={ch}>
-                        <span
-                          className="text-[10px] font-bold w-3"
-                          style={{ color: ch === "r" ? "#ef4444" : ch === "g" ? "#22c55e" : "#3b82f6" }}
-                        >
-                          {label}
-                        </span>
-                        <Slider
-                          key={entity}
-                          color={`rgb(${r},${g},${b})`}
-                          value={[val]}
-                          min={0}
-                          max={255}
-                          step={1}
-                          className="flex-1"
-                          onValueChange={([v]) =>
-                            callService("input_number", "set_value", {
-                              entity_id: entity,
-                              value: v,
-                            })
-                          }
-                        />
-                        <span className="text-[10px] text-muted-foreground w-6 text-right">{val}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {isOn && colorTemp !== null && (
-                  <div className="flex items-center gap-2">
-                    <span
-                      className="inline-block h-3 w-3 rounded-full shrink-0"
-                      style={{ backgroundColor: kelvinToRgb(colorTemp) }}
-                    />
-                    <Slider
-                      key={light.colorTempEntity}
-                      color={kelvinToRgb(colorTemp)}
-                      value={[colorTemp]}
-                      min={2700}
-                      max={6500}
-                      step={100}
-                      className="flex-1"
-                      onValueChange={([v]) =>
-                        callService("input_number", "set_value", {
-                          entity_id: light.colorTempEntity,
-                          value: v,
-                        })
-                      }
-                    />
-                    <span className="text-[10px] text-muted-foreground w-10 text-right">
-                      {colorTemp}K
-                    </span>
-                  </div>
-                )}
-              </div>
-            )
-          })}
+          {room.lights.map((light) => (
+            <LightControl key={light.entityId} light={light} color={room.color} />
+          ))}
         </div>
 
         {shutterPos !== null && (
