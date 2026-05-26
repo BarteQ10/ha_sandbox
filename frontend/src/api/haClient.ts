@@ -32,6 +32,7 @@ export async function connectHA() {
       })
       onConnectedCB?.()
     })
+    onConnectedCB?.()
     return conn
   } catch (e) {
     console.error("HA WS connection failed:", e)

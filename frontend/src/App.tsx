@@ -5,10 +5,11 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { HAProvider, useHA } from "@/hooks/useHA"
 import { ThemeProvider, useTheme } from "@/hooks/useTheme"
+import { Rooms } from "@/components/Rooms"
 import { Flow } from "@/components/Flow"
 import { Controls } from "@/components/Controls"
 import { Energy } from "@/components/Energy"
-import { Bolt, ToggleLeft, BarChart3, Languages, Sun, Moon } from "lucide-react"
+import { Home, Languages, Sun, Moon, Bolt, ToggleLeft, BarChart3, Sofa, Bed, TreePine } from "lucide-react"
 
 function ConnectionIndicator() {
   const { connected } = useHA()
@@ -41,7 +42,9 @@ function ThemeToggle() {
 }
 
 function AppContent() {
-  const [tab, setTab] = useState("flow")
+  const [tab, setTab] = useState("rooms")
+  const [roomTab, setRoomTab] = useState("day")
+  const [sysTab, setSysTab] = useState("flow")
   const { t } = useTranslation()
 
   return (
@@ -51,14 +54,11 @@ function AppContent() {
           <h1 className="text-lg font-bold tracking-wider">{t("nav.title")}</h1>
           <Tabs value={tab} onValueChange={setTab}>
             <TabsList>
-              <TabsTrigger value="flow" className="gap-1">
-                <Bolt className="h-4 w-4" /> {t("nav.flow")}
+              <TabsTrigger value="rooms" className="gap-1">
+                <Home className="h-4 w-4" /> {t("nav.rooms")}
               </TabsTrigger>
-              <TabsTrigger value="controls" className="gap-1">
-                <ToggleLeft className="h-4 w-4" /> {t("nav.controls")}
-              </TabsTrigger>
-              <TabsTrigger value="energy" className="gap-1">
-                <BarChart3 className="h-4 w-4" /> {t("nav.energy")}
+              <TabsTrigger value="system" className="gap-1">
+                <Bolt className="h-4 w-4" /> {t("nav.system")}
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -69,9 +69,46 @@ function AppContent() {
       </header>
 
       <main className="mx-auto max-w-7xl px-4 py-4">
-        {tab === "flow" && <Flow />}
-        {tab === "controls" && <Controls />}
-        {tab === "energy" && <Energy />}
+        {tab === "rooms" && (
+          <div className="space-y-4">
+            <Tabs value={roomTab} onValueChange={setRoomTab}>
+              <TabsList>
+                <TabsTrigger value="day" className="gap-1">
+                  <Sofa className="h-4 w-4" /> {t("rooms.day")}
+                </TabsTrigger>
+                <TabsTrigger value="night" className="gap-1">
+                  <Bed className="h-4 w-4" /> {t("rooms.night")}
+                </TabsTrigger>
+                <TabsTrigger value="garden" className="gap-1">
+                  <TreePine className="h-4 w-4" /> {t("rooms.gardenLabel")}
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+            {roomTab === "day" && <Rooms roomIds={["salon", "kuchnia"]} />}
+            {roomTab === "night" && <Rooms roomIds={["sypialnia", "lazienka"]} />}
+            {roomTab === "garden" && <Rooms roomIds={["ogrod"]} />}
+          </div>
+        )}
+        {tab === "system" && (
+          <div className="space-y-4">
+            <Tabs value={sysTab} onValueChange={setSysTab}>
+              <TabsList>
+                <TabsTrigger value="flow" className="gap-1">
+                  <Bolt className="h-4 w-4" /> {t("nav.flow")}
+                </TabsTrigger>
+                <TabsTrigger value="controls" className="gap-1">
+                  <ToggleLeft className="h-4 w-4" /> {t("nav.controls")}
+                </TabsTrigger>
+                <TabsTrigger value="energy" className="gap-1">
+                  <BarChart3 className="h-4 w-4" /> {t("nav.energy")}
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+            {sysTab === "flow" && <Flow />}
+            {sysTab === "controls" && <Controls />}
+            {sysTab === "energy" && <Energy />}
+          </div>
+        )}
       </main>
     </div>
   )

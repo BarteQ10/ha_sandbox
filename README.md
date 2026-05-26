@@ -450,9 +450,10 @@ HA → Modbus TCP → Python Simulator
 
 ### Features
 
-- **Live dashboard**: PV, SoC, load gauges updated in real-time via HA WebSocket
-- **Controls**: inverter mode, boiler, heat pump, EV limit, PV curtailment, grid status, storm safeguard, EV override, API anomaly sim
-- **Energy view**: daily PV energy, net balance, financial balance, peak price, charge window, PV forecast
+- **Smart Home dashboard**: room cards (Salon, Kuchnia, Sypialnia, Lazienka, Ogrod) with temperature, humidity, blinds, and multi-light controls per room
+- **Multi-light control**: individual light toggles with dimmer (1-100%) and color temperature (2700-6500K) sliders on select lights, plus All-ON/OFF per room
+- **Room sub-views**: Wspolne / Prywatne / Ogrod tabs
+- **System view**: energy flow gauges, inverter/boiler/HP controls, daily stats, price history, charge window, PV forecast
 - **History charts**: 12h PV/battery history, 24h price chart with proper time-scaled X-axis
 - **Dark/light theme**: toggle with system preference detection, persisted to localStorage
 - **i18n**: Polish/English, persisted to localStorage, toggle in header
@@ -466,6 +467,7 @@ frontend/src/
 │   ├── useHA.tsx            # HA context + entity hooks
 │   └── useTheme.tsx         # Dark/light theme toggle
 ├── components/
+│   ├── Rooms.tsx            # Room cards (lights, dimmer, color temp, blinds, temp)
 │   ├── Flow.tsx             # Energy flow view
 │   ├── Controls.tsx         # Device controls
 │   ├── Energy.tsx           # Energy & finance

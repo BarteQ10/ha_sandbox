@@ -1,6 +1,6 @@
 # EMS Frontend
 
-React + TypeScript dashboard for the EMS simulator. Connects to Home Assistant via WebSocket.
+React + TypeScript dashboard for the EMS simulator. Connects to Home Assistant via WebSocket for live state + service calls.
 
 ## Setup
 
@@ -28,6 +28,20 @@ Open `http://localhost:5173`.
 |----------|---------|-------------|
 | `VITE_HA_URL` | `http://localhost:8123` | Home Assistant URL |
 | `VITE_HA_TOKEN` | (required) | Long-lived access token from HA profile |
+
+## Views
+
+| Tab | Description |
+|-----|-------------|
+| **Dom** | Room cards (Salon, Kuchnia, Sypialnia, Lazienka, Ogrod) with temperature, multi-light controls (dimmer + color temp), blinds slider, humidity. Sub-tabs: Wspolne / Prywatne / Ogrod |
+| **System** | EMS views with sub-tabs: Przeplywy (energy flow gauges, stats, device badges, history charts), Sterowanie (inverter, HP, boiler, PV limit, storm, EV), Energia (daily stats, charge window, PV forecast, price history) |
+
+### Per-room lighting
+
+Each room card shows individual light toggles with:
+- **Dimmer slider** (1-100%) on select lights (lampa stojaca, wyspa, glowne sypialnia, lampki nocne, lustro LED)
+- **Color temperature slider** (2700-6500K) on select lights (lampa stojaca, LED paski, lampki nocne, lustro LED)
+- **All ON/OFF** quick buttons per room
 
 ## Stack
 

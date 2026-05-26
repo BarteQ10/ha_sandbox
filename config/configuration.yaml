@@ -281,3 +281,225 @@ input_number:
     initial: 15
     unit_of_measurement: "gr/kWh"
     icon: mdi:battery-alert
+  wirtualna_temp_salon:
+    name: "Temperatura - Salon"
+    min: 15
+    max: 35
+    step: 0.1
+    initial: 21.5
+    unit_of_measurement: "°C"
+    icon: mdi:thermometer
+  wirtualna_temp_kuchnia:
+    name: "Temperatura - Kuchnia"
+    min: 15
+    max: 35
+    step: 0.1
+    initial: 22.0
+    unit_of_measurement: "°C"
+    icon: mdi:thermometer
+  wirtualna_temp_sypialnia:
+    name: "Temperatura - Sypialnia"
+    min: 15
+    max: 35
+    step: 0.1
+    initial: 20.0
+    unit_of_measurement: "°C"
+    icon: mdi:thermometer
+  wirtualna_temp_lazienka:
+    name: "Temperatura - Lazienka"
+    min: 15
+    max: 35
+    step: 0.1
+    initial: 23.0
+    unit_of_measurement: "°C"
+    icon: mdi:thermometer
+  wirtualna_temp_ogrod:
+    name: "Temperatura - Ogrod"
+    min: -10
+    max: 45
+    step: 0.1
+    initial: 18.0
+    unit_of_measurement: "°C"
+    icon: mdi:thermometer
+  wirtualne_rolety_salon:
+    name: "Rolety - Salon"
+    min: 0
+    max: 100
+    step: 1
+    initial: 100
+    unit_of_measurement: "%"
+    icon: mdi:blinds
+  wirtualne_rolety_kuchnia:
+    name: "Rolety - Kuchnia"
+    min: 0
+    max: 100
+    step: 1
+    initial: 100
+    unit_of_measurement: "%"
+    icon: mdi:blinds
+  wirtualne_rolety_sypialnia:
+    name: "Rolety - Sypialnia"
+    min: 0
+    max: 100
+    step: 1
+    initial: 100
+    unit_of_measurement: "%"
+    icon: mdi:blinds
+  wirtualne_rolety_lazienka:
+    name: "Rolety - Lazienka"
+    min: 0
+    max: 100
+    step: 1
+    initial: 100
+    unit_of_measurement: "%"
+    icon: mdi:blinds
+  wirtualna_wilgotnosc_lazienka:
+    name: "Wilgotnosc - Lazienka"
+    min: 20
+    max: 100
+    step: 1
+    initial: 55
+    unit_of_measurement: "%"
+    icon: mdi:water-percent
+
+input_boolean:
+  wirtualne_swiatlo_salon_glowne:
+    name: "Swiatlo glowne - Salon"
+    icon: mdi:lightbulb
+  wirtualne_swiatlo_salon_lampa:
+    name: "Lampa stojaca - Salon"
+    icon: mdi:floor-lamp
+  wirtualne_swiatlo_salon_led:
+    name: "LED pas - Salon"
+    icon: mdi:led-strip
+  wirtualne_swiatlo_kuchnia_glowne:
+    name: "Swiatlo glowne - Kuchnia"
+    icon: mdi:lightbulb
+  wirtualne_swiatlo_kuchnia_wyspa:
+    name: "Swiatlo nad wyspa - Kuchnia"
+    icon: mdi:lightbulb
+  wirtualne_swiatlo_kuchnia_led:
+    name: "LED pas - Kuchnia"
+    icon: mdi:led-strip
+  wirtualne_swiatlo_sypialnia_glowne:
+    name: "Swiatlo glowne - Sypialnia"
+    icon: mdi:lightbulb
+  wirtualne_swiatlo_sypialnia_lampka1:
+    name: "Lampka nocna 1 - Sypialnia"
+    icon: mdi:lamp
+  wirtualne_swiatlo_sypialnia_lampka2:
+    name: "Lampka nocna 2 - Sypialnia"
+    icon: mdi:lamp
+  wirtualne_swiatlo_sypialnia_kinkiet:
+    name: "Kinkiet - Sypialnia"
+    icon: mdi:wall-sconce
+  wirtualne_swiatlo_lazienka_glowne:
+    name: "Swiatlo glowne - Lazienka"
+    icon: mdi:lightbulb
+  wirtualne_swiatlo_lazienka_lustro:
+    name: "Lustro LED - Lazienka"
+    icon: mdi:mirror
+  wirtualne_swiatlo_ogrod_glowne:
+    name: "Swiatlo glowne - Ogrod"
+    icon: mdi:lightbulb-outline
+  wirtualne_swiatlo_ogrod_solarne:
+    name: "Lampy solarne - Ogrod"
+    icon: mdi:solar-power
+
+input_number:
+  wirtualne_jasnosc_salon_lampa:
+    name: "Jasnosc - Lampa stojaca Salon"
+    min: 0
+    max: 100
+    step: 1
+    initial: 80
+    unit_of_measurement: "%"
+    icon: mdi:brightness-6
+  wirtualne_jasnosc_kuchnia_wyspa:
+    name: "Jasnosc - Wyspa Kuchnia"
+    min: 0
+    max: 100
+    step: 1
+    initial: 80
+    unit_of_measurement: "%"
+    icon: mdi:brightness-6
+  wirtualne_jasnosc_sypialnia_glowne:
+    name: "Jasnosc - Glowne Sypialnia"
+    min: 0
+    max: 100
+    step: 1
+    initial: 70
+    unit_of_measurement: "%"
+    icon: mdi:brightness-6
+  wirtualne_jasnosc_sypialnia_lampka1:
+    name: "Jasnosc - Lampka 1 Sypialnia"
+    min: 0
+    max: 100
+    step: 1
+    initial: 40
+    unit_of_measurement: "%"
+    icon: mdi:brightness-4
+  wirtualne_jasnosc_sypialnia_lampka2:
+    name: "Jasnosc - Lampka 2 Sypialnia"
+    min: 0
+    max: 100
+    step: 1
+    initial: 40
+    unit_of_measurement: "%"
+    icon: mdi:brightness-4
+  wirtualne_jasnosc_lazienka_lustro:
+    name: "Jasnosc - Lustro LED Lazienka"
+    min: 0
+    max: 100
+    step: 1
+    initial: 80
+    unit_of_measurement: "%"
+    icon: mdi:brightness-6
+  wirtualne_barwa_salon_lampa:
+    name: "Barwa - Lampa stojaca Salon"
+    min: 2700
+    max: 6500
+    step: 100
+    initial: 3000
+    unit_of_measurement: "K"
+    icon: mdi:thermometer
+  wirtualne_barwa_salon_led:
+    name: "Barwa - LED Salon"
+    min: 2700
+    max: 6500
+    step: 100
+    initial: 4000
+    unit_of_measurement: "K"
+    icon: mdi:thermometer
+  wirtualne_barwa_kuchnia_led:
+    name: "Barwa - LED Kuchnia"
+    min: 2700
+    max: 6500
+    step: 100
+    initial: 4000
+    unit_of_measurement: "K"
+    icon: mdi:thermometer
+  wirtualne_barwa_sypialnia_lampka1:
+    name: "Barwa - Lampka 1 Sypialnia"
+    min: 2700
+    max: 6500
+    step: 100
+    initial: 3000
+    unit_of_measurement: "K"
+    icon: mdi:thermometer
+  wirtualne_barwa_sypialnia_lampka2:
+    name: "Barwa - Lampka 2 Sypialnia"
+    min: 2700
+    max: 6500
+    step: 100
+    initial: 3000
+    unit_of_measurement: "K"
+    icon: mdi:thermometer
+  wirtualne_barwa_lazienka_lustro:
+    name: "Barwa - Lustro LED Lazienka"
+    min: 2700
+    max: 6500
+    step: 100
+    initial: 4000
+    unit_of_measurement: "K"
+    icon: mdi:thermometer

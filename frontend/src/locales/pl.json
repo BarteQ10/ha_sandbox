@@ -1,6 +1,8 @@
 {
   "nav": {
-    "title": "EMS",
+    "title": "Smart Home",
+    "rooms": "Dom",
+    "system": "System",
     "flow": "Przepływy",
     "controls": "Sterowanie",
     "energy": "Energia"
@@ -8,6 +10,23 @@
   "connection": {
     "ok": "HA OK",
     "offline": "OFFLINE"
+  },
+  "rooms": {
+    "salon": "Salon",
+    "kitchen": "Kuchnia",
+    "bedroom": "Sypialnia",
+    "bathroom": "Łazienka",
+    "garden": "Ogród",
+    "day": "Wspólne",
+    "night": "Prywatne",
+    "gardenLabel": "Ogród",
+    "blinds": "Rolety"
+  },
+  "blinds": {
+    "salon": "Rolety Salon",
+    "kitchen": "Rolety Kuchnia",
+    "bedroom": "Rolety Sypialnia",
+    "bathroom": "Rolety Łazienka"
   },
   "flow": {
     "title": "Przepływy energii",
@@ -62,10 +81,5 @@
     "peakGhi": "Szczyt GHI",
     "details": "Szczegóły",
     "priceHistory": "Historia cen (24h)"
-  },
-  "inverterOptions": {
-    "auto": "Auto",
-    "forceCharge": "Force Charge",
-    "forceDischarge": "Force Discharge"
   }
 }

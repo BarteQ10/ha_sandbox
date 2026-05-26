@@ -1,6 +1,8 @@
 {
   "nav": {
-    "title": "EMS",
+    "title": "Smart Home",
+    "rooms": "Home",
+    "system": "System",
     "flow": "Flow",
     "controls": "Controls",
     "energy": "Energy"
@@ -8,6 +10,23 @@
   "connection": {
     "ok": "HA OK",
     "offline": "OFFLINE"
+  },
+  "rooms": {
+    "salon": "Living Room",
+    "kitchen": "Kitchen",
+    "bedroom": "Bedroom",
+    "bathroom": "Bathroom",
+    "garden": "Garden",
+    "day": "Common",
+    "night": "Private",
+    "gardenLabel": "Garden",
+    "blinds": "Blinds"
+  },
+  "blinds": {
+    "salon": "Living Room Blinds",
+    "kitchen": "Kitchen Blinds",
+    "bedroom": "Bedroom Blinds",
+    "bathroom": "Bathroom Blinds"
   },
   "flow": {
     "title": "Energy Flow",
@@ -62,10 +81,5 @@
     "peakGhi": "Peak GHI",
     "details": "Details",
     "priceHistory": "Price History (24h)"
-  },
-  "inverterOptions": {
-    "auto": "Auto",
-    "forceCharge": "Force Charge",
-    "forceDischarge": "Force Discharge"
   }
 }
