@@ -2,6 +2,7 @@ import time
 import random as _random
 import datetime
 import logging
+import signal
 
 from ems_simulator.config import TICK_S, GRID_NORMAL, GRID_BLACKOUT, STEPS_PER_HOUR, STEPS_PER_DAY
 from ems_simulator.weather import fetch as w_fetch, get as w_get, needs_refresh as w_needs_refresh
@@ -16,8 +17,16 @@ from ems_simulator.log_setup import setup as _setup_logging
 log = logging.getLogger(__name__)
 
 
+def _handle_sigterm(signum, frame):
+    # Raise KeyboardInterrupt so the main loop's existing handler runs the same
+    # clean shutdown (flush InfluxDB, stop Modbus) on `docker stop` / systemd stop.
+    raise KeyboardInterrupt()
+
+
 def main():
     _setup_logging()
+    # Treat SIGTERM like Ctrl+C (SIGINT) for a graceful shutdown in containers.
+    signal.signal(signal.SIGTERM, _handle_sigterm)
     _random.seed()
     srv_banner()
     srv_start()

@@ -1,0 +1,27 @@
+# Runtime data dirs (mounted/managed by their own services)
+influxdb/
+grafana/
+config/
+mosquitto/
+
+# Frontend (separate build)
+frontend/
+
+# Python caches & venvs
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# Tests & dev tooling (not needed in the runtime image)
+tests/
+requirements-dev.txt
+pytest.ini
+
+# VCS, env, docs
+.git/
+.github/
+.gitignore
+.env
+*.md

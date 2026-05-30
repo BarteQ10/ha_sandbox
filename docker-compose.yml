@@ -41,3 +41,19 @@ services:
       DOCKER_INFLUXDB_INIT_BUCKET: ems
       DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ems-token
     restart: unless-stopped
+
+  ems-simulator:
+    container_name: ems_simulator_dev
+    build: .
+    ports:
+      - "5020:5020"        # Modbus TCP (MODBUS_PORT)
+    environment:
+      INFLUX_URL: http://influxdb:8086
+      INFLUX_TOKEN: ems-token
+      INFLUX_ORG: home
+      INFLUX_BUCKET: ems
+      LOG_LEVEL: INFO
+    restart: unless-stopped
+    stop_grace_period: 15s  # allow main() to flush InfluxDB on SIGTERM
+    depends_on:
+      - influxdb
