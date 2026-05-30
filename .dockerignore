@@ -1,8 +1,6 @@
 # Runtime data dirs (mounted/managed by their own services)
 influxdb/
-grafana/
 config/
-mosquitto/
 
 # Frontend (separate build)
 frontend/

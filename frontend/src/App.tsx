@@ -9,7 +9,8 @@ import { Rooms } from "@/components/Rooms"
 import { Flow } from "@/components/Flow"
 import { Controls } from "@/components/Controls"
 import { Energy } from "@/components/Energy"
-import { Home, Languages, Sun, Moon, Bolt, ToggleLeft, BarChart3, Sofa, Bed, TreePine, WifiOff } from "lucide-react"
+import { Alerts } from "@/components/Alerts"
+import { Home, Languages, Sun, Moon, Bolt, ToggleLeft, BarChart3, Sofa, Bed, TreePine, WifiOff, Bell } from "lucide-react"
 
 function ConnectionIndicator() {
   const { connected } = useHA()
@@ -125,11 +126,15 @@ function AppContent() {
                 <TabsTrigger value="energy" className="gap-1">
                   <BarChart3 className="h-4 w-4" /> {t("nav.energy")}
                 </TabsTrigger>
+                <TabsTrigger value="alerts" className="gap-1">
+                  <Bell className="h-4 w-4" /> {t("nav.alerts")}
+                </TabsTrigger>
               </TabsList>
             </Tabs>
             {sysTab === "flow" && <Flow />}
             {sysTab === "controls" && <Controls />}
             {sysTab === "energy" && <Energy />}
+            {sysTab === "alerts" && <Alerts />}
           </div>
         )}
       </main>

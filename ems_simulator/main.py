@@ -13,6 +13,7 @@ from ems_simulator.battery import delta as batt_delta, clamp as batt_clamp, MODE
 from ems_simulator.server import start as srv_start, stop as srv_stop, read as srv_read, write as srv_write, banner as srv_banner
 from ems_simulator.influx_writer import start as inf_start, write as inf_write, stop as inf_stop, read_last as inf_read_last
 from ems_simulator.log_setup import setup as _setup_logging
+from ems_simulator.config_validator import validate as _validate_config
 
 log = logging.getLogger(__name__)
 
@@ -27,6 +28,7 @@ def main():
     _setup_logging()
     # Treat SIGTERM like Ctrl+C (SIGINT) for a graceful shutdown in containers.
     signal.signal(signal.SIGTERM, _handle_sigterm)
+    _validate_config()
     _random.seed()
     srv_banner()
     srv_start()

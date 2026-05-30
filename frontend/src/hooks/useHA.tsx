@@ -1,36 +1,19 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react"
-import type { HassEntities } from "home-assistant-js-websocket"
-import { connectHA, setCallbacks, getInitialEntities, haCallService } from "../api/haClient"
+import React, { createContext, useContext, useCallback, useEffect, useRef, useSyncExternalStore } from "react"
+import type { HassEntity } from "home-assistant-js-websocket"
+import { connectHA, haCallService, subscribe, getSnapshot, getEntitySnapshot } from "../api/haClient"
 
 interface HACtx {
-  entities: HassEntities
-  connected: boolean
   callService: (domain: string, service: string, data: Record<string, unknown>) => Promise<void>
 }
 
-const HADefaultContext: HACtx = {
-  entities: {},
-  connected: false,
-  callService: async () => {},
-}
-
-const HAContext = createContext<HACtx>(HADefaultContext)
+const HAContext = createContext<HACtx>({ callService: async () => {} })
 
 export function HAProvider({ children }: { children: React.ReactNode }) {
-  const [entities, setEntities] = useState<HassEntities>(getInitialEntities)
-  const [connected, setConnected] = useState(false)
   const initRef = useRef(false)
 
   useEffect(() => {
     if (initRef.current) return
     initRef.current = true
-
-    setCallbacks(
-      (e) => setEntities({ ...e }),
-      () => setConnected(true),
-      () => setConnected(false)
-    )
-
     connectHA().catch(() => {})
   }, [])
 
@@ -45,16 +28,20 @@ export function HAProvider({ children }: { children: React.ReactNode }) {
     []
   )
 
-  return <HAContext.Provider value={{ entities, connected, callService }}>{children}</HAContext.Provider>
+  return <HAContext.Provider value={{ callService }}>{children}</HAContext.Provider>
 }
 
 export function useHA() {
-  return useContext(HAContext)
+  const { callService } = useContext(HAContext)
+  const { connected } = useSyncExternalStore(subscribe, getSnapshot)
+  return { connected, callService }
 }
 
-export function useEntity(entityId: string) {
-  const { entities } = useHA()
-  return entities[entityId]
+export function useEntity(entityId: string): HassEntity | undefined {
+  return useSyncExternalStore(
+    subscribe,
+    () => getEntitySnapshot(entityId)
+  )
 }
 
 export function useEntityState(entityId: string, fallback = "0"): string {

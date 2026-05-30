@@ -5,7 +5,8 @@
     "system": "System",
     "flow": "Przepływy",
     "controls": "Sterowanie",
-    "energy": "Energia"
+    "energy": "Energia",
+    "alerts": "Alerty"
   },
   "connection": {
     "ok": "HA OK",
@@ -82,6 +83,17 @@
     "evAuto": "Auto",
     "evLimit": "Limit ładowania EV",
     "degradationCost": "Koszt degradacji baterii"
+  },
+  "alerts": {
+    "allClear": "Brak aktywnych alertów",
+    "blackout": "BLACKOUT — tryb wyspy, brak sieci",
+    "socCritical": "Krytyczny poziom baterii: {{soc}}%",
+    "socLow": "Niski poziom baterii: {{soc}}%",
+    "negativePrice": "Cena ujemna: {{price}} gr/kWh — maks. auto-pobór",
+    "anomaly": "Symulacja awarii API — dane syntetyczne",
+    "storm": "Storm Safeguard aktywny — ładowanie do 100%",
+    "curtail": "Ograniczenie PV (zero-export) aktywne",
+    "overcast": "Bardzo duże zachmurzenie / śnieg — niska produkcja PV"
   },
   "energy": {
     "title": "Energia & Finanse",

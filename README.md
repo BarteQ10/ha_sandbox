@@ -58,7 +58,7 @@ run.py                # Top-level launcher
 | Telemetry DB | InfluxDB 2.7 (Docker, port 8086) — direct writes |
 | ML | `ml_forecast.py` (RandomForest, GHI from Open-Meteo past_days) |
 | Dashboard | React TS (`frontend/`) — optional, connects via HA REST + WebSocket |
-| Legacy Dashboard | Lovelace YAML (`ui-lovelace.yaml`) |
+| Lovelace | `ui-lovelace.yaml` — legacy HA dashboard |
 
 ### Data flow
 

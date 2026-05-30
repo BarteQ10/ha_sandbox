@@ -5,7 +5,8 @@
     "system": "System",
     "flow": "Flow",
     "controls": "Controls",
-    "energy": "Energy"
+    "energy": "Energy",
+    "alerts": "Alerts"
   },
   "connection": {
     "ok": "HA OK",
@@ -82,6 +83,17 @@
     "evAuto": "Auto",
     "evLimit": "EV Charge Limit",
     "degradationCost": "Battery Degradation Cost"
+  },
+  "alerts": {
+    "allClear": "No active alerts",
+    "blackout": "BLACKOUT — island mode, grid disconnected",
+    "socCritical": "Battery critical: {{soc}}%",
+    "socLow": "Battery low: {{soc}}%",
+    "negativePrice": "Negative price: {{price}} gr/kWh — max auto-consumption",
+    "anomaly": "API anomaly simulation active — synthetic data",
+    "storm": "Storm Safeguard active — charging to 100%",
+    "curtail": "PV curtailment (zero-export) active",
+    "overcast": "Heavy overcast / snow — low PV output"
   },
   "energy": {
     "title": "Energy & Finance",
