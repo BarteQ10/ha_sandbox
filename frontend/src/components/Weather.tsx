@@ -139,7 +139,13 @@ export function Weather() {
   const ghi   = currentHour?.ghi   ?? 0
 
   // Chart data: 24 hours of the selected day (Open-Meteo returns midnight-to-midnight slices)
-  const chartData: WeatherHour[] = hours.slice(safeDay * 24, (safeDay + 1) * 24)
+  // Clamp GHI at the data level — Open-Meteo occasionally returns small
+  // negative values at night (model artefact). Clamping here is more reliable
+  // than relying on recharts domain={[0,"auto"]} which can ignore the literal 0
+  // minimum when actual data goes below it.
+  const chartData: WeatherHour[] = hours
+    .slice(safeDay * 24, (safeDay + 1) * 24)
+    .map((h) => ({ ...h, ghi: h.ghi < 0 ? 0 : h.ghi }))
 
   // Hourly strip: every 2 hours to avoid clutter (12 icons per day)
   const stripHours = chartData.filter((_, i) => i % 2 === 0)
@@ -251,7 +257,7 @@ export function Weather() {
               <YAxis
                 yAxisId="ghi"
                 orientation="left"
-                domain={[0, "auto"]}
+                domain={[0, (dataMax: number) => Math.max(dataMax, 1)]}
                 tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
                 axisLine={false} tickLine={false}
                 unit=" W/m²" width={64}
