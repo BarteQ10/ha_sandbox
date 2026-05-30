@@ -89,20 +89,27 @@
     "temp": "Temperatura",
     "outdoor": "na zewnątrz",
     "cloud": "Zachmurzenie",
-    "clear": "Bezchmurnie",
-    "partlyCloudy": "Częściowe zachmurzenie",
-    "overcast": "Zachmurzone",
     "ghi": "Nasłonecznienie GHI",
     "ghiSub": "promieniowanie poziome",
     "pvNow": "Produkcja PV",
     "ofPeak": "mocy szczytowej",
-    "chart24h": "Prognoza 24h — GHI i temperatura",
+    "chartTitle": "GHI i temperatura",
     "now": "teraz",
     "peakGhi": "Szczyt GHI",
     "solarHours": "Godz. słoneczne",
-    "pvForecast": "Prognoza PV",
+    "pvForecast": "Prognoza PV jutro",
     "avgCloud": "Śr. zachmurzenie",
-    "fetchError": "Nie można pobrać prognozy pogody"
+    "avgTemp": "Śr. temperatura",
+    "fetchError": "Nie można pobrać prognozy pogody",
+    "wmo": {
+      "clear": "Bezchmurnie",
+      "partlyCloudy": "Częściowe zachmurzenie",
+      "foggy": "Mgła",
+      "rainy": "Deszcz",
+      "snowy": "Śnieg",
+      "showers": "Przelotne deszcze",
+      "thunderstorm": "Burza"
+    }
   },
   "alerts": {
     "allClear": "Brak aktywnych alertów",

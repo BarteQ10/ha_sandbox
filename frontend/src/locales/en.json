@@ -89,20 +89,27 @@
     "temp": "Temperature",
     "outdoor": "outdoor",
     "cloud": "Cloud Cover",
-    "clear": "Clear",
-    "partlyCloudy": "Partly cloudy",
-    "overcast": "Overcast",
     "ghi": "Solar Irradiance GHI",
     "ghiSub": "global horizontal",
     "pvNow": "PV Output",
     "ofPeak": "of peak",
-    "chart24h": "24h Forecast — GHI & Temperature",
+    "chartTitle": "GHI & Temperature",
     "now": "now",
     "peakGhi": "Peak GHI",
     "solarHours": "Solar hours",
-    "pvForecast": "PV Forecast",
+    "pvForecast": "PV Forecast Tomorrow",
     "avgCloud": "Avg cloud",
-    "fetchError": "Could not load weather forecast"
+    "avgTemp": "Avg temperature",
+    "fetchError": "Could not load weather forecast",
+    "wmo": {
+      "clear": "Clear sky",
+      "partlyCloudy": "Partly cloudy",
+      "foggy": "Foggy",
+      "rainy": "Rain",
+      "snowy": "Snow",
+      "showers": "Rain showers",
+      "thunderstorm": "Thunderstorm"
+    }
   },
   "alerts": {
     "allClear": "No active alerts",
