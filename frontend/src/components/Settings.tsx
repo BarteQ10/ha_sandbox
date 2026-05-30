@@ -18,13 +18,26 @@ function ThresholdSlider({
 }) {
   const { callService } = useHA()
   const entityValue = useEntityNum(entityId, min)
-  // Local state tracks slider drag; resets to entity value on blur / explicit save.
-  const [local, setLocal] = useState<number | null>(null)
-  const display = local ?? entityValue
+
+  // localStorage backup: persists across refreshes even when HA entity state
+  // is slow to update or the dev instance is freshly started.
+  const lsKey = `ems_setting_${entityId}`
+  const [committed, setCommitted] = useState<number | null>(() => {
+    try {
+      const v = localStorage.getItem(lsKey)
+      return v !== null ? Number(v) : null
+    } catch { return null }
+  })
+  const [dragging, setDragging] = useState<number | null>(null)
+
+  // Priority: active drag > localStorage committed value > HA entity value
+  const display = dragging ?? committed ?? entityValue
 
   function save(v: number) {
     const clamped = Math.min(max, Math.max(min, Math.round(v / step) * step))
-    setLocal(null)
+    setDragging(null)
+    setCommitted(clamped)
+    try { localStorage.setItem(lsKey, String(clamped)) } catch { /* private mode */ }
     callService("input_number", "set_value", { entity_id: entityId, value: clamped })
   }
 
@@ -54,7 +67,7 @@ function ThresholdSlider({
       <Slider
         min={min} max={max} step={step}
         value={[display]}
-        onValueChange={([v]) => setLocal(v)}
+        onValueChange={([v]) => setDragging(v)}
         onValueCommit={([v]) => save(v)}
       />
       <div className="flex justify-between text-[10px] text-muted-foreground">
@@ -117,12 +130,6 @@ export function Settings() {
             description={t("settings.degradationCostDesc")}
             entityId="input_number.ems_koszt_degradacji_baterii"
             min={0} max={50} step={1} unit="gr/kWh"
-          />
-          <ThresholdSlider
-            label={t("settings.evLimit")}
-            description={t("settings.evLimitDesc")}
-            entityId="input_number.ems_limit_ladowania_ev"
-            min={0} max={7400} step={100} unit="W"
           />
         </CardContent>
       </Card>
