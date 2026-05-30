@@ -146,9 +146,7 @@ class SpikeState:
 def hp_cop(temp):
     if temp is None:
         return 3.0
-    for i in range(len(HP_COP_CURVE) - 1):
-        t1, c1 = HP_COP_CURVE[i]
-        t2, c2 = HP_COP_CURVE[i + 1]
+    for (t1, c1), (t2, c2) in zip(HP_COP_CURVE, HP_COP_CURVE[1:]):
         if t1 <= temp <= t2:
             frac = (temp - t1) / (t2 - t1)
             return c1 + frac * (c2 - c1)

@@ -28,6 +28,22 @@
     "bedroom": "Bedroom Blinds",
     "bathroom": "Bathroom Blinds"
   },
+  "lights": {
+    "main": "Main",
+    "floorLamp": "Floor lamp",
+    "led": "LED",
+    "ledMirror": "LED Mirror",
+    "island": "Island",
+    "lamp1": "Lamp 1",
+    "lamp2": "Lamp 2",
+    "sconce": "Sconce",
+    "solar": "Solar"
+  },
+  "roomCard": {
+    "allLights": "All lights",
+    "brightness": "Bri",
+    "setpoint": "Set"
+  },
   "flow": {
     "title": "Energy Flow",
     "pv": "PV",

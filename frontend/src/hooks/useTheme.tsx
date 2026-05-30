@@ -7,7 +7,7 @@ interface ThemeCtx {
   toggle: () => void
 }
 
-const Ctx = createContext<ThemeCtx>({ theme: "dark", toggle: () => {} })
+const ThemeContext = createContext<ThemeCtx>({ theme: "dark", toggle: () => {} })
 
 function getInitial(): Theme {
   if (typeof window === "undefined") return "dark"
@@ -31,9 +31,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const toggle = () => setTheme((t) => (t === "dark" ? "light" : "dark"))
 
-  return <Ctx.Provider value={{ theme, toggle }}>{children}</Ctx.Provider>
+  return <ThemeContext.Provider value={{ theme, toggle }}>{children}</ThemeContext.Provider>
 }
 
 export function useTheme() {
-  return useContext(Ctx)
+  return useContext(ThemeContext)
 }

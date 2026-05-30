@@ -1,12 +1,14 @@
 import datetime
+import os
+import re
 
 from influxdb_client import InfluxDBClient, Point
 from influxdb_client.client.write_api import SYNCHRONOUS
 
-URL = "http://localhost:8086"
-TOKEN = "ems-token"
-ORG = "home"
-BUCKET = "ems"
+URL = os.environ.get("INFLUX_URL", "http://localhost:8086")
+TOKEN = os.environ.get("INFLUX_TOKEN", "ems-token")
+ORG = os.environ.get("INFLUX_ORG", "home")
+BUCKET = os.environ.get("INFLUX_BUCKET", "ems")
 
 _client = None
 _write = None
@@ -31,7 +33,7 @@ def write(pv, soc, load, price, balance, temp, cloud=None, ghi=None, peak_price=
     if _failed or _write is None:
         return
 
-    now = datetime.datetime.utcnow()
+    now = datetime.datetime.now(datetime.timezone.utc)
 
     dt_h = 5.0 * 60.0 / 3600.0  # each tick = 5 simulated minutes = 1/12 h
     cost_pln = -balance * price * dt_h / (100.0 * 1000.0)
@@ -100,8 +102,13 @@ def write(pv, soc, load, price, balance, temp, cloud=None, ghi=None, peak_price=
         _failed = True
 
 
+_SAFE_MEASUREMENT = re.compile(r'^[\w.]+$')
+
 def read_last(measurement):
     if _failed or _client is None:
+        return None
+    if not _SAFE_MEASUREMENT.match(measurement):
+        print(f"[INFLUX] Unsafe measurement name rejected: {measurement!r}")
         return None
     try:
         q = _client.query_api()

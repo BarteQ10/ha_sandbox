@@ -2,7 +2,7 @@ import time
 import random as _random
 import datetime
 
-from ems_simulator.config import TICK_S, GRID_NORMAL, GRID_BLACKOUT
+from ems_simulator.config import TICK_S, GRID_NORMAL, GRID_BLACKOUT, STEPS_PER_HOUR, STEPS_PER_DAY
 from ems_simulator.weather import fetch as w_fetch, get as w_get, needs_refresh as w_needs_refresh
 from ems_simulator.pricing import fetch as p_fetch, get as p_get, max_today as p_max_today, needs_refresh as p_needs_refresh, fallback_price as p_fallback, distribution_rate as p_dist_rate, _price_cache as p_cache
 from ems_simulator.generators import pv_from_ghi, base_load, SpikeState, controllable_load, DeviceTimer, SoilingState, hp_cop, EVProfile, make_scheduled_appliances
@@ -21,7 +21,7 @@ def main():
     p_fetch()
 
     now_h = datetime.datetime.now().hour
-    day_step = int(now_h * 12)
+    day_step = int(now_h * STEPS_PER_HOUR)
     current_temp = 15.0
     spike = SpikeState()
     soiling = SoilingState()
@@ -71,15 +71,15 @@ def main():
                     print(f"[EV_OVR] Manual override — EV forced to 7400W")
                 ev_eff = 7400
 
-            day_step = (day_step + 1) % 288
+            day_step = (day_step + 1) % STEPS_PER_DAY
             if day_step == 0:
                 running_cost_pln = 0.0
-            hour = day_step / 12.0
+            hour = day_step / STEPS_PER_HOUR
 
             if anomaly:
                 ghi, temp, cloud = None, current_temp, 0
                 rce = None
-                if day_step % 60 == 0:
+                if day_step % (STEPS_PER_HOUR * 5) == 0:
                     print(f"[ANOMALY] API failure simulation active")
             else:
                 if w_needs_refresh(hour, day_step):
@@ -116,7 +116,7 @@ def main():
                 overlap = min(hp_thermal_w, heat_demand)
                 if overlap > 200:
                     load -= int(overlap * 0.8)
-                    if day_step % 12 == 0:
+                    if day_step % STEPS_PER_HOUR == 0:
                         print(f"[COP]  temp={current_temp:.0f}C  COP={cop:.1f}  "
                               f"HP_thermal={hp_thermal_w}W  heat_demand={heat_demand}W  saved={int(overlap*0.8)}W")
             load += ctrl_load
@@ -147,14 +147,14 @@ def main():
                 _last_chg_compute_h = -1
                 print(f"[ANOMALY] API restored — scheduler re-enabled")
 
-            if not anomaly and day_step % 12 == 0 and day_step != _last_chg_compute_h:
+            if not anomaly and day_step % STEPS_PER_HOUR == 0 and day_step != _last_chg_compute_h:
                 _last_chg_compute_h = day_step
                 chg_start, chg_duration, chg_energy, chg_pv_kwh = compute_charge_window(
                     hour, soc, p_cache
                 )
                 print(f"[CHG] Window: start={chg_start}h  dur={chg_duration}h  "
                       f"need={chg_energy}kWh  PVtom={chg_pv_kwh}kWh")
-            elif anomaly and day_step % 60 == 0:
+            elif anomaly and day_step % (STEPS_PER_HOUR * 5) == 0:
                 print(f"[ANOMALY] Charge scheduler paused (no API data)")
 
             balance = pv - load
@@ -216,13 +216,13 @@ def main():
 
             _total_sim_days += 1.0 / 288.0
             aging_factor = max(0.70, 1.0 - _total_sim_days * 0.02 / 365.0)
-            if day_step % 60 == 0 and aging_factor < 0.995:
+            if day_step % (STEPS_PER_HOUR * 5) == 0 and aging_factor < 0.995:
                 print(f"[AGING] Battery capacity: {aging_factor*100:.1f}% of original "
                       f"(sim day {_total_sim_days:.0f})")
             delta = batt_delta(balance, actual_force, aging_factor)
             new_soc = batt_clamp(soc + delta)
 
-            if day_step % 60 == 0:
+            if day_step % (STEPS_PER_HOUR * 5) == 0:
                 tag = "[ISLAND]" if grid_status == GRID_BLACKOUT else "[PEAK]"
                 print(f"{tag} Peak today: {peak_today} gr/kWh, "
                       f"Current: {price} gr/kWh, Cost: {running_cost_pln:.2f} PLN")

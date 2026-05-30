@@ -15,11 +15,13 @@ export function MiniChart({
   const [data, setData] = useState<DataPoint[]>([])
 
   useEffect(() => {
-    (async () => {
+    let ignore = false
+    ;(async () => {
       try {
         const end = new Date().toISOString()
         const start = new Date(Date.now() - hours * 3600_000).toISOString()
         const rows = await fetchHistory(entityId, start, end)
+        if (ignore) return
         const pts: DataPoint[] = []
         for (const r of rows) {
           const v = parseFloat(r.state)
@@ -34,6 +36,9 @@ export function MiniChart({
         // silently fail
       }
     })()
+    return () => {
+      ignore = true
+    }
   }, [entityId, hours])
 
   if (data.length === 0) {

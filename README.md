@@ -269,8 +269,8 @@ PSE_peak_forecast - current_price > degradation_cost
 
 ### Edge cases handled
 
-1. **Charge scheduler during anomaly**: `compute_charge_window()` is skipped entirely (nie woła `forecast_df()`). Gdy anomalia wyłączona, `_last_chg_compute_h` jest resetowany → scheduler odpala przy najbliższym tiknięciu.
-2. **Re-sync po powrocie API**: `needs_refresh()` wykrywa zmianę godziny → natychmiastowe fetch po wyłączeniu anomalii. Scheduler wznawia działanie z świeżymi danymi.
+1. **Charge scheduler during anomaly**: `compute_charge_window()` is skipped entirely (does not call `forecast_df()`). When the anomaly is disabled, `_last_chg_compute_h` is reset → the scheduler fires on the next tick.
+2. **Re-sync after API returns**: `needs_refresh()` detects the hour change → immediate fetch once the anomaly is disabled. The scheduler resumes with fresh data.
 
 ### Behavior when active (reg 15 = 1)
 
@@ -338,7 +338,7 @@ This makes arbitrage more realistic: charging from grid during daytime peak can 
 
 When HP is active and outdoor temp < 18°C, the thermal output (`HP_power × COP`) covers part of the heating base load. The electrical base load is reduced by 80% of the overlap — the HP provides heat more efficiently than resistive heating.
 
-## EV Profile (Profil ładowania)
+## EV Profile
 
 `EVProfile` in `generators.py` models a real EV owner pattern:
 
@@ -349,18 +349,18 @@ When HP is active and outdoor temp < 18°C, the thermal output (`HP_power × COP
 
 Energy delivered is tracked per simulated day and resets at midnight. The profile interacts with the EV Override (reg 17) — when override is active, the profile ignores plugged state and delivers full 7400W.
 
-## Scheduled Appliances (Urządzenia opóźnialne)
+## Scheduled Appliances
 
 `ScheduledAppliance` in `generators.py` models deferrable loads with a time window:
 
 | Appliance | Power | Duration | Window |
 |-----------|-------|----------|--------|
-| Pralka | 2000W | 1.5h | 8:00-22:00 |
-| Zmywarka | 1500W | 1.0h | 22:00-6:00 |
+| Washer | 2000W | 1.5h | 8:00-22:00 |
+| Dishwasher | 1500W | 1.0h | 22:00-6:00 |
 
 Each appliance has a state machine: `idle → running → done`. When the time window opens, the appliance starts automatically and runs for the configured duration. After finishing, it stays `done` for the rest of the simulated day.
 
-## Self-Consumption Priority (Priorytetyzacja odbiorników)
+## Self-Consumption Priority
 
 When grid-connected (`GRID_NORMAL`) and SoC drops below 20% with a power deficit (`balance < 0`), the system sheds non-essential loads by priority:
 
@@ -371,7 +371,7 @@ When grid-connected (`GRID_NORMAL`) and SoC drops below 20% with a power deficit
 
 This prevents deep battery discharge and reduces expensive grid import during high-price periods.
 
-## Calendar Aging (Starzenie kalendarzowe baterii)
+## Calendar Aging
 
 In addition to the per-cycle degradation cost (15 gr/kWh), the battery loses 2% of its capacity per simulated year (`CALENDAR_AGING_PCT_PER_YEAR` in `config.py`).
 

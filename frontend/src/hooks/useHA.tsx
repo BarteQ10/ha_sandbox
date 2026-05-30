@@ -14,7 +14,7 @@ const HADefaultContext: HACtx = {
   callService: async () => {},
 }
 
-const Ctx = createContext<HACtx>(HADefaultContext)
+const HAContext = createContext<HACtx>(HADefaultContext)
 
 export function HAProvider({ children }: { children: React.ReactNode }) {
   const [entities, setEntities] = useState<HassEntities>(getInitialEntities)
@@ -45,11 +45,11 @@ export function HAProvider({ children }: { children: React.ReactNode }) {
     []
   )
 
-  return <Ctx.Provider value={{ entities, connected, callService }}>{children}</Ctx.Provider>
+  return <HAContext.Provider value={{ entities, connected, callService }}>{children}</HAContext.Provider>
 }
 
 export function useHA() {
-  return useContext(Ctx)
+  return useContext(HAContext)
 }
 
 export function useEntity(entityId: string) {

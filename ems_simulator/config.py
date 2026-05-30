@@ -6,6 +6,10 @@ MODBUS_PORT = 5020
 NUM_REGISTERS = 18
 TICK_S = 5
 
+# Derived timing constants (60× simulated speed, TICK_S=5s → 5 simulated minutes per tick)
+STEPS_PER_HOUR = 12    # ticks per simulated hour
+STEPS_PER_DAY = 288    # ticks per simulated day
+
 # Location (Open-Meteo, no API key)
 LAT = 52.23
 LON = 21.01
@@ -15,12 +19,12 @@ WEATHER_URL = (
     f"&hourly=shortwave_radiation,temperature_2m,cloud_cover"
     f"&timezone=Europe/Warsaw&forecast_days=2"
 )
-# Same endpoint but with past_days for ML training data
+# Same endpoint but with past_days for ML training data — call .format(days=N) to fill in
 WEATHER_ML_URL = (
-    f"https://api.open-meteo.com/v1/forecast"
+    "https://api.open-meteo.com/v1/forecast"
     f"?latitude={LAT}&longitude={LON}"
-    f"&hourly=shortwave_radiation,temperature_2m,cloud_cover"
-    f"&timezone=Europe/Warsaw&forecast_days=2&past_days={{days}}"
+    "&hourly=shortwave_radiation,temperature_2m,cloud_cover"
+    "&timezone=Europe/Warsaw&forecast_days=2&past_days={days}"
 )
 
 # PV system
@@ -66,8 +70,8 @@ EV_CHARGE_MAX_W = 7400  # max charging power
 # Scheduled deferrable appliances
 # (name, power_w, duration_h, window_start_h, window_end_h)
 SCHEDULED_APPLIANCES = [
-    ("Pralka", 2000, 1.5, 8, 22),
-    ("Zmywarka", 1500, 1.0, 22, 6),
+    ("Washer", 2000, 1.5, 8, 22),
+    ("Dishwasher", 1500, 1.0, 22, 6),
 ]
 
 # Self-consumption priority (order to shed loads when grid import exceeds limit)

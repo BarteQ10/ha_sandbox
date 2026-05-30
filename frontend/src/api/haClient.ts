@@ -15,21 +15,30 @@ let entities: HassEntities = {}
 let onEntitiesCB: ((e: HassEntities) => void) | null = null
 let onConnectedCB: (() => void) | null = null
 let onDisconnectedCB: (() => void) | null = null
+let unsubscribeEntities: (() => void) | null = null
+
+function subscribeEntitiesTracked(c: Connection) {
+  unsubscribeEntities?.()
+  unsubscribeEntities = subscribeEntities(c, (e) => {
+    entities = e
+    onEntitiesCB?.(e)
+  })
+}
 
 export async function connectHA() {
   try {
+    if (!HA_TOKEN) {
+      throw new Error(
+        "VITE_HA_TOKEN is not set — copy .env.example to .env and add a long-lived token from " +
+          `${HA_URL}/profile`
+      )
+    }
     const auth = createLongLivedTokenAuth(HA_URL, HA_TOKEN)
     conn = await createConnection({ auth })
-    subscribeEntities(conn, (e) => {
-      entities = e
-      onEntitiesCB?.(e)
-    })
+    subscribeEntitiesTracked(conn)
     conn.addEventListener("disconnected", () => onDisconnectedCB?.())
     conn.addEventListener("reconnect", () => {
-      subscribeEntities(conn!, (e) => {
-        entities = e
-        onEntitiesCB?.(e)
-      })
+      subscribeEntitiesTracked(conn!)
       onConnectedCB?.()
     })
     onConnectedCB?.()

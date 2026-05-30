@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next"
 import { Card, CardContent } from "@/components/ui/card"
 import { FlowGauge } from "@/components/charts/FlowGauge"
 import { MiniChart } from "@/components/charts/MiniChart"
+import { StatCard } from "@/components/StatCard"
 import { useEntityNum, useEntityState } from "@/hooks/useHA"
 import { ArrowDown, ArrowUp, Wallet, Zap } from "lucide-react"
 
@@ -12,23 +13,6 @@ function EntityBadge({ label, state }: { label: string; state: string }) {
       <CardContent className="p-3 text-center">
         <p className="text-xs text-muted-foreground">{label}</p>
         <p className={`text-sm font-semibold ${on ? "text-green-400" : "text-gray-400"}`}>{state}</p>
-      </CardContent>
-    </Card>
-  )
-}
-
-function StatCard({ label, value, unit, color, icon: Icon }: {
-  label: string; value: string; unit: string; color?: string; icon?: React.ElementType
-}) {
-  return (
-    <Card>
-      <CardContent className="p-4 text-center">
-        <p className="text-xs text-muted-foreground">{label}</p>
-        <div className="flex items-center justify-center gap-1">
-          {Icon && <Icon className="h-4 w-4" style={{ color }} />}
-          <p className="text-2xl font-bold" style={{ color }}>{value}</p>
-          <span className="text-xs text-muted-foreground">{unit}</span>
-        </div>
       </CardContent>
     </Card>
   )

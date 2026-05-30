@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
 import { useEntityState, useEntityNum, useHA } from "@/hooks/useHA"
+import { useCommittedSlider } from "@/hooks/useCommittedSlider"
 
 function ControlSwitch({ label, entityId, domain, serviceOn, serviceOff }: {
   label: string
@@ -63,21 +64,15 @@ function ControlSelect({ label, entityId, options }: { label: string; entityId: 
 function ControlSlider({ label, entityId, min, max, step, unit }: {
   label: string; entityId: string; min: number; max: number; step: number; unit: string
 }) {
-  const val = useEntityNum(entityId)
   const { callService } = useHA()
+  const { display, sliderProps } = useCommittedSlider(useEntityNum(entityId), (v) =>
+    callService("input_number", "set_value", { entity_id: entityId, value: v })
+  )
   return (
     <Card>
       <CardContent className="p-4">
-        <Label className="mb-2 block">{label}: {val} {unit}</Label>
-        <Slider
-          value={[val]}
-          min={min}
-          max={max}
-          step={step}
-          onValueChange={([v]) =>
-            callService("input_number", "set_value", { entity_id: entityId, value: v })
-          }
-        />
+        <Label className="mb-2 block">{label}: {display} {unit}</Label>
+        <Slider min={min} max={max} step={step} {...sliderProps} />
       </CardContent>
     </Card>
   )

@@ -4,6 +4,7 @@ import { Switch } from "@/components/ui/switch"
 import { Slider } from "@/components/ui/slider"
 import { Button } from "@/components/ui/button"
 import { useEntityState, useEntityNum, useHA } from "@/hooks/useHA"
+import { useCommittedSlider } from "@/hooks/useCommittedSlider"
 import {
   Sofa, CookingPot, Bed, Bath, TreePine,
   Lightbulb, Thermometer, Droplets, Blinds,
@@ -33,7 +34,7 @@ interface RgbChannels {
 
 interface LightConfig {
   entityId: string
-  name: string
+  nameKey: string
   brightnessEntity?: string
   colorTempEntity?: string
   rgbEntities?: RgbChannels
@@ -60,16 +61,16 @@ const rooms: RoomConfig[] = [
     tempEntity: "input_number.wirtualna_temp_salon",
     setpointEntity: "input_number.wirtualne_ustawienie_temp_salon",
     lights: [
-      { entityId: "input_boolean.wirtualne_swiatlo_salon_glowne", name: "Główne" },
+      { entityId: "input_boolean.wirtualne_swiatlo_salon_glowne", nameKey: "lights.main" },
       {
         entityId: "input_boolean.wirtualne_swiatlo_salon_lampa",
-        name: "Lampa stojąca",
+        nameKey: "lights.floorLamp",
         brightnessEntity: "input_number.wirtualne_jasnosc_salon_lampa",
         colorTempEntity: "input_number.wirtualne_barwa_salon_lampa",
       },
       {
         entityId: "input_boolean.wirtualne_swiatlo_salon_led",
-        name: "LED",
+        nameKey: "lights.led",
         rgbEntities: {
           r: "input_number.wirtualne_rgb_salon_led_r",
           g: "input_number.wirtualne_rgb_salon_led_g",
@@ -87,15 +88,15 @@ const rooms: RoomConfig[] = [
     tempEntity: "input_number.wirtualna_temp_kuchnia",
     setpointEntity: "input_number.wirtualne_ustawienie_temp_kuchnia",
     lights: [
-      { entityId: "input_boolean.wirtualne_swiatlo_kuchnia_glowne", name: "Główne" },
+      { entityId: "input_boolean.wirtualne_swiatlo_kuchnia_glowne", nameKey: "lights.main" },
       {
         entityId: "input_boolean.wirtualne_swiatlo_kuchnia_wyspa",
-        name: "Wyspa",
+        nameKey: "lights.island",
         brightnessEntity: "input_number.wirtualne_jasnosc_kuchnia_wyspa",
       },
       {
         entityId: "input_boolean.wirtualne_swiatlo_kuchnia_led",
-        name: "LED",
+        nameKey: "lights.led",
         rgbEntities: {
           r: "input_number.wirtualne_rgb_kuchnia_led_r",
           g: "input_number.wirtualne_rgb_kuchnia_led_g",
@@ -115,22 +116,22 @@ const rooms: RoomConfig[] = [
     lights: [
       {
         entityId: "input_boolean.wirtualne_swiatlo_sypialnia_glowne",
-        name: "Główne",
+        nameKey: "lights.main",
         brightnessEntity: "input_number.wirtualne_jasnosc_sypialnia_glowne",
       },
       {
         entityId: "input_boolean.wirtualne_swiatlo_sypialnia_lampka1",
-        name: "Lampka 1",
+        nameKey: "lights.lamp1",
         brightnessEntity: "input_number.wirtualne_jasnosc_sypialnia_lampka1",
         colorTempEntity: "input_number.wirtualne_barwa_sypialnia_lampka1",
       },
       {
         entityId: "input_boolean.wirtualne_swiatlo_sypialnia_lampka2",
-        name: "Lampka 2",
+        nameKey: "lights.lamp2",
         brightnessEntity: "input_number.wirtualne_jasnosc_sypialnia_lampka2",
         colorTempEntity: "input_number.wirtualne_barwa_sypialnia_lampka2",
       },
-      { entityId: "input_boolean.wirtualne_swiatlo_sypialnia_kinkiet", name: "Kinkiet" },
+      { entityId: "input_boolean.wirtualne_swiatlo_sypialnia_kinkiet", nameKey: "lights.sconce" },
     ],
     shutterEntity: "input_number.wirtualne_rolety_sypialnia",
   },
@@ -141,10 +142,10 @@ const rooms: RoomConfig[] = [
     color: "#ce93d8",
     tempEntity: "input_number.wirtualna_temp_lazienka",
     lights: [
-      { entityId: "input_boolean.wirtualne_swiatlo_lazienka_glowne", name: "Główne" },
+      { entityId: "input_boolean.wirtualne_swiatlo_lazienka_glowne", nameKey: "lights.main" },
       {
         entityId: "input_boolean.wirtualne_swiatlo_lazienka_lustro",
-        name: "Lustro LED",
+        nameKey: "lights.ledMirror",
         brightnessEntity: "input_number.wirtualne_jasnosc_lazienka_lustro",
         colorTempEntity: "input_number.wirtualne_barwa_lazienka_lustro",
       },
@@ -159,20 +160,43 @@ const rooms: RoomConfig[] = [
     color: "#81c784",
     tempEntity: "input_number.wirtualna_temp_ogrod",
     lights: [
-      { entityId: "input_boolean.wirtualne_swiatlo_ogrod_glowne", name: "Główne" },
-      { entityId: "input_boolean.wirtualne_swiatlo_ogrod_solarne", name: "Solarne" },
+      { entityId: "input_boolean.wirtualne_swiatlo_ogrod_glowne", nameKey: "lights.main" },
+      { entityId: "input_boolean.wirtualne_swiatlo_ogrod_solarne", nameKey: "lights.solar" },
     ],
   },
 ]
 
 function LightControl({ light, color }: { light: LightConfig; color: string }) {
+  const { t } = useTranslation()
   const { callService } = useHA()
   const isOn = useEntityState(light.entityId) === "on"
-  const brightness = useEntityNum(light.brightnessEntity ?? "", 100)
-  const colorTemp = useEntityNum(light.colorTempEntity ?? "", 4000)
-  const r = useEntityNum(light.rgbEntities?.r ?? "", 255)
-  const g = useEntityNum(light.rgbEntities?.g ?? "", 255)
-  const b = useEntityNum(light.rgbEntities?.b ?? "", 255)
+
+  const setNumber = (entityId: string | undefined, value: number) => {
+    if (entityId) callService("input_number", "set_value", { entity_id: entityId, value })
+  }
+
+  const brightness = useCommittedSlider(
+    useEntityNum(light.brightnessEntity ?? "", 100),
+    (v) => setNumber(light.brightnessEntity, v)
+  )
+  const colorTemp = useCommittedSlider(
+    useEntityNum(light.colorTempEntity ?? "", 4000),
+    (v) => setNumber(light.colorTempEntity, v)
+  )
+  const red = useCommittedSlider(
+    useEntityNum(light.rgbEntities?.r ?? "", 255),
+    (v) => setNumber(light.rgbEntities?.r, v)
+  )
+  const green = useCommittedSlider(
+    useEntityNum(light.rgbEntities?.g ?? "", 255),
+    (v) => setNumber(light.rgbEntities?.g, v)
+  )
+  const blue = useCommittedSlider(
+    useEntityNum(light.rgbEntities?.b ?? "", 255),
+    (v) => setNumber(light.rgbEntities?.b, v)
+  )
+
+  const rgbCss = `rgb(${red.display},${green.display},${blue.display})`
 
   return (
     <div
@@ -189,7 +213,7 @@ function LightControl({ light, color }: { light: LightConfig; color: string }) {
             style={{ color: isOn ? color : undefined }}
             fill={isOn ? color : "none"}
           />
-          {light.name}
+          {t(light.nameKey)}
         </span>
         <Switch
           checked={isOn}
@@ -204,22 +228,9 @@ function LightControl({ light, color }: { light: LightConfig; color: string }) {
 
       {isOn && light.brightnessEntity && (
         <div className="flex items-center gap-2">
-          <span className="text-[10px] text-muted-foreground w-6">Jas</span>
-          <Slider
-            key={light.brightnessEntity}
-            value={[brightness]}
-            min={0}
-            max={100}
-            step={1}
-            className="flex-1"
-            onValueChange={([v]) =>
-              callService("input_number", "set_value", {
-                entity_id: light.brightnessEntity,
-                value: v,
-              })
-            }
-          />
-          <span className="text-[10px] text-muted-foreground w-6 text-right">{brightness}%</span>
+          <span className="text-[10px] text-muted-foreground w-6">{t("roomCard.brightness")}</span>
+          <Slider min={0} max={100} step={1} className="flex-1" {...brightness.sliderProps} />
+          <span className="text-[10px] text-muted-foreground w-6 text-right">{brightness.display}%</span>
         </div>
       )}
 
@@ -228,15 +239,15 @@ function LightControl({ light, color }: { light: LightConfig; color: string }) {
           <div className="flex items-center gap-2">
             <span
               className="inline-block h-3 w-3 rounded-full shrink-0"
-              style={{ backgroundColor: `rgb(${r},${g},${b})` }}
+              style={{ backgroundColor: rgbCss }}
             />
             <span className="text-[10px] text-muted-foreground">RGB</span>
           </div>
           {[
-            { ch: "r", label: "R", val: r, entity: light.rgbEntities.r },
-            { ch: "g", label: "G", val: g, entity: light.rgbEntities.g },
-            { ch: "b", label: "B", val: b, entity: light.rgbEntities.b },
-          ].map(({ ch, label, val, entity }) => (
+            { ch: "r", label: "R", slider: red },
+            { ch: "g", label: "G", slider: green },
+            { ch: "b", label: "B", slider: blue },
+          ].map(({ ch, label, slider }) => (
             <div className="flex items-center gap-2" key={ch}>
               <span
                 className="text-[10px] font-bold w-3"
@@ -245,21 +256,14 @@ function LightControl({ light, color }: { light: LightConfig; color: string }) {
                 {label}
               </span>
               <Slider
-                key={entity}
-                color={`rgb(${r},${g},${b})`}
-                value={[val]}
+                color={rgbCss}
                 min={0}
                 max={255}
                 step={1}
                 className="flex-1"
-                onValueChange={([v]) =>
-                  callService("input_number", "set_value", {
-                    entity_id: entity,
-                    value: v,
-                  })
-                }
+                {...slider.sliderProps}
               />
-              <span className="text-[10px] text-muted-foreground w-6 text-right">{val}</span>
+              <span className="text-[10px] text-muted-foreground w-6 text-right">{slider.display}</span>
             </div>
           ))}
         </div>
@@ -269,24 +273,17 @@ function LightControl({ light, color }: { light: LightConfig; color: string }) {
         <div className="flex items-center gap-2">
           <span
             className="inline-block h-3 w-3 rounded-full shrink-0"
-            style={{ backgroundColor: kelvinToRgb(colorTemp) }}
+            style={{ backgroundColor: kelvinToRgb(colorTemp.display) }}
           />
           <Slider
-            key={light.colorTempEntity}
-            color={kelvinToRgb(colorTemp)}
-            value={[colorTemp]}
+            color={kelvinToRgb(colorTemp.display)}
             min={2700}
             max={6500}
             step={100}
             className="flex-1"
-            onValueChange={([v]) =>
-              callService("input_number", "set_value", {
-                entity_id: light.colorTempEntity,
-                value: v,
-              })
-            }
+            {...colorTemp.sliderProps}
           />
-          <span className="text-[10px] text-muted-foreground w-10 text-right">{colorTemp}K</span>
+          <span className="text-[10px] text-muted-foreground w-10 text-right">{colorTemp.display}K</span>
         </div>
       )}
     </div>
@@ -295,16 +292,28 @@ function LightControl({ light, color }: { light: LightConfig; color: string }) {
 
 function RoomCard({ room }: { room: RoomConfig }) {
   const { t } = useTranslation()
-  const { callService } = useHA()
+  const { entities, callService } = useHA()
 
-  const temp = useEntityNum(room.tempEntity, 21)
-  const shutterPos = room.shutterEntity ? useEntityNum(room.shutterEntity, 100) : null
-  const humidity = room.humidityEntity ? useEntityNum(room.humidityEntity, 50) : null
+  // Read entity values from the context map directly so the number of hooks
+  // stays constant regardless of which optional entities a room defines
+  // (avoids conditional/loop hook calls — Rules of Hooks).
+  const numOf = (id: string | undefined, fb: number) => {
+    const s = id ? entities[id]?.state : undefined
+    return s != null && s !== "" ? Number(s) : fb
+  }
 
-  const RoomIcon = room.icon
-  const lightStates = room.lights.map((l) => useEntityState(l.entityId) === "on")
+  const temp = numOf(room.tempEntity, 21)
+  const humidity = room.humidityEntity ? numOf(room.humidityEntity, 50) : null
+  const setpoint = numOf(room.setpointEntity, 21)
+  const lightStates = room.lights.map((l) => entities[l.entityId]?.state === "on")
   const anyOn = lightStates.some(Boolean)
-  const setpoint = useEntityNum(room.setpointEntity ?? "", 21)
+  const RoomIcon = room.icon
+
+  const shutterPresent = room.shutterEntity !== undefined
+  const shutter = useCommittedSlider(numOf(room.shutterEntity, 100), (v) => {
+    if (room.shutterEntity)
+      callService("input_number", "set_value", { entity_id: room.shutterEntity, value: v })
+  })
 
   function setAll(target: "on" | "off") {
     room.lights.forEach((l, i) => {
@@ -336,7 +345,7 @@ function RoomCard({ room }: { room: RoomConfig }) {
             </div>
             {room.setpointEntity && (
               <div className="flex items-center gap-1">
-                <span className="text-[10px] text-muted-foreground">Ustaw</span>
+                <span className="text-[10px] text-muted-foreground">{t("roomCard.setpoint")}</span>
                 <button
                   className="flex h-5 w-5 items-center justify-center rounded-full border text-xs leading-none hover:bg-accent"
                   onClick={() =>
@@ -368,7 +377,7 @@ function RoomCard({ room }: { room: RoomConfig }) {
         </div>
 
         <div className="flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">Wszystkie światła</span>
+          <span className="text-xs text-muted-foreground">{t("roomCard.allLights")}</span>
           <div className="flex gap-1">
             <Button
               variant={anyOn ? "default" : "outline"}
@@ -395,14 +404,14 @@ function RoomCard({ room }: { room: RoomConfig }) {
           ))}
         </div>
 
-        {shutterPos !== null && (
+        {shutterPresent && (
           <div className="space-y-1 pt-1">
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <div className="flex items-center gap-1">
                 <Blinds className="h-3.5 w-3.5" />
                 <span>{t("rooms.blinds")}</span>
               </div>
-              <span>{shutterPos}%</span>
+              <span>{shutter.display}%</span>
             </div>
             <div className="flex items-center gap-2">
               <Button
@@ -418,19 +427,7 @@ function RoomCard({ room }: { room: RoomConfig }) {
               >
                 <Blinds className="h-3.5 w-3.5" />
               </Button>
-              <Slider
-                value={[shutterPos]}
-                min={0}
-                max={100}
-                step={1}
-                className="flex-1"
-                onValueChange={([v]) =>
-                  callService("input_number", "set_value", {
-                    entity_id: room.shutterEntity,
-                    value: v,
-                  })
-                }
-              />
+              <Slider min={0} max={100} step={1} className="flex-1" {...shutter.sliderProps} />
             </div>
           </div>
         )}

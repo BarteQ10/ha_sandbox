@@ -28,6 +28,22 @@
     "bedroom": "Rolety Sypialnia",
     "bathroom": "Rolety Łazienka"
   },
+  "lights": {
+    "main": "Główne",
+    "floorLamp": "Lampa stojąca",
+    "led": "LED",
+    "ledMirror": "Lustro LED",
+    "island": "Wyspa",
+    "lamp1": "Lampka 1",
+    "lamp2": "Lampka 2",
+    "sconce": "Kinkiet",
+    "solar": "Solarne"
+  },
+  "roomCard": {
+    "allLights": "Wszystkie światła",
+    "brightness": "Jas",
+    "setpoint": "Ustaw"
+  },
   "flow": {
     "title": "Przepływy energii",
     "pv": "PV",

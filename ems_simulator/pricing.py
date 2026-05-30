@@ -1,4 +1,5 @@
 import datetime
+import random
 
 import requests
 
@@ -80,7 +81,6 @@ def max_today():
 def fallback_price(hour):
     for lo_h, hi_h, lo_p, hi_p in PRICE_BANDS:
         if lo_h <= hour < hi_h:
-            import random
             return random.randint(lo_p, hi_p)
     return random.randint(20, 35)
 
