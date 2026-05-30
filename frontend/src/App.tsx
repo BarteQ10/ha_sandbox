@@ -10,7 +10,8 @@ import { Flow } from "@/components/Flow"
 import { Controls } from "@/components/Controls"
 import { Energy } from "@/components/Energy"
 import { Alerts } from "@/components/Alerts"
-import { Home, Languages, Sun, Moon, Bolt, ToggleLeft, BarChart3, Sofa, Bed, TreePine, WifiOff, Bell } from "lucide-react"
+import { Weather } from "@/components/Weather"
+import { Home, Languages, Sun, Moon, Bolt, ToggleLeft, BarChart3, Sofa, Bed, TreePine, WifiOff, Bell, CloudSun } from "lucide-react"
 
 function ConnectionIndicator() {
   const { connected } = useHA()
@@ -129,12 +130,16 @@ function AppContent() {
                 <TabsTrigger value="alerts" className="gap-1">
                   <Bell className="h-4 w-4" /> {t("nav.alerts")}
                 </TabsTrigger>
+                <TabsTrigger value="weather" className="gap-1">
+                  <CloudSun className="h-4 w-4" /> {t("nav.weather")}
+                </TabsTrigger>
               </TabsList>
             </Tabs>
             {sysTab === "flow" && <Flow />}
             {sysTab === "controls" && <Controls />}
             {sysTab === "energy" && <Energy />}
             {sysTab === "alerts" && <Alerts />}
+            {sysTab === "weather" && <Weather />}
           </div>
         )}
       </main>
