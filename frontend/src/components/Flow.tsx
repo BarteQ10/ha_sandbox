@@ -36,16 +36,16 @@ export function Flow() {
   const exportW = net > 0 ? net : 0
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-lg font-semibold">{t("flow.title")}</h2>
+    <div className="space-y-3 sm:space-y-4">
+      <h2 className="text-base font-semibold sm:text-lg">{t("flow.title")}</h2>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
         <FlowGauge label={t("flow.pv")} value={pv} max={5500} unit="W" color="#66bb6a" />
         <FlowGauge label={t("flow.battery")} value={soc} max={100} unit="%" color="#4fc3f7" />
         <FlowGauge label={t("flow.load")} value={load} max={10000} unit="W" color="#ffa726" />
       </div>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-4">
         <StatCard label={t("flow.import")} value={String(importW)} unit="W" color="#ef5350" icon={ArrowDown} />
         <StatCard label={t("flow.export")} value={String(exportW)} unit="W" color="#66bb6a" icon={ArrowUp} />
         <StatCard
@@ -58,9 +58,9 @@ export function Flow() {
         <StatCard label={t("flow.price")} value={String(price)} unit="gr/kWh" color="#ce93d8" icon={Zap} />
       </div>
 
-      <h2 className="text-lg font-semibold">{t("flow.devices")}</h2>
+      <h2 className="text-base font-semibold sm:text-lg">{t("flow.devices")}</h2>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+      <div className="grid grid-cols-3 gap-2 sm:gap-3 md:grid-cols-5">
         <EntityBadge label={t("flow.boiler")} state={boiler === "on" ? t("flow.on") : t("flow.off")} />
         <EntityBadge label={t("flow.heatPump")} state={hpMode} />
         <EntityBadge label={t("flow.ev")} state={evLimit > 0 ? `${evLimit}W` : t("flow.off")} />

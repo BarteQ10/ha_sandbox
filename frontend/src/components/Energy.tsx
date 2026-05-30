@@ -17,10 +17,10 @@ export function Energy() {
   const ghiTomorrow = useEntityNum("sensor.ems_prognoza_pv_jutro_szczyt_ghi")
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-lg font-semibold">{t("energy.title")}</h2>
+    <div className="space-y-3 sm:space-y-4">
+      <h2 className="text-base font-semibold sm:text-lg">{t("energy.title")}</h2>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-4">
         <StatCard label={t("energy.pvToday")} value={pvToday.toFixed(2)} unit="kWh" color="#66bb6a" icon={Sun} />
         <StatCard
           label={t("energy.netBalance")}

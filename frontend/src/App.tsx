@@ -12,13 +12,16 @@ import { Energy } from "@/components/Energy"
 import { Alerts } from "@/components/Alerts"
 import { Weather } from "@/components/Weather"
 import { Settings } from "@/components/Settings"
-import { Home, Languages, Sun, Moon, Bolt, ToggleLeft, BarChart3, Sofa, Bed, TreePine, WifiOff, Bell, CloudSun, SlidersHorizontal } from "lucide-react"
+import {
+  Home, Languages, Sun, Moon, Bolt, ToggleLeft, BarChart3,
+  Sofa, Bed, TreePine, WifiOff, Bell, CloudSun, SlidersHorizontal,
+} from "lucide-react"
 
 function ConnectionIndicator() {
   const { connected } = useHA()
   const { t } = useTranslation()
   return (
-    <Badge variant={connected ? "default" : "destructive"} className="ml-auto">
+    <Badge variant={connected ? "default" : "destructive"} className="shrink-0 text-[10px] px-1.5 py-0.5">
       {connected ? t("connection.ok") : t("connection.offline")}
     </Badge>
   )
@@ -27,20 +30,17 @@ function ConnectionIndicator() {
 function OfflineBanner() {
   const { connected } = useHA()
   const { t } = useTranslation()
-  // Only show the banner after the disconnect has persisted for a grace
-  // period, so the initial connect on page refresh does not flash a red bar.
   const [graceOver, setGraceOver] = useState(false)
   useEffect(() => {
     if (connected) return
     const id = setTimeout(() => setGraceOver(true), 2000)
     return () => clearTimeout(id)
   }, [connected])
-
   if (connected || !graceOver) return null
   return (
     <div className="flex items-center justify-center gap-2 bg-destructive/90 px-4 py-1.5 text-center text-sm text-destructive-foreground">
       <WifiOff className="h-4 w-4 shrink-0" />
-      {t("connection.banner")}
+      <span className="text-xs sm:text-sm">{t("connection.banner")}</span>
     </div>
   )
 }
@@ -49,9 +49,8 @@ function LangSwitcher() {
   const { i18n } = useTranslation()
   const next = i18n.language === "pl" ? "en" : "pl"
   return (
-    <Button variant="ghost" size="sm" onClick={() => i18n.changeLanguage(next)} className="gap-1">
+    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => i18n.changeLanguage(next)}>
       <Languages className="h-4 w-4" />
-      {next.toUpperCase()}
     </Button>
   )
 }
@@ -59,7 +58,7 @@ function LangSwitcher() {
 function ThemeToggle() {
   const { theme, toggle } = useTheme()
   return (
-    <Button variant="ghost" size="sm" onClick={toggle} className="gap-1">
+    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={toggle}>
       {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
     </Button>
   )
@@ -74,76 +73,108 @@ function AppContent() {
   return (
     <div className="min-h-screen bg-transparent text-foreground">
       <header className="sticky top-0 z-50 border-b bg-card text-card-foreground backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-2">
-          <h1 className="text-lg font-bold tracking-wider">{t("nav.title")}</h1>
+        <div className="mx-auto max-w-7xl px-3 sm:px-4">
+          {/* Top bar: title + utility buttons */}
+          <div className="flex h-10 items-center gap-2">
+            <h1 className="min-w-0 truncate text-sm font-bold tracking-wider sm:text-base">
+              {t("nav.title")}
+            </h1>
+            <div className="ml-auto flex shrink-0 items-center gap-0.5">
+              <ThemeToggle />
+              <LangSwitcher />
+              <ConnectionIndicator />
+            </div>
+          </div>
+          {/* Main nav — full width, flush with header bottom */}
           <Tabs value={tab} onValueChange={setTab}>
-            <TabsList>
-              <TabsTrigger value="rooms" className="gap-1">
-                <Home className="h-4 w-4" /> {t("nav.rooms")}
+            <TabsList className="w-full rounded-none border-0 bg-transparent p-0 h-9">
+              <TabsTrigger
+                value="rooms"
+                className="flex-1 gap-1.5 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none text-xs sm:text-sm"
+              >
+                <Home className="h-4 w-4 shrink-0" />
+                {t("nav.rooms")}
               </TabsTrigger>
-              <TabsTrigger value="system" className="gap-1">
-                <Bolt className="h-4 w-4" /> {t("nav.system")}
+              <TabsTrigger
+                value="system"
+                className="flex-1 gap-1.5 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none text-xs sm:text-sm"
+              >
+                <Bolt className="h-4 w-4 shrink-0" />
+                {t("nav.system")}
               </TabsTrigger>
             </TabsList>
           </Tabs>
-          <ThemeToggle />
-          <LangSwitcher />
-          <ConnectionIndicator />
         </div>
       </header>
 
       <OfflineBanner />
 
-      <main className="mx-auto max-w-7xl px-4 py-4">
+      <main className="mx-auto max-w-7xl px-3 py-3 sm:px-4 sm:py-4">
         {tab === "rooms" && (
-          <div className="space-y-4">
-            <Tabs value={roomTab} onValueChange={setRoomTab}>
-              <TabsList>
-                <TabsTrigger value="day" className="gap-1">
-                  <Sofa className="h-4 w-4" /> {t("rooms.day")}
-                </TabsTrigger>
-                <TabsTrigger value="night" className="gap-1">
-                  <Bed className="h-4 w-4" /> {t("rooms.night")}
-                </TabsTrigger>
-                <TabsTrigger value="garden" className="gap-1">
-                  <TreePine className="h-4 w-4" /> {t("rooms.gardenLabel")}
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-            {roomTab === "day" && <Rooms roomIds={["salon", "kuchnia"]} />}
-            {roomTab === "night" && <Rooms roomIds={["sypialnia", "lazienka"]} />}
+          <div className="space-y-3 sm:space-y-4">
+            {/* Room sub-tabs — scrollable on mobile, icon+text on larger screens */}
+            <div className="overflow-x-auto">
+              <Tabs value={roomTab} onValueChange={setRoomTab}>
+                <TabsList className="flex w-max min-w-full sm:w-full">
+                  <TabsTrigger value="day" className="flex-1 gap-1">
+                    <Sofa className="h-4 w-4 shrink-0" />
+                    <span>{t("rooms.day")}</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="night" className="flex-1 gap-1">
+                    <Bed className="h-4 w-4 shrink-0" />
+                    <span>{t("rooms.night")}</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="garden" className="flex-1 gap-1">
+                    <TreePine className="h-4 w-4 shrink-0" />
+                    <span>{t("rooms.gardenLabel")}</span>
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+            {roomTab === "day"    && <Rooms roomIds={["salon", "kuchnia"]} />}
+            {roomTab === "night"  && <Rooms roomIds={["sypialnia", "lazienka"]} />}
             {roomTab === "garden" && <Rooms roomIds={["ogrod"]} />}
           </div>
         )}
+
         {tab === "system" && (
-          <div className="space-y-4">
-            <Tabs value={sysTab} onValueChange={setSysTab}>
-              <TabsList>
-                <TabsTrigger value="flow" className="gap-1">
-                  <Bolt className="h-4 w-4" /> {t("nav.flow")}
-                </TabsTrigger>
-                <TabsTrigger value="controls" className="gap-1">
-                  <ToggleLeft className="h-4 w-4" /> {t("nav.controls")}
-                </TabsTrigger>
-                <TabsTrigger value="energy" className="gap-1">
-                  <BarChart3 className="h-4 w-4" /> {t("nav.energy")}
-                </TabsTrigger>
-                <TabsTrigger value="alerts" className="gap-1">
-                  <Bell className="h-4 w-4" /> {t("nav.alerts")}
-                </TabsTrigger>
-                <TabsTrigger value="weather" className="gap-1">
-                  <CloudSun className="h-4 w-4" /> {t("nav.weather")}
-                </TabsTrigger>
-                <TabsTrigger value="settings" className="gap-1">
-                  <SlidersHorizontal className="h-4 w-4" /> {t("nav.settings")}
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-            {sysTab === "flow" && <Flow />}
+          <div className="space-y-3 sm:space-y-4">
+            {/* System sub-tabs — scrollable; text hidden on mobile to avoid overflow */}
+            <div className="overflow-x-auto">
+              <Tabs value={sysTab} onValueChange={setSysTab}>
+                <TabsList className="flex w-max min-w-full sm:w-full">
+                  <TabsTrigger value="flow" className="flex-1 shrink-0 gap-1">
+                    <Bolt className="h-4 w-4 shrink-0" />
+                    <span className="hidden sm:inline">{t("nav.flow")}</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="controls" className="flex-1 shrink-0 gap-1">
+                    <ToggleLeft className="h-4 w-4 shrink-0" />
+                    <span className="hidden sm:inline">{t("nav.controls")}</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="energy" className="flex-1 shrink-0 gap-1">
+                    <BarChart3 className="h-4 w-4 shrink-0" />
+                    <span className="hidden sm:inline">{t("nav.energy")}</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="alerts" className="flex-1 shrink-0 gap-1">
+                    <Bell className="h-4 w-4 shrink-0" />
+                    <span className="hidden sm:inline">{t("nav.alerts")}</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="weather" className="flex-1 shrink-0 gap-1">
+                    <CloudSun className="h-4 w-4 shrink-0" />
+                    <span className="hidden sm:inline">{t("nav.weather")}</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="settings" className="flex-1 shrink-0 gap-1">
+                    <SlidersHorizontal className="h-4 w-4 shrink-0" />
+                    <span className="hidden sm:inline">{t("nav.settings")}</span>
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+            {sysTab === "flow"     && <Flow />}
             {sysTab === "controls" && <Controls />}
-            {sysTab === "energy" && <Energy />}
-            {sysTab === "alerts" && <Alerts />}
-            {sysTab === "weather" && <Weather />}
+            {sysTab === "energy"   && <Energy />}
+            {sysTab === "alerts"   && <Alerts />}
+            {sysTab === "weather"  && <Weather />}
             {sysTab === "settings" && <Settings />}
           </div>
         )}

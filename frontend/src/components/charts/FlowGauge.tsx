@@ -8,19 +8,19 @@ export function FlowGauge({
   const offset = circumference - (pct / 100) * circumference
 
   return (
-    <div className="rounded-xl border bg-card text-card-foreground shadow p-4 text-center">
+    <div className="rounded-xl border bg-card text-card-foreground shadow p-2 sm:p-4 text-center">
       <p className="mb-1 text-xs text-muted-foreground">{label}</p>
-      <svg width="120" height="120" viewBox="0 0 140 140" className="mx-auto text-foreground">
+      <svg viewBox="0 0 140 140" className="mx-auto w-20 h-20 sm:w-28 sm:h-28 text-foreground">
         <circle cx="70" cy="70" r="60" fill="none" stroke="currentColor" strokeWidth="10" opacity={0.15} />
         <circle
           cx="70" cy="70" r="60" fill="none" stroke={color} strokeWidth="10"
           strokeDasharray={circumference} strokeDashoffset={offset}
           strokeLinecap="round" transform="rotate(-90 70 70)"
         />
-        <text x="70" y="65" textAnchor="middle" fill="currentColor" fontSize="22" fontWeight="bold">
+        <text x="70" y="62" textAnchor="middle" fill="currentColor" fontSize="24" fontWeight="bold">
           {value}
         </text>
-        <text x="70" y="85" textAnchor="middle" fill="currentColor" fontSize="12" opacity={0.5}>
+        <text x="70" y="84" textAnchor="middle" fill="currentColor" fontSize="14" opacity={0.5}>
           {unit}
         </text>
       </svg>

@@ -85,8 +85,8 @@ export function Controls() {
   const evOn = useEntityState("input_boolean.ems_ev_override") === "on"
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-lg font-semibold">{t("controls.title")}</h2>
+    <div className="space-y-3 sm:space-y-4">
+      <h2 className="text-base font-semibold sm:text-lg">{t("controls.title")}</h2>
 
       <div className="grid gap-3 md:grid-cols-3">
         <ControlSelect
