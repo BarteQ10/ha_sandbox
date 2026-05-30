@@ -9,7 +9,8 @@
   },
   "connection": {
     "ok": "HA OK",
-    "offline": "OFFLINE"
+    "offline": "OFFLINE",
+    "banner": "No connection to Home Assistant — attempting to reconnect..."
   },
   "rooms": {
     "salon": "Living Room",

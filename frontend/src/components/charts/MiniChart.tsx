@@ -13,6 +13,7 @@ export function MiniChart({
   entityId: string; hours?: number; color?: string
 }) {
   const [data, setData] = useState<DataPoint[]>([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     let ignore = false
@@ -34,12 +35,18 @@ export function MiniChart({
         setData(pts.filter((_, i) => i % step === 0 || i === pts.length - 1))
       } catch {
         // silently fail
+      } finally {
+        if (!ignore) setLoading(false)
       }
     })()
     return () => {
       ignore = true
     }
   }, [entityId, hours])
+
+  if (loading) {
+    return <div className="h-[150px] animate-pulse rounded-md bg-muted/40" />
+  }
 
   if (data.length === 0) {
     return (

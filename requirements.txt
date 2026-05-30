@@ -1,0 +1,11 @@
+# Core simulator (run.py / ems_simulator)
+pyModbusTCP==0.3.0        # Modbus TCP server (server.py)
+requests==2.34.2          # Open-Meteo + PSE API calls (weather.py, pricing.py)
+influxdb-client==1.50.0   # Telemetry writes/reads (influx_writer.py)
+python-dotenv>=1.0        # Load .env at startup (run.py; optional, import is guarded)
+
+# ML forecast (ml_forecast.py) — not needed to run the simulator itself
+numpy==2.4.6
+pandas==3.0.3
+scikit-learn==1.8.0
+matplotlib==3.10.9

@@ -1,9 +1,11 @@
 import datetime
+import logging
 import random
 
-import requests
-
 from ems_simulator.config import PRICE_BANDS, DISTRIBUTION_ZONES, DISTRIBUTION_LOW
+from ems_simulator.http_util import get_json
+
+log = logging.getLogger(__name__)
 
 PSE_URL = "https://api.raporty.pse.pl/api/rce-pln"
 
@@ -15,12 +17,11 @@ def fetch():
     global _price_cache
     try:
         today = datetime.date.today().isoformat()
-        r = requests.get(
+        raw = get_json(
             PSE_URL,
             params={"$filter": f"business_date eq '{today}'"},
             timeout=15,
         )
-        raw = r.json()
         entries = raw.get("value", raw) if isinstance(raw, dict) else raw
 
         quarters = [None] * 96
@@ -43,16 +44,18 @@ def fetch():
 
         if any(v is not None for v in hourly):
             _price_cache = hourly
-            print(f"[PRICES] Fetched RCE for {today}")
-            print(f"  Range: {min(v for v in hourly if v):.0f} - {max(v for v in hourly if v):.0f} PLN/MWh")
+            log.info("[PRICES] Fetched RCE for %s", today)
+            log.info("  Range: %.0f - %.0f PLN/MWh",
+                     min(v for v in hourly if v), max(v for v in hourly if v))
             for h in range(24):
                 if hourly[h] is not None:
-                    print(f"  h{h:02d}: {hourly[h]:8.2f} PLN/MWh  ({hourly[h] / 10:.1f} gr/kWh)")
+                    log.info("  h%02d: %8.2f PLN/MWh  (%.1f gr/kWh)",
+                             h, hourly[h], hourly[h] / 10)
         else:
-            print(f"[PRICES] No valid data for {today}")
+            log.warning("[PRICES] No valid data for %s", today)
 
     except Exception as e:
-        print(f"[PRICES] Fetch failed: {e}")
+        log.warning("[PRICES] Fetch failed: %s", e)
 
 
 def get(hour):

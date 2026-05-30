@@ -1,36 +1,72 @@
 import datetime
+import logging
 import os
 import re
+import time
 
 from influxdb_client import InfluxDBClient, Point
 from influxdb_client.client.write_api import SYNCHRONOUS
+
+log = logging.getLogger(__name__)
 
 URL = os.environ.get("INFLUX_URL", "http://localhost:8086")
 TOKEN = os.environ.get("INFLUX_TOKEN", "ems-token")
 ORG = os.environ.get("INFLUX_ORG", "home")
 BUCKET = os.environ.get("INFLUX_BUCKET", "ems")
 
+# How long (real seconds) to wait between reconnect attempts after a failure,
+# so a down database is not hammered on every tick.
+RECONNECT_COOLDOWN_S = 30
+
+_SAFE_MEASUREMENT = re.compile(r'^[\w.]+$')
+
 _client = None
 _write = None
 _failed = False
+_last_attempt = 0.0  # monotonic time of the last (re)connect attempt
 
 
-def start():
-    global _client, _write, _failed
+def _connect():
+    """(Re)establish the client + write API. Returns True on success."""
+    global _client, _write, _failed, _last_attempt
+    _last_attempt = time.monotonic()
     try:
+        if _client is not None:
+            try:
+                _client.close()
+            except Exception:
+                pass
         _client = InfluxDBClient(url=URL, token=TOKEN, org=ORG)
         _write = _client.write_api(write_options=SYNCHRONOUS)
         health = _client.health()
-        print(f"[INFLUX] Connected (health: {health.status})")
+        log.info("[INFLUX] Connected (health: %s)", health.status)
         _failed = False
+        return True
     except Exception as e:
-        print(f"[INFLUX] Connection failed: {e}")
+        log.warning("[INFLUX] Connection failed: %s", e)
+        _client = None
+        _write = None
         _failed = True
+        return False
+
+
+def _ensure_connection():
+    """Return True if connected. If failed, retry once the cooldown elapsed."""
+    if not _failed and _write is not None:
+        return True
+    if time.monotonic() - _last_attempt < RECONNECT_COOLDOWN_S:
+        return False
+    log.info("[INFLUX] Attempting reconnect...")
+    return _connect()
+
+
+def start():
+    _connect()
 
 
 def write(pv, soc, load, price, balance, temp, cloud=None, ghi=None, peak_price=None, running_cost=None, curtail=None, chg_start=None, chg_duration=None, chg_pv_kwh=None, grid_status=None, anomaly=None, storm_safe=None):
-    global _failed
-    if _failed or _write is None:
+    global _failed, _last_attempt
+    if not _ensure_connection():
         return
 
     now = datetime.datetime.now(datetime.timezone.utc)
@@ -98,17 +134,16 @@ def write(pv, soc, load, price, balance, temp, cloud=None, ghi=None, peak_price=
 
         _write.write(bucket=BUCKET, record=points)
     except Exception as e:
-        print(f"[INFLUX] Write failed: {e}")
+        log.warning("[INFLUX] Write failed: %s", e)
         _failed = True
+        _last_attempt = time.monotonic()  # start cooldown before reconnecting
 
-
-_SAFE_MEASUREMENT = re.compile(r'^[\w.]+$')
 
 def read_last(measurement):
-    if _failed or _client is None:
+    if not _ensure_connection():
         return None
     if not _SAFE_MEASUREMENT.match(measurement):
-        print(f"[INFLUX] Unsafe measurement name rejected: {measurement!r}")
+        log.warning("[INFLUX] Unsafe measurement name rejected: %r", measurement)
         return None
     try:
         q = _client.query_api()
@@ -122,7 +157,7 @@ def read_last(measurement):
         if result and len(result) > 0 and len(result[0].records) > 0:
             return result[0].records[0].get_value()
     except Exception as e:
-        print(f"[INFLUX] Read last failed: {e}")
+        log.warning("[INFLUX] Read last failed: %s", e)
     return None
 
 
@@ -130,4 +165,4 @@ def stop():
     global _client
     if _client:
         _client.close()
-        print("[INFLUX] Closed")
+        log.info("[INFLUX] Closed")

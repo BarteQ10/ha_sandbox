@@ -1,6 +1,10 @@
 import datetime
-import requests
+import logging
+
 from ems_simulator.config import WEATHER_URL, WEATHER_ML_URL, LAT, LON
+from ems_simulator.http_util import get_json
+
+log = logging.getLogger(__name__)
 
 _cache = {}
 _forecast_rows = []
@@ -20,8 +24,7 @@ def _parse_rows(data):
 def fetch():
     global _cache, _forecast_rows
     try:
-        r = requests.get(WEATHER_URL, timeout=10)
-        data = r.json()
+        data = get_json(WEATHER_URL, timeout=10)
         rows = _parse_rows(data)
         _forecast_rows = rows
         c = {}
@@ -31,13 +34,14 @@ def fetch():
             c[(d, h)] = {"ghi": row["ghi"], "temp": row["temp"], "cloud": row["cloud"]}
         _cache = c
         today = datetime.date.today()
-        print(f"[WEATHER] Fetched {len(c)} entries")
+        log.info("[WEATHER] Fetched %d entries", len(c))
         for h in sorted(set(k[1] for k in c if k[0] == today)):
             e = c.get((today, h))
             if e:
-                print(f"  h{h:02d}: GHI={e['ghi']:3.0f}W/m2  {e['temp']:4.1f}C  clouds={e['cloud']:2.0f}%")
+                log.info("  h%02d: GHI=%3.0fW/m2  %4.1fC  clouds=%2.0f%%",
+                         h, e['ghi'], e['temp'], e['cloud'])
     except Exception as e:
-        print(f"[WEATHER] Fetch failed: {e}")
+        log.warning("[WEATHER] Fetch failed: %s", e)
 
 def get(hour):
     h = int(hour) % 24
@@ -65,26 +69,24 @@ def archive_df(start_date: str, end_date: str):
         f"&timezone=Europe/Warsaw"
     )
     try:
-        r = requests.get(url, timeout=10)
-        data = r.json()
+        data = get_json(url, timeout=10)
         rows = _parse_rows(data)
-        print(f"[WEATHER] Archive: {len(rows)} hours ({start_date} to {end_date})")
+        log.info("[WEATHER] Archive: %d hours (%s to %s)", len(rows), start_date, end_date)
         return rows
     except Exception as e:
-        print(f"[WEATHER] Archive fetch failed: {e}")
+        log.warning("[WEATHER] Archive fetch failed: %s", e)
         return []
 
 
 def ml_forecast_df(past_days: int = 3):
     url = WEATHER_ML_URL.format(days=past_days)
     try:
-        r = requests.get(url, timeout=10)
-        data = r.json()
+        data = get_json(url, timeout=10)
         rows = _parse_rows(data)
-        print(f"[WEATHER] ML data: {len(rows)} hours (past {past_days}d + 2d forecast)")
+        log.info("[WEATHER] ML data: %d hours (past %dd + 2d forecast)", len(rows), past_days)
         return rows
     except Exception as e:
-        print(f"[WEATHER] ML data fetch failed: {e}")
+        log.warning("[WEATHER] ML data fetch failed: %s", e)
         return []
 
 
@@ -92,11 +94,10 @@ def forecast_df():
     if _forecast_rows:
         return _forecast_rows
     try:
-        r = requests.get(WEATHER_URL, timeout=10)
-        data = r.json()
+        data = get_json(WEATHER_URL, timeout=10)
         rows = _parse_rows(data)
-        print(f"[WEATHER] Forecast: {len(rows)} hours ({rows[0]['ds']} to {rows[-1]['ds']})")
+        log.info("[WEATHER] Forecast: %d hours (%s to %s)", len(rows), rows[0]['ds'], rows[-1]['ds'])
         return rows
     except Exception as e:
-        print(f"[WEATHER] Forecast fetch failed: {e}")
+        log.warning("[WEATHER] Forecast fetch failed: %s", e)
         return []

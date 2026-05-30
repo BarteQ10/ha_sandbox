@@ -5,7 +5,7 @@ Modbus TCP simulator + Home Assistant config for Energy Management System develo
 ## Quick Start
 
 ```bash
-pip install pyModbusTCP requests
+pip install -r requirements.txt
 python run.py
 ```
 
@@ -224,6 +224,7 @@ cost_chwilowy = -balance * effective_price / (100 * 1000 * dt_h)   # PLN
 - Written to InfluxDB as `sensor.ems_koszt_chwilowy_pln`
 - Cumulative `running_cost_pln` resets at simulated midnight (`day_step == 0`)
 - On restart, restored from InfluxDB last value (via `inf_read_last`)
+- If InfluxDB goes down mid-run, the writer keeps the simulator alive and auto-reconnects every `RECONNECT_COOLDOWN_S` (30s) instead of disabling telemetry permanently
 
 ### Inverter round-trip efficiency
 `INVERTER_EFFICIENCY = 0.92` in `config.py` models AC↔DC conversion losses (~8% dissipated as heat). Applied in `battery.py`:

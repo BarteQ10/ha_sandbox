@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
@@ -9,7 +9,7 @@ import { Rooms } from "@/components/Rooms"
 import { Flow } from "@/components/Flow"
 import { Controls } from "@/components/Controls"
 import { Energy } from "@/components/Energy"
-import { Home, Languages, Sun, Moon, Bolt, ToggleLeft, BarChart3, Sofa, Bed, TreePine } from "lucide-react"
+import { Home, Languages, Sun, Moon, Bolt, ToggleLeft, BarChart3, Sofa, Bed, TreePine, WifiOff } from "lucide-react"
 
 function ConnectionIndicator() {
   const { connected } = useHA()
@@ -18,6 +18,27 @@ function ConnectionIndicator() {
     <Badge variant={connected ? "default" : "destructive"} className="ml-auto">
       {connected ? t("connection.ok") : t("connection.offline")}
     </Badge>
+  )
+}
+
+function OfflineBanner() {
+  const { connected } = useHA()
+  const { t } = useTranslation()
+  // Only show the banner after the disconnect has persisted for a grace
+  // period, so the initial connect on page refresh does not flash a red bar.
+  const [graceOver, setGraceOver] = useState(false)
+  useEffect(() => {
+    if (connected) return
+    const id = setTimeout(() => setGraceOver(true), 2000)
+    return () => clearTimeout(id)
+  }, [connected])
+
+  if (connected || !graceOver) return null
+  return (
+    <div className="flex items-center justify-center gap-2 bg-destructive/90 px-4 py-1.5 text-center text-sm text-destructive-foreground">
+      <WifiOff className="h-4 w-4 shrink-0" />
+      {t("connection.banner")}
+    </div>
   )
 }
 
@@ -67,6 +88,8 @@ function AppContent() {
           <ConnectionIndicator />
         </div>
       </header>
+
+      <OfflineBanner />
 
       <main className="mx-auto max-w-7xl px-4 py-4">
         {tab === "rooms" && (

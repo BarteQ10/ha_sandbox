@@ -1,6 +1,7 @@
 import random
 import math
 import datetime
+import logging
 
 from ems_simulator.config import (PV_PEAK_KW, INVERTER_MAX_W,
     SPIKE_CHANCE, SPIKE_WATTS, SPIKE_MAX_TICKS,
@@ -9,6 +10,9 @@ from ems_simulator.config import (PV_PEAK_KW, INVERTER_MAX_W,
     HP_COP_CURVE,
     EV_ARRIVAL_HOUR, EV_DEPARTURE_HOUR, EV_DAILY_KWH_NEEDED, EV_CHARGE_MAX_W,
     SCHEDULED_APPLIANCES, PRIORITY_ORDER)
+
+log = logging.getLogger(__name__)
+
 
 class DeviceTimer:
     def __init__(self, min_on_sim_min=None, min_off_sim_min=None):
@@ -57,7 +61,7 @@ class SoilingState:
             elif random.random() < SNOW_EVENT_CHANCE:
                 self._snow_ticks = SNOW_RECOVERY_TICKS
                 self._factor = 0.3
-                print(f"[SNOW] Snow cover — PV output reduced to 30% for ~2h sim")
+                log.info("[SNOW] Snow cover — PV output reduced to 30% for ~2h sim")
             else:
                 self._factor = base - random.uniform(0, 0.05)
         elif month in [3, 4, 10, 11]:
@@ -80,7 +84,7 @@ def pv_from_ghi(ghi, hour, soiling=None):
         clip_save = w - INVERTER_MAX_W
         w = INVERTER_MAX_W
         if random.random() < 0.005:
-            print(f"[CLIP] Inverter clipped {clip_save}W ({int(clip_save/w*100)}%)")
+            log.info("[CLIP] Inverter clipped %dW (%d%%)", clip_save, int(clip_save / w * 100))
     if soiling is not None:
         w = int(w * soiling.factor)
     return w
@@ -191,7 +195,7 @@ class ScheduledAppliance:
             self._remaining_ticks -= 1
             if self._remaining_ticks <= 0:
                 self.state = "done"
-                print(f"[APPL] {self.name} finished")
+                log.info("[APPL] %s finished", self.name)
                 return 0
             return self.power_w
         if self.state == "idle":
@@ -203,7 +207,7 @@ class ScheduledAppliance:
             if window_active:
                 self.state = "running"
                 self._remaining_ticks = int(self.duration_h * 12)
-                print(f"[APPL] {self.name} started ({self.power_w}W, {self.duration_h}h)")
+                log.info("[APPL] %s started (%dW, %sh)", self.name, self.power_w, self.duration_h)
                 return self.power_w
         return 0
 
