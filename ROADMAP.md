@@ -42,7 +42,7 @@ Status: ✅ done · ⏳ in progress · — todo
 | # | Item | Where | Effort | Prio | Status |
 |---|------|-------|--------|------|--------|
 | 3.1 | **House thermal model (RC)** | `generators.py`, new `thermal.py` | L | 🟡 | — |
-| 3.2 | **Battery State-of-Health (SoH)** | `battery.py` | M | 🟡 | — |
+| 3.2 | **Battery State-of-Health (SoH)** | `battery.py` | M | 🟡 | ✅ |
 | 3.3 | **Multiple PV strings / orientations** | `generators.py`, `config.py` | M | 🟢 | — |
 | 3.4 | **V2G (vehicle-to-grid)** | `generators.py`, `main.py` | L | 🟢 | — |
 | 3.5 | **More deferrable appliances** | `config.py`, `generators.py` | M | 🟢 | — |
@@ -70,7 +70,7 @@ Status: ✅ done · ⏳ in progress · — todo
 | 5.2 | **Settings panel** | new `components/Settings.tsx` | M | 🟡 | ✅ |
 | 5.3 | **Alerts / notifications panel** | new `components/Alerts.tsx` | M | 🟡 | ✅ |
 | 5.4 | **Animated energy-flow (Sankey)** | `Flow.tsx` | M | 🟢 | — |
-| 5.5 | **Daily/weekly reports + CSV export** | new `components/Reports.tsx` | M | 🟡 | — |
+| 5.5 | **Daily/weekly reports + CSV export** | new `components/Reports.tsx` | M | 🟡 | ✅ |
 | 5.6 | **PWA / mobile layout** | `vite.config.ts`, manifest | M | 🟢 | ✅ |
 | 5.7 | **Accessibility pass** | `components/*` | M | 🟢 | — |
 | 5.8 | **Render performance (useSyncExternalStore)** | `useHA.tsx` | M | 🟢 | ✅ |

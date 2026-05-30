@@ -9,7 +9,7 @@ from ems_simulator.weather import fetch as w_fetch, get as w_get, needs_refresh 
 from ems_simulator.pricing import fetch as p_fetch, get as p_get, max_today as p_max_today, needs_refresh as p_needs_refresh, fallback_price as p_fallback, distribution_rate as p_dist_rate, _price_cache as p_cache
 from ems_simulator.generators import pv_from_ghi, base_load, SpikeState, controllable_load, DeviceTimer, SoilingState, hp_cop, EVProfile, make_scheduled_appliances
 from ems_simulator.charge_scheduler import compute_charge_window
-from ems_simulator.battery import delta as batt_delta, clamp as batt_clamp, MODE_AUTO, MODE_FORCE_CHARGE, MODE_FORCE_DISCHARGE
+from ems_simulator.battery import delta as batt_delta, clamp as batt_clamp, soh as batt_soh, MODE_AUTO, MODE_FORCE_CHARGE, MODE_FORCE_DISCHARGE
 from ems_simulator.server import start as srv_start, stop as srv_stop, read as srv_read, write as srv_write, banner as srv_banner, set_register as srv_set_register
 from ems_simulator.influx_writer import start as inf_start, write as inf_write, stop as inf_stop, read_last as inf_read_last
 from ems_simulator.log_setup import setup as _setup_logging
@@ -49,6 +49,7 @@ def main():
 
     running_cost_pln = 0.0
     _total_sim_days = 0.0  # for calendar aging
+    _kwh_throughput = 0.0  # cumulative kWh through battery (for cycle SoH)
 
     # ── Restore persistent state from InfluxDB ────────────────────────────────
     cost_from_db = inf_read_last("sensor.ems_koszt_kumulatywny_dzis")
@@ -65,6 +66,12 @@ def main():
     if ev_energy_from_db is not None:
         ev_profile.restore_energy(float(ev_energy_from_db))
         log.info("[STATE] Restored EV energy today: %.2f kWh", float(ev_energy_from_db))
+
+    kwh_tp_from_db = inf_read_last("sensor.ems_battery_kwh_throughput")
+    if kwh_tp_from_db is not None:
+        _kwh_throughput = float(kwh_tp_from_db)
+        log.info("[STATE] Restored battery kWh throughput: %.1f kWh (%.1f eq. cycles)",
+                 _kwh_throughput, _kwh_throughput / (2 * 15.0))
 
     # Mark same-day appliances done if their time window has already passed
     for _appl in appliances:
@@ -251,11 +258,15 @@ def main():
                 actual_force = MODE_AUTO
 
             _total_sim_days += 1.0 / 288.0
-            aging_factor = max(0.70, 1.0 - _total_sim_days * 0.02 / 365.0)
+            aging_factor = batt_soh(_total_sim_days, _kwh_throughput)
+            batt_delta_val = batt_delta(balance, actual_force, aging_factor)
+            # Accumulate throughput: SoC-% change → kWh (BATTERY_KWH / 100 per %)
+            _kwh_throughput += abs(batt_delta_val) * 15.0 / 100.0
             if day_step % (STEPS_PER_HOUR * 5) == 0 and aging_factor < 0.995:
-                log.info(f"[AGING] Battery capacity: {aging_factor*100:.1f}% of original "
-                      f"(sim day {_total_sim_days:.0f})")
-            delta = batt_delta(balance, actual_force, aging_factor)
+                log.info("[SOH] Battery SoH: %.1f%%  calendar: %.1fd  cycles: %.1f eq.",
+                         aging_factor * 100, _total_sim_days,
+                         _kwh_throughput / (2 * 15.0))
+            delta = batt_delta_val
             new_soc = batt_clamp(soc + delta)
 
             if day_step % (STEPS_PER_HOUR * 5) == 0:
@@ -307,7 +318,9 @@ def main():
             inf_write(pv, round(new_soc), load, price, balance, current_temp, cloud, ghi,
                       peak_today, round(running_cost_pln, 2), curtail,
                       chg_start, chg_duration, chg_pv_kwh, grid_status, anomaly, storm_safe,
-                      ev_energy_today=ev_profile.energy_delivered_today)
+                      ev_energy_today=ev_profile.energy_delivered_today,
+                      battery_soh=round(aging_factor, 4),
+                      kwh_throughput=round(_kwh_throughput, 2))
 
             _anomaly_prev = anomaly
             time.sleep(TICK_S)

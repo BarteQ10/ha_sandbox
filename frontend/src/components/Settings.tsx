@@ -1,8 +1,8 @@
+import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Slider } from "@/components/ui/slider"
 import { useEntityNum, useHA } from "@/hooks/useHA"
-import { useCommittedSlider } from "@/hooks/useCommittedSlider"
 import { Settings2, Battery, Sun, Zap, MapPin, Clock } from "lucide-react"
 
 const LAT = import.meta.env.VITE_LAT ?? "52.23"
@@ -17,22 +17,46 @@ function ThresholdSlider({
   min: number; max: number; step: number; unit: string
 }) {
   const { callService } = useHA()
-  const { display, sliderProps } = useCommittedSlider(
-    useEntityNum(entityId, min),
-    (v) => callService("input_number", "set_value", { entity_id: entityId, value: v })
-  )
+  const entityValue = useEntityNum(entityId, min)
+  // Local state tracks slider drag; resets to entity value on blur / explicit save.
+  const [local, setLocal] = useState<number | null>(null)
+  const display = local ?? entityValue
+
+  function save(v: number) {
+    const clamped = Math.min(max, Math.max(min, Math.round(v / step) * step))
+    setLocal(null)
+    callService("input_number", "set_value", { entity_id: entityId, value: clamped })
+  }
+
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
           <p className="text-sm font-medium">{label}</p>
           <p className="text-xs text-muted-foreground">{description}</p>
         </div>
-        <span className="shrink-0 rounded-md border bg-muted px-2 py-0.5 text-sm font-semibold tabular-nums">
-          {display.toLocaleString()} {unit}
-        </span>
+        {/* +/- buttons give an always-reliable explicit save path */}
+        <div className="flex shrink-0 items-center gap-1">
+          <button
+            className="flex h-7 w-7 items-center justify-center rounded-full border text-sm hover:bg-accent"
+            onClick={() => save(display - step)}
+          >−</button>
+          <span className="min-w-[5ch] text-center text-sm font-semibold tabular-nums">
+            {display.toLocaleString()}
+          </span>
+          <button
+            className="flex h-7 w-7 items-center justify-center rounded-full border text-sm hover:bg-accent"
+            onClick={() => save(display + step)}
+          >+</button>
+          <span className="text-xs text-muted-foreground">{unit}</span>
+        </div>
       </div>
-      <Slider min={min} max={max} step={step} {...sliderProps} />
+      <Slider
+        min={min} max={max} step={step}
+        value={[display]}
+        onValueChange={([v]) => setLocal(v)}
+        onValueCommit={([v]) => save(v)}
+      />
       <div className="flex justify-between text-[10px] text-muted-foreground">
         <span>{min.toLocaleString()} {unit}</span>
         <span>{max.toLocaleString()} {unit}</span>

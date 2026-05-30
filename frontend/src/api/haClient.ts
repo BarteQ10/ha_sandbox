@@ -52,15 +52,29 @@ export function getSnapshot(): HAStore {
   return _store
 }
 
-// Per-entity snapshot — stable reference when the entity didn't change.
-// Keyed snapshots so each hook gets a distinct cache slot.
-const _entityCache = new Map<string, HassEntity | undefined>()
+// Per-entity snapshot with state-key comparison.
+// home-assistant-js-websocket may mutate entity objects in place rather than
+// creating new references on state change. Comparing object references alone
+// (===) would make useSyncExternalStore miss those updates and not re-render.
+// Comparing state+last_updated strings guarantees detection regardless of
+// whether the library uses mutation or replacement semantics.
+interface _CacheEntry { key: string; entity: HassEntity | undefined }
+const _entityCache = new Map<string, _CacheEntry>()
+
+function _entityKey(e: HassEntity | undefined): string {
+  return e ? `${e.state}|${e.last_updated}` : ""
+}
 
 export function getEntitySnapshot(entityId: string): HassEntity | undefined {
-  const current = _store.entities[entityId]
-  if (_entityCache.get(entityId) === current) return _entityCache.get(entityId)
-  _entityCache.set(entityId, current)
-  return current
+  const entity = _store.entities[entityId]
+  const key = _entityKey(entity)
+  const cached = _entityCache.get(entityId)
+  if (cached?.key === key) return cached.entity
+  // State or timestamp changed — create a new object reference so that
+  // useSyncExternalStore's Object.is() comparison triggers a re-render.
+  const fresh = entity ? { ...entity } : undefined
+  _entityCache.set(entityId, { key, entity: fresh })
+  return fresh
 }
 
 // ---------------------------------------------------------------------------
@@ -86,7 +100,10 @@ export async function connectHA(): Promise<Connection> {
   _conn = await createConnection({ auth })
   _subscribeEntities(_conn)
   _conn.addEventListener("disconnected", () => _setConnected(false))
-  _conn.addEventListener("reconnect", () => {
+  // "reconnect" exists at runtime but is missing from the type definitions in
+  // home-assistant-js-websocket — cast to any to silence the TS error.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ;(_conn as any).addEventListener("reconnect", () => {
     _subscribeEntities(_conn!)
     _setConnected(true)
   })
@@ -106,6 +123,32 @@ export async function haCallService(
 // ---------------------------------------------------------------------------
 // History REST
 // ---------------------------------------------------------------------------
+
+export async function fetchHistoryMulti(
+  entityIds: string[],
+  startTime: string,
+  endTime: string
+): Promise<Map<string, Array<{ state: string; last_changed: string }>>> {
+  const out = new Map<string, Array<{ state: string; last_changed: string }>>()
+  if (!entityIds.length) return out
+  try {
+    const ids = entityIds.join(",")
+    const res = await fetch(
+      `${HA_URL}/api/history/period/${startTime}?filter_entity_id=${ids}&end_time=${endTime}&minimal_response`,
+      { headers: { Authorization: `Bearer ${HA_TOKEN}`, "Content-Type": "application/json" } }
+    )
+    if (!res.ok) return out
+    const raw = (await res.json()) as Array<Array<Record<string, string>>>
+    for (const series of raw) {
+      if (!series.length) continue
+      const id = series[0]?.entity_id ?? ""
+      if (!id) continue
+      out.set(id, series.filter((r) => r.state !== undefined && !isNaN(Number(r.state)))
+        .map((r) => ({ state: r.state, last_changed: r.last_changed })))
+    }
+  } catch { /* empty */ }
+  return out
+}
 
 export async function fetchHistory(
   entityId: string,

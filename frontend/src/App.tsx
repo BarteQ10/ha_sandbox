@@ -12,8 +12,9 @@ import { Energy } from "@/components/Energy"
 import { Alerts } from "@/components/Alerts"
 import { Weather } from "@/components/Weather"
 import { Settings } from "@/components/Settings"
+import { Reports } from "@/components/Reports"
 import {
-  Home, Languages, Sun, Moon, Bolt, ToggleLeft, BarChart3,
+  Home, Languages, Sun, Moon, Bolt, ToggleLeft, BarChart3, FileText,
   Sofa, Bed, TreePine, WifiOff, Bell, CloudSun, SlidersHorizontal,
 } from "lucide-react"
 
@@ -163,6 +164,10 @@ function AppContent() {
                     <CloudSun className="h-4 w-4 shrink-0" />
                     <span className="hidden sm:inline">{t("nav.weather")}</span>
                   </TabsTrigger>
+                  <TabsTrigger value="reports" className="flex-1 shrink-0 gap-1">
+                    <FileText className="h-4 w-4 shrink-0" />
+                    <span className="hidden sm:inline">{t("nav.reports")}</span>
+                  </TabsTrigger>
                   <TabsTrigger value="settings" className="flex-1 shrink-0 gap-1">
                     <SlidersHorizontal className="h-4 w-4 shrink-0" />
                     <span className="hidden sm:inline">{t("nav.settings")}</span>
@@ -175,6 +180,7 @@ function AppContent() {
             {sysTab === "energy"   && <Energy />}
             {sysTab === "alerts"   && <Alerts />}
             {sysTab === "weather"  && <Weather />}
+            {sysTab === "reports"  && <Reports />}
             {sysTab === "settings" && <Settings />}
           </div>
         )}

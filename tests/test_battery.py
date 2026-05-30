@@ -1,9 +1,11 @@
 import math
 
 from ems_simulator.battery import (
-    delta, clamp, MODE_AUTO, MODE_FORCE_CHARGE, MODE_FORCE_DISCHARGE, FORCE_RATE_W,
+    delta, clamp, soh, MODE_AUTO, MODE_FORCE_CHARGE, MODE_FORCE_DISCHARGE, FORCE_RATE_W,
 )
-from ems_simulator.config import SOC_DELTA_DENOM, INVERTER_EFFICIENCY
+from ems_simulator.config import (
+    SOC_DELTA_DENOM, INVERTER_EFFICIENCY, BATTERY_KWH, BATTERY_CYCLE_LIFE,
+)
 
 
 def test_clamp_bounds():
@@ -34,3 +36,34 @@ def test_aging_factor_increases_delta_magnitude():
     aged = delta(1080, MODE_AUTO, aging_factor=0.5)
     # smaller effective capacity -> same power moves a larger SoC fraction
     assert aged > healthy
+
+
+# ── SoH tests ──────────────────────────────────────────────────────────────
+
+def test_soh_new_battery_is_one():
+    assert soh(0.0, 0.0) == 1.0
+
+
+def test_soh_calendar_only():
+    # After 1 simulated year (365 days), calendar aging = 2% → SoH 0.98
+    result = soh(365.0, 0.0)
+    assert math.isclose(result, 0.98, rel_tol=1e-6)
+
+
+def test_soh_cycle_only_at_eol():
+    # After BATTERY_CYCLE_LIFE full cycles → cycle_fade = 20% → SoH 0.80
+    full_cycle_kwh = BATTERY_CYCLE_LIFE * 2.0 * BATTERY_KWH
+    result = soh(0.0, full_cycle_kwh)
+    assert math.isclose(result, 0.80, rel_tol=1e-6)
+
+
+def test_soh_combined_exceeds_floor():
+    # Many years + many cycles should clamp at 0.70
+    result = soh(10_000.0, 1_000_000.0)
+    assert result == 0.70
+
+
+def test_soh_decreases_with_usage():
+    fresh = soh(0.0, 0.0)
+    used = soh(100.0, 5000.0)
+    assert used < fresh

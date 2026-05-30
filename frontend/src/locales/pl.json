@@ -8,7 +8,8 @@
     "energy": "Energia",
     "alerts": "Alerty",
     "weather": "Pogoda",
-    "settings": "Ustawienia"
+    "settings": "Ustawienia",
+    "reports": "Raporty"
   },
   "connection": {
     "ok": "HA OK",
@@ -85,6 +86,21 @@
     "evAuto": "Auto",
     "evLimit": "Limit ładowania EV",
     "degradationCost": "Koszt degradacji baterii"
+  },
+  "reports": {
+    "thisWeek": "Ten tydzień",
+    "totalPv": "PV łącznie",
+    "totalBalance": "Bilans łącznie",
+    "avgSelf": "Śr. autokonsumpcja",
+    "chartTitle": "Produkcja PV (kWh/dzień)",
+    "date": "Dzień",
+    "pv": "PV",
+    "net": "Bilans netto",
+    "balance": "Finanse",
+    "selfConsumption": "Autokonsumpcja",
+    "total": "Razem",
+    "noData": "Brak danych historycznych",
+    "exportCsv": "Eksportuj CSV"
   },
   "settings": {
     "thresholds": "Progi EMS",

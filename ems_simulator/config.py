@@ -42,6 +42,7 @@ BATTERY_KWH = 15.0
 SOC_DELTA_DENOM = 1080.0
 INVERTER_EFFICIENCY = 0.92  # Round-trip AC↔DC conversion loss (8%)
 CALENDAR_AGING_PCT_PER_YEAR = 2.0  # capacity loss per year (calendar, not cycle)
+BATTERY_CYCLE_LIFE = 6000  # equivalent full cycles to 80% SoH (LiFePO4 typical)
 
 # HP COP (Coefficient of Performance) as function of outdoor temperature
 # (temp_celsius, cop)
