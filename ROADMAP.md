@@ -67,7 +67,7 @@ Status: ✅ done · ⏳ in progress · — todo
 | # | Item | Where | Effort | Prio | Status |
 |---|------|-------|--------|------|--------|
 | 5.1 | **Loading / offline states** | `components/*`, `App.tsx` | S | 🟡 | ✅ |
-| 5.2 | **Settings panel** | new `components/Settings.tsx` | M | 🟡 | — |
+| 5.2 | **Settings panel** | new `components/Settings.tsx` | M | 🟡 | ✅ |
 | 5.3 | **Alerts / notifications panel** | new `components/Alerts.tsx` | M | 🟡 | ✅ |
 | 5.4 | **Animated energy-flow (Sankey)** | `Flow.tsx` | M | 🟢 | — |
 | 5.5 | **Daily/weekly reports + CSV export** | new `components/Reports.tsx` | M | 🟡 | — |

@@ -7,7 +7,8 @@
     "controls": "Sterowanie",
     "energy": "Energia",
     "alerts": "Alerty",
-    "weather": "Pogoda"
+    "weather": "Pogoda",
+    "settings": "Ustawienia"
   },
   "connection": {
     "ok": "HA OK",
@@ -84,6 +85,30 @@
     "evAuto": "Auto",
     "evLimit": "Limit ładowania EV",
     "degradationCost": "Koszt degradacji baterii"
+  },
+  "settings": {
+    "thresholds": "Progi EMS",
+    "peakShaving": "Limit poboru z sieci",
+    "peakShavingDesc": "Moc powyżej której aktywuje się peak shaving (odcięcie bojlera / HP / EV)",
+    "degradationCost": "Koszt degradacji baterii",
+    "degradationCostDesc": "Minimalny spread cen opłacający cykl ładowania/rozładowania",
+    "evLimit": "Limit ładowania EV",
+    "evLimitDesc": "Maksymalna moc ładowania samochodu elektrycznego",
+    "systemConfig": "Konfiguracja systemu",
+    "pvPeak": "System PV",
+    "batterySize": "Akumulator",
+    "inverterEff": "Sprawność inwertera",
+    "simSpeed": "Prędkość symulacji",
+    "simSpeedValue": "60× (5 s tick = 5 min symulowanych)",
+    "location": "Lokalizacja",
+    "tariff": "Taryfa dystrybucyjna",
+    "tariffDesc": "Doliczana do ceny PSE przy imporcie z sieci (eksport bez opłaty dystrybucyjnej)",
+    "tariffHours": "Godziny",
+    "tariffRate": "Stawka",
+    "tariffZone": "Strefa",
+    "tariffPeak": "szczyt",
+    "tariffOffPeak": "poza szczytem",
+    "tariffNote": "Źródło: config.py DISTRIBUTION_ZONES. Zmiana wymaga edycji konfiguracji symulatora."
   },
   "weather": {
     "temp": "Temperatura",
