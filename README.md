@@ -24,22 +24,14 @@ docker compose up --build
 | `homeassistant` | 8123 | Home Assistant — automations + UI ("the brain") |
 | `influxdb` | 8086 | Telemetry DB — the simulator writes here directly |
 | `ems-simulator` | 5020 | This project — Modbus TCP server + simulation loop |
-| `mosquitto` | 1883 | MQTT broker — **optional, currently unused** (see note below) |
 
 The `ems-simulator` service builds from the local `Dockerfile` and reaches InfluxDB over the compose network (`INFLUX_URL=http://influxdb:8086`). Override credentials in the service `environment:` block.
+
+> No MQTT broker is included: the simulator talks to HA over **Modbus TCP** and writes telemetry to **InfluxDB directly** (see the data-flow diagram below).
 
 ### Graceful shutdown
 
 The simulator handles **SIGTERM** (sent by `docker stop` / `docker compose down` / systemd) just like Ctrl+C: it flushes the final InfluxDB writes and stops the Modbus server cleanly. `stop_grace_period: 15s` gives it time to finish, so a normal stop loses no telemetry.
-
-### Mosquitto (MQTT) — optional
-
-Nothing in the project currently uses MQTT: the simulator talks to HA over **Modbus TCP** and writes telemetry to **InfluxDB directly** (see the data-flow diagram below). The `mosquitto` service is leftover scaffolding from a typical HA setup and is safe to delete. It also fails to start out of the box because its bind-mounted `mosquitto/config|data|log` directories don't exist in the repo. To keep it for future MQTT devices instead, create `mosquitto/config/mosquitto.conf` with:
-
-```
-listener 1883
-allow_anonymous true
-```
 
 ## File Structure
 
@@ -63,7 +55,6 @@ run.py                # Top-level launcher
 |-----------|-----------|
 | Simulator | Python `ems_simulator/` (pyModbusTCP + Open-Meteo + PSE API) |
 | Brain | Home Assistant (Docker, port 8123) |
-| MQTT | Mosquitto (Docker, port 1883) |
 | Telemetry DB | InfluxDB 2.7 (Docker, port 8086) — direct writes |
 | ML | `ml_forecast.py` (RandomForest, GHI from Open-Meteo past_days) |
 | Dashboard | React TS (`frontend/`) — optional, connects via HA REST + WebSocket |
@@ -116,7 +107,7 @@ simulator (Modbus) → HA (Modbus TCP) → automations
 
 ## HA Entities
 
-### Modbus (via MQTT if inverter offline -> show unavailable)
+### Modbus
 - `sensor.sztuczna_produkcja_pv` — PV power (W)
 - `sensor.sztuczny_stan_baterii_soc` — Battery (%)
 - `sensor.ems_pobor_domu_bazowy` — House load (W)
