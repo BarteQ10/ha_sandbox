@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- App background -->
+  <rect width="512" height="512" rx="96" fill="#0f172a"/>
+  <!-- House outline -->
+  <path d="M256 90 L80 230 L80 430 L200 430 L200 310 L312 310 L312 430 L432 430 L432 230 Z"
+        fill="none" stroke="#334155" stroke-width="20" stroke-linejoin="round"/>
+  <!-- Roof -->
+  <path d="M50 240 L256 70 L462 240" fill="none" stroke="#475569" stroke-width="20"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Lightning bolt inside house -->
+  <path d="M290 175 L195 285 L248 285 L218 355 L330 240 L272 240 Z" fill="#4ade80"/>
+</svg>
