@@ -6,7 +6,8 @@
     "flow": "Flow",
     "controls": "Controls",
     "energy": "Energy",
-    "alerts": "Alerts"
+    "alerts": "Alerts",
+    "weather": "Weather"
   },
   "connection": {
     "ok": "HA OK",
@@ -83,6 +84,25 @@
     "evAuto": "Auto",
     "evLimit": "EV Charge Limit",
     "degradationCost": "Battery Degradation Cost"
+  },
+  "weather": {
+    "temp": "Temperature",
+    "outdoor": "outdoor",
+    "cloud": "Cloud Cover",
+    "clear": "Clear",
+    "partlyCloudy": "Partly cloudy",
+    "overcast": "Overcast",
+    "ghi": "Solar Irradiance GHI",
+    "ghiSub": "global horizontal",
+    "pvNow": "PV Output",
+    "ofPeak": "of peak",
+    "chart24h": "24h Forecast — GHI & Temperature",
+    "now": "now",
+    "peakGhi": "Peak GHI",
+    "solarHours": "Solar hours",
+    "pvForecast": "PV Forecast",
+    "avgCloud": "Avg cloud",
+    "fetchError": "Could not load weather forecast"
   },
   "alerts": {
     "allClear": "No active alerts",

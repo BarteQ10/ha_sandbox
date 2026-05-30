@@ -6,7 +6,8 @@
     "flow": "Przepływy",
     "controls": "Sterowanie",
     "energy": "Energia",
-    "alerts": "Alerty"
+    "alerts": "Alerty",
+    "weather": "Pogoda"
   },
   "connection": {
     "ok": "HA OK",
@@ -83,6 +84,25 @@
     "evAuto": "Auto",
     "evLimit": "Limit ładowania EV",
     "degradationCost": "Koszt degradacji baterii"
+  },
+  "weather": {
+    "temp": "Temperatura",
+    "outdoor": "na zewnątrz",
+    "cloud": "Zachmurzenie",
+    "clear": "Bezchmurnie",
+    "partlyCloudy": "Częściowe zachmurzenie",
+    "overcast": "Zachmurzone",
+    "ghi": "Nasłonecznienie GHI",
+    "ghiSub": "promieniowanie poziome",
+    "pvNow": "Produkcja PV",
+    "ofPeak": "mocy szczytowej",
+    "chart24h": "Prognoza 24h — GHI i temperatura",
+    "now": "teraz",
+    "peakGhi": "Szczyt GHI",
+    "solarHours": "Godz. słoneczne",
+    "pvForecast": "Prognoza PV",
+    "avgCloud": "Śr. zachmurzenie",
+    "fetchError": "Nie można pobrać prognozy pogody"
   },
   "alerts": {
     "allClear": "Brak aktywnych alertów",
