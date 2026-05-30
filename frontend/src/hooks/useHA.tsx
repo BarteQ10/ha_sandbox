@@ -33,8 +33,8 @@ export function HAProvider({ children }: { children: React.ReactNode }) {
 
 export function useHA() {
   const { callService } = useContext(HAContext)
-  const { connected } = useSyncExternalStore(subscribe, getSnapshot)
-  return { connected, callService }
+  const { connected, entities } = useSyncExternalStore(subscribe, getSnapshot)
+  return { connected, entities, callService }
 }
 
 export function useEntity(entityId: string): HassEntity | undefined {
