@@ -11,6 +11,36 @@ python run.py
 
 HA connects to `192.168.0.18:5020` (Modbus TCP).
 
+## Docker (full stack)
+
+`docker-compose.yml` brings up the whole backend in one command:
+
+```bash
+docker compose up --build
+```
+
+| Service | Port | Purpose |
+|---------|------|---------|
+| `homeassistant` | 8123 | Home Assistant — automations + UI ("the brain") |
+| `influxdb` | 8086 | Telemetry DB — the simulator writes here directly |
+| `ems-simulator` | 5020 | This project — Modbus TCP server + simulation loop |
+| `mosquitto` | 1883 | MQTT broker — **optional, currently unused** (see note below) |
+
+The `ems-simulator` service builds from the local `Dockerfile` and reaches InfluxDB over the compose network (`INFLUX_URL=http://influxdb:8086`). Override credentials in the service `environment:` block.
+
+### Graceful shutdown
+
+The simulator handles **SIGTERM** (sent by `docker stop` / `docker compose down` / systemd) just like Ctrl+C: it flushes the final InfluxDB writes and stops the Modbus server cleanly. `stop_grace_period: 15s` gives it time to finish, so a normal stop loses no telemetry.
+
+### Mosquitto (MQTT) — optional
+
+Nothing in the project currently uses MQTT: the simulator talks to HA over **Modbus TCP** and writes telemetry to **InfluxDB directly** (see the data-flow diagram below). The `mosquitto` service is leftover scaffolding from a typical HA setup and is safe to delete. It also fails to start out of the box because its bind-mounted `mosquitto/config|data|log` directories don't exist in the repo. To keep it for future MQTT devices instead, create `mosquitto/config/mosquitto.conf` with:
+
+```
+listener 1883
+allow_anonymous true
+```
+
 ## File Structure
 
 ```
