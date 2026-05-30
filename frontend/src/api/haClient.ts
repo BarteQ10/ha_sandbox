@@ -9,6 +9,9 @@ import {
 } from "home-assistant-js-websocket"
 
 const HA_URL = import.meta.env.VITE_HA_URL || "http://localhost:8123"
+// SECURITY: VITE_HA_TOKEN is bundled into client-side JS at build time.
+// Keep this app behind your home network / VPN — never expose it publicly.
+// Use a dedicated HA user with minimal permissions; see frontend/.env.example.
 const HA_TOKEN = import.meta.env.VITE_HA_TOKEN
 
 // ---------------------------------------------------------------------------

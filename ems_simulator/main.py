@@ -10,7 +10,7 @@ from ems_simulator.pricing import fetch as p_fetch, get as p_get, max_today as p
 from ems_simulator.generators import pv_from_ghi, base_load, SpikeState, controllable_load, DeviceTimer, SoilingState, hp_cop, EVProfile, make_scheduled_appliances
 from ems_simulator.charge_scheduler import compute_charge_window
 from ems_simulator.battery import delta as batt_delta, clamp as batt_clamp, MODE_AUTO, MODE_FORCE_CHARGE, MODE_FORCE_DISCHARGE
-from ems_simulator.server import start as srv_start, stop as srv_stop, read as srv_read, write as srv_write, banner as srv_banner
+from ems_simulator.server import start as srv_start, stop as srv_stop, read as srv_read, write as srv_write, banner as srv_banner, set_register as srv_set_register
 from ems_simulator.influx_writer import start as inf_start, write as inf_write, stop as inf_stop, read_last as inf_read_last
 from ems_simulator.log_setup import setup as _setup_logging
 from ems_simulator.config_validator import validate as _validate_config
@@ -49,10 +49,30 @@ def main():
 
     running_cost_pln = 0.0
     _total_sim_days = 0.0  # for calendar aging
+
+    # ── Restore persistent state from InfluxDB ────────────────────────────────
     cost_from_db = inf_read_last("sensor.ems_koszt_kumulatywny_dzis")
     if cost_from_db is not None:
         running_cost_pln = float(cost_from_db)
-        log.info(f"[STATE] Restored running cost: {running_cost_pln:.2f} PLN from InfluxDB")
+        log.info("[STATE] Restored running cost: %.2f PLN", running_cost_pln)
+
+    soc_from_db = inf_read_last("sensor.sztuczny_stan_baterii_soc")
+    if soc_from_db is not None:
+        srv_set_register(1, int(round(float(soc_from_db))))
+        log.info("[STATE] Restored SoC: %d%%", int(round(float(soc_from_db))))
+
+    ev_energy_from_db = inf_read_last("sensor.ems_ev_energy_today")
+    if ev_energy_from_db is not None:
+        ev_profile.restore_energy(float(ev_energy_from_db))
+        log.info("[STATE] Restored EV energy today: %.2f kWh", float(ev_energy_from_db))
+
+    # Mark same-day appliances done if their time window has already passed
+    for _appl in appliances:
+        if _appl.window_start < _appl.window_end and now_h >= _appl.window_end:
+            _appl.state = "done"
+            log.info("[STATE] Appliance '%s' marked done (window %d-%dh already passed)",
+                     _appl.name, _appl.window_start, _appl.window_end)
+    # ─────────────────────────────────────────────────────────────────────────
 
     chg_start = None
     chg_duration = 0
@@ -286,7 +306,8 @@ def main():
 
             inf_write(pv, round(new_soc), load, price, balance, current_temp, cloud, ghi,
                       peak_today, round(running_cost_pln, 2), curtail,
-                      chg_start, chg_duration, chg_pv_kwh, grid_status, anomaly, storm_safe)
+                      chg_start, chg_duration, chg_pv_kwh, grid_status, anomaly, storm_safe,
+                      ev_energy_today=ev_profile.energy_delivered_today)
 
             _anomaly_prev = anomaly
             time.sleep(TICK_S)

@@ -177,6 +177,13 @@ class EVProfile:
     def add_energy(self, kwh):
         self._energy_delivered_today += kwh
 
+    def restore_energy(self, kwh):
+        self._energy_delivered_today = max(0.0, float(kwh))
+
+    @property
+    def energy_delivered_today(self):
+        return self._energy_delivered_today
+
 
 class ScheduledAppliance:
     def __init__(self, name, power_w, duration_h, window_start, window_end):

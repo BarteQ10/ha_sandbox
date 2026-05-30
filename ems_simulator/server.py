@@ -16,6 +16,10 @@ def read():
 def write(registers):
     server.data_bank.set_holding_registers(0, registers)
 
+def set_register(addr, value):
+    """Overwrite a single holding register without touching others."""
+    server.data_bank.set_holding_registers(addr, [int(value)])
+
 def banner():
     print("=" * 64)
     print(f"  EMS SIMULATOR v8  ({MODBUS_HOST}:{MODBUS_PORT})")

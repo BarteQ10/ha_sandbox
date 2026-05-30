@@ -472,6 +472,11 @@ npm run dev
 
 Open `http://localhost:5173`.
 
+> **Security note:** `VITE_HA_TOKEN` is a long-lived HA token bundled into the
+> client-side JavaScript at build time. Anyone who can load the app can read it.
+> Keep the app behind your home network / VPN. Use a dedicated HA user with only
+> the permissions this dashboard needs (entities + services, no admin).
+
 ### Stack
 
 | Component | Technology |

@@ -33,7 +33,7 @@ Status: ✅ done · ⏳ in progress · — todo
 | 2.3 | **Grafana dashboards** | — | — | — | ❌ removed (not using Grafana) |
 | 2.4 | **Health / metrics endpoint** | new `ems_simulator/health.py` | M | 🟢 | — |
 | 2.5 | **Graceful shutdown** | `main.py` | S | 🟡 | ✅ |
-| 2.6 | **Restore more state on restart** | `main.py`, `influx_writer.py` | M | 🟢 | — |
+| 2.6 | **Restore more state on restart** | `main.py`, `influx_writer.py` | M | 🟢 | ✅ |
 
 ---
 
@@ -74,4 +74,4 @@ Status: ✅ done · ⏳ in progress · — todo
 | 5.6 | **PWA / mobile layout** | `vite.config.ts`, manifest | M | 🟢 | — |
 | 5.7 | **Accessibility pass** | `components/*` | M | 🟢 | — |
 | 5.8 | **Render performance (useSyncExternalStore)** | `useHA.tsx` | M | 🟢 | ✅ |
-| 5.9 | **Auth hardening** | `haClient.ts`, docs | S | 🟢 | — |
+| 5.9 | **Auth hardening** | `haClient.ts`, docs | S | 🟢 | ✅ |
