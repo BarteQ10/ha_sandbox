@@ -101,6 +101,13 @@ DISTRIBUTION_ZONES = [
     (22, 24, 12),
 ]
 
+# House thermal model (RC)
+HOUSE_THERMAL_MASS_KWH_PER_C = 8.0   # kWh/°C — thermal mass (masonry, 150 m²)
+HOUSE_UA_W_PER_C = 80.0              # W/°C — total heat loss coefficient (well-insulated)
+HOUSE_SETPOINT_C = 20.0              # thermostat target temperature
+HOUSE_DEAD_BAND_C = 0.5             # HP turns on at setpoint-deadband, off at setpoint+deadband
+HOUSE_INITIAL_TEMP_C = 20.0
+
 # Price bands: (hour_start, hour_end, min_gr, max_gr)
 PRICE_BANDS = [
     (2, 5, 15, 25),

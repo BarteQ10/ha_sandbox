@@ -15,6 +15,7 @@ from ems_simulator.influx_writer import start as inf_start, write as inf_write, 
 from ems_simulator.forecasting import ForecastEngine
 from ems_simulator.mpc_scheduler import solve as mpc_solve
 from ems_simulator.battery import MODE_AUTO as _MODE_AUTO
+from ems_simulator.thermal import ThermalModel
 from ems_simulator.log_setup import setup as _setup_logging
 from ems_simulator.config_validator import validate as _validate_config
 
@@ -42,6 +43,7 @@ def main():
     forecast_engine = ForecastEngine()
     forecast_engine.fit_all()  # best-effort: may skip models if InfluxDB has no history yet
     _forecast = forecast_engine.predict_next_24h()
+    thermal = ThermalModel()
 
     now_h = datetime.datetime.now().hour
     day_step = int(now_h * STEPS_PER_HOUR)
@@ -164,16 +166,15 @@ def main():
             cop = hp_cop(current_temp)
             ctrl_load, hp_thermal = controllable_load(boiler_eff, hp_eff, ev_eff, cop)
             load = base_load(hour, current_temp)
-            if hp_eff > 0 and current_temp is not None and current_temp < 18:
-                heat_demand = min(int((18 - current_temp) * 60), 2000)
-                hp_thermal_w = int(hp_thermal)
-                overlap = min(hp_thermal_w, heat_demand)
-                if overlap > 200:
-                    load -= int(overlap * 0.8)
-                    if day_step % STEPS_PER_HOUR == 0:
-                        log.info(f"[COP]  temp={current_temp:.0f}C  COP={cop:.1f}  "
-                              f"HP_thermal={hp_thermal_w}W  heat_demand={heat_demand}W  saved={int(overlap*0.8)}W")
             load += ctrl_load
+
+            # RC thermal model: advance house temperature, log periodically
+            t_house = thermal.tick(current_temp if ghi is not None else None, hp_thermal)
+            if day_step % (STEPS_PER_HOUR * 6) == 0:
+                thermal.log_status(current_temp)
+                if hp_eff > 0:
+                    log.info("[COP]  T_house=%.1f°C  T_out=%.1f°C  COP=%.1f  HP_thermal=%.0fW",
+                             t_house, current_temp if current_temp else 0, cop, hp_thermal)
 
             price = int(rce) if rce is not None else p_fallback(hour)
 
@@ -344,7 +345,8 @@ def main():
                       chg_start, chg_duration, chg_pv_kwh, grid_status, anomaly, storm_safe,
                       ev_energy_today=ev_profile.energy_delivered_today,
                       battery_soh=round(aging_factor, 4),
-                      kwh_throughput=round(_kwh_throughput, 2))
+                      kwh_throughput=round(_kwh_throughput, 2),
+                      t_house=round(thermal.t_house, 2))
 
             _anomaly_prev = anomaly
             time.sleep(TICK_S)

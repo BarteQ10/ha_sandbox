@@ -41,7 +41,7 @@ Status: ✅ done · ⏳ in progress · — todo
 
 | # | Item | Where | Effort | Prio | Status |
 |---|------|-------|--------|------|--------|
-| 3.1 | **House thermal model (RC)** | `generators.py`, new `thermal.py` | L | 🟡 | — |
+| 3.1 | **House thermal model (RC)** | `generators.py`, new `thermal.py` | L | 🟡 | ✅ |
 | 3.2 | **Battery State-of-Health (SoH)** | `battery.py` | M | 🟡 | ✅ |
 | 3.3 | **Multiple PV strings / orientations** | `generators.py`, `config.py` | M | 🟢 | — |
 | 3.4 | **V2G (vehicle-to-grid)** | `generators.py`, `main.py` | L | 🟢 | — |

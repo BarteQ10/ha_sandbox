@@ -64,7 +64,7 @@ def start():
     _connect()
 
 
-def write(pv, soc, load, price, balance, temp, cloud=None, ghi=None, peak_price=None, running_cost=None, curtail=None, chg_start=None, chg_duration=None, chg_pv_kwh=None, grid_status=None, anomaly=None, storm_safe=None, ev_energy_today=None, battery_soh=None, kwh_throughput=None):
+def write(pv, soc, load, price, balance, temp, cloud=None, ghi=None, peak_price=None, running_cost=None, curtail=None, chg_start=None, chg_duration=None, chg_pv_kwh=None, grid_status=None, anomaly=None, storm_safe=None, ev_energy_today=None, battery_soh=None, kwh_throughput=None, t_house=None):
     global _failed, _last_attempt
     if not _ensure_connection():
         return
@@ -142,6 +142,10 @@ def write(pv, soc, load, price, balance, temp, cloud=None, ghi=None, peak_price=
         if kwh_throughput is not None:
             points.append(
                 Point("sensor.ems_battery_kwh_throughput").time(now).field("value", float(kwh_throughput))
+            )
+        if t_house is not None:
+            points.append(
+                Point("sensor.ems_t_house").time(now).field("value", float(t_house))
             )
 
         _write.write(bucket=BUCKET, record=points)
