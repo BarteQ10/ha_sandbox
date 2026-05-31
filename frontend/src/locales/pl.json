@@ -9,7 +9,8 @@
     "alerts": "Alerty",
     "weather": "Pogoda",
     "settings": "Ustawienia",
-    "reports": "Raporty"
+    "reports": "Raporty",
+    "presence": "Obecność"
   },
   "connection": {
     "ok": "HA OK",
@@ -161,7 +162,31 @@
     "anomaly": "Symulacja awarii API — dane syntetyczne",
     "storm": "Storm Safeguard aktywny — ładowanie do 100%",
     "curtail": "Ograniczenie PV (zero-export) aktywne",
-    "overcast": "Bardzo duże zachmurzenie / śnieg — niska produkcja PV"
+    "overcast": "Bardzo duże zachmurzenie / śnieg — niska produkcja PV",
+    "windowAway": "Okno otwarte gdy nikogo nie ma w domu!",
+    "laundryDone": "Pranie zakończone — wyciągnij ubrania.",
+    "awayMode": "Obecność: Wyjście — aktywny profil minimalnego poboru.",
+    "snooze": "15 min",
+    "dismiss": "Ignoruj"
+  },
+  "presence": {
+    "title": "Obecność i automatyzacja",
+    "modeHome": "W domu",
+    "modeAway": "Wyjście",
+    "modeVacation": "Urlop",
+    "modeHint": "Profil obciążenia dostosowuje się do obecności",
+    "register": "Rejestr Modbus",
+    "lightingTitle": "Oświetlenie cyrkadianowe",
+    "brightness": "Jasność",
+    "colorTemp": "Temp. barwowa",
+    "lightLoad": "Pobór świateł",
+    "standbyLoad": "Urządzenia w trybie czuwania",
+    "standbyHint": "Stały pobór: TV, router, NAS itp.",
+    "rulesTitle": "Reguły automatyzacji",
+    "ruleWindowAway": "Okno otwarte gdy nikogo nie ma w domu!",
+    "ruleLaundryDone": "Pranie zakończone — wyciągnij ubrania.",
+    "info1": "Ustaw tryb obecności przez rejestr Modbus 19: 0 = W domu, 1 = Wyjście, 2 = Urlop.",
+    "info2": "Tryb Wyjście/Urlop redukuje pobór bazowy o 65–85%. Oświetlenie cyrkadianowe automatycznie dostosowuje jasność i temperaturę barwową."
   },
   "energy": {
     "title": "Energia & Finanse",

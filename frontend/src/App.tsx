@@ -13,9 +13,10 @@ import { Alerts } from "@/components/Alerts"
 import { Weather } from "@/components/Weather"
 import { Settings } from "@/components/Settings"
 import { Reports } from "@/components/Reports"
+import { Presence } from "@/components/Presence"
 import {
   Home, Languages, Sun, Moon, Bolt, ToggleLeft, BarChart3, FileText,
-  Sofa, Bed, TreePine, WifiOff, Bell, CloudSun, SlidersHorizontal,
+  Sofa, Bed, TreePine, WifiOff, Bell, CloudSun, SlidersHorizontal, Users,
 } from "lucide-react"
 
 function ConnectionIndicator() {
@@ -199,6 +200,10 @@ function AppContent() {
                     <FileText className="h-4 w-4 shrink-0" />
                     <span className="hidden sm:inline">{t("nav.reports")}</span>
                   </TabsTrigger>
+                  <TabsTrigger value="presence" className="flex-1 shrink-0 gap-1">
+                    <Users className="h-4 w-4 shrink-0" />
+                    <span className="hidden sm:inline">{t("nav.presence")}</span>
+                  </TabsTrigger>
                   <TabsTrigger value="settings" className="flex-1 shrink-0 gap-1">
                     <SlidersHorizontal className="h-4 w-4 shrink-0" />
                     <span className="hidden sm:inline">{t("nav.settings")}</span>
@@ -212,6 +217,7 @@ function AppContent() {
             {sysTab === "alerts"   && <Alerts />}
             {sysTab === "weather"  && <Weather />}
             {sysTab === "reports"  && <Reports />}
+            {sysTab === "presence" && <Presence />}
             {sysTab === "settings" && <Settings />}
           </div>
         )}

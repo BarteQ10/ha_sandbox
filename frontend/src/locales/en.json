@@ -9,7 +9,8 @@
     "alerts": "Alerts",
     "weather": "Weather",
     "settings": "Settings",
-    "reports": "Reports"
+    "reports": "Reports",
+    "presence": "Presence"
   },
   "connection": {
     "ok": "HA OK",
@@ -161,7 +162,31 @@
     "anomaly": "API anomaly simulation active — synthetic data",
     "storm": "Storm Safeguard active — charging to 100%",
     "curtail": "PV curtailment (zero-export) active",
-    "overcast": "Heavy overcast / snow — low PV output"
+    "overcast": "Heavy overcast / snow — low PV output",
+    "windowAway": "Window open while nobody is home!",
+    "laundryDone": "Laundry done — please take out the clothes.",
+    "awayMode": "Presence: Away — reduced load profile active.",
+    "snooze": "15 min",
+    "dismiss": "Dismiss"
+  },
+  "presence": {
+    "title": "Presence & Automation",
+    "modeHome": "Home",
+    "modeAway": "Away",
+    "modeVacation": "Vacation",
+    "modeHint": "Load profile adjusts based on occupancy",
+    "register": "Modbus reg.",
+    "lightingTitle": "Circadian Lighting",
+    "brightness": "Brightness",
+    "colorTemp": "Colour Temp",
+    "lightLoad": "Light Load",
+    "standbyLoad": "Standby Device Load",
+    "standbyHint": "Always-on background devices (TV, router, NAS, etc.)",
+    "rulesTitle": "Automation Rules",
+    "ruleWindowAway": "Window open while nobody is home!",
+    "ruleLaundryDone": "Laundry done — please take out the clothes.",
+    "info1": "Set presence mode via Modbus register 19: 0 = Home, 1 = Away, 2 = Vacation.",
+    "info2": "Away/Vacation reduces base load by 65–85%. Circadian lighting adjusts brightness and colour temperature automatically."
   },
   "energy": {
     "title": "Energy & Finance",
