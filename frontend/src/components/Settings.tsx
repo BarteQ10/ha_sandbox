@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/useToast"
 import {
   Settings2, Battery, Sun, Zap, MapPin, Clock,
   Bell, Webhook, Send, CheckCircle2, XCircle,
+  Home as HomeIcon, Shield,
 } from "lucide-react"
 
 const LAT = import.meta.env.VITE_LAT ?? "52.23"
@@ -121,6 +122,33 @@ function ChannelStatus({ icon, label, configured }: {
   )
 }
 
+// ─── Per-category alert toggle ───────────────────────────────────────────────
+
+function CategoryToggle({ entityId, label, icon, disabled }: {
+  entityId: string
+  label: string
+  icon: React.ReactNode
+  disabled: boolean
+}) {
+  const { callService } = useHA()
+  const on = useEntityState(entityId) === "on"
+  return (
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        {icon}
+        <span>{label}</span>
+      </div>
+      <Switch
+        checked={on}
+        disabled={disabled}
+        onCheckedChange={() =>
+          callService("input_boolean", on ? "turn_off" : "turn_on", { entity_id: entityId })
+        }
+      />
+    </div>
+  )
+}
+
 // ─── Notifications card ────────────────────────────────────────────────────────
 
 function NotificationsCard() {
@@ -179,6 +207,35 @@ function NotificationsCard() {
             icon={<Send className="h-3.5 w-3.5" />}
             label={t("settings.notifTelegram")}
             configured={telegram}
+          />
+        </div>
+
+        {/* Per-category alert switches */}
+        <div className="space-y-2 border-t pt-3">
+          <p className="text-xs font-medium">{t("settings.notifCategories")}</p>
+          <CategoryToggle
+            entityId="input_boolean.ems_notify_cat_grid"
+            label={t("settings.notifCatGrid")}
+            icon={<Zap className="h-3.5 w-3.5" />}
+            disabled={!enabled}
+          />
+          <CategoryToggle
+            entityId="input_boolean.ems_notify_cat_battery"
+            label={t("settings.notifCatBattery")}
+            icon={<Battery className="h-3.5 w-3.5" />}
+            disabled={!enabled}
+          />
+          <CategoryToggle
+            entityId="input_boolean.ems_notify_cat_rules"
+            label={t("settings.notifCatRules")}
+            icon={<HomeIcon className="h-3.5 w-3.5" />}
+            disabled={!enabled}
+          />
+          <CategoryToggle
+            entityId="input_boolean.ems_notify_cat_security"
+            label={t("settings.notifCatSecurity")}
+            icon={<Shield className="h-3.5 w-3.5" />}
+            disabled={!enabled}
           />
         </div>
 

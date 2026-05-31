@@ -5,6 +5,7 @@ def _reset():
     """Reset module state between tests."""
     notify._edge.clear()
     notify.set_enabled(True)
+    notify.set_muted(0)
 
 
 # ── runtime master switch ─────────────────────────────────────────────────────
@@ -119,10 +120,63 @@ def test_send_test_only_configured_channels(monkeypatch):
 def test_send_if_changed_fires_on_rising_edge(monkeypatch):
     _reset()
     sent = []
-    monkeypatch.setattr(notify, "send", lambda m, s="info": sent.append(m))
+    monkeypatch.setattr(notify, "send", lambda m, s="info", category=None: sent.append(m))
     notify.send_if_changed("k", "alert", condition=False)  # no edge
     assert sent == []
     notify.send_if_changed("k", "alert", condition=True)   # rising edge
     assert sent == ["alert"]
     notify.send_if_changed("k", "alert", condition=True)   # sustained — no repeat
     assert sent == ["alert"]
+
+
+# ── per-category mute mask ────────────────────────────────────────────────────
+
+def test_muted_default_is_zero():
+    _reset()
+    assert notify.muted_mask() == 0
+    assert notify.category_enabled("grid") is True
+
+
+def test_set_muted_disables_matching_category():
+    _reset()
+    notify.set_muted(notify.CATEGORY_BITS["battery"])
+    assert notify.category_enabled("battery") is False
+    assert notify.category_enabled("grid") is True  # other bits unaffected
+
+
+def test_set_muted_multiple_bits():
+    _reset()
+    mask = notify.CATEGORY_BITS["grid"] | notify.CATEGORY_BITS["security"]
+    notify.set_muted(mask)
+    assert notify.category_enabled("grid") is False
+    assert notify.category_enabled("security") is False
+    assert notify.category_enabled("rules") is True
+
+
+def test_unknown_or_none_category_always_allowed():
+    _reset()
+    notify.set_muted(0xFFFF)  # everything known is muted
+    assert notify.category_enabled(None) is True
+    assert notify.category_enabled("does_not_exist") is True
+
+
+def test_send_skipped_when_category_muted(monkeypatch):
+    _reset()
+    calls = []
+    monkeypatch.setattr(notify, "_send_webhook", lambda m, s: calls.append(m))
+    monkeypatch.setattr(notify, "_send_telegram", lambda m, s: calls.append(m))
+    notify.set_muted(notify.CATEGORY_BITS["grid"])
+    notify.send("blackout", category="grid")
+    assert calls == []                       # muted category → nothing sent
+    notify.send("low soc", category="battery")
+    assert calls == ["low soc", "low soc"]   # other category still fires
+
+
+def test_send_if_changed_respects_category(monkeypatch):
+    _reset()
+    sent = []
+    monkeypatch.setattr(notify, "_send_webhook", lambda m, s: sent.append(m))
+    monkeypatch.setattr(notify, "_send_telegram", lambda m, s: sent.append(m))
+    notify.set_muted(notify.CATEGORY_BITS["security"])
+    notify.send_if_changed("motion", "motion!", condition=True, category="security")
+    assert sent == []  # rising edge but category muted

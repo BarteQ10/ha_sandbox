@@ -716,6 +716,24 @@ input_boolean:
     name: "EMS: Powiadomienia włączone"
     icon: mdi:bell-ring
     initial: on
+  # Per-category alert switches (on = receive). An automation packs these into
+  # the Modbus mute mask (reg 22); "off" sets the matching bit.
+  ems_notify_cat_grid:
+    name: "EMS: Alerty — sieć / blackout"
+    icon: mdi:transmission-tower
+    initial: on
+  ems_notify_cat_battery:
+    name: "EMS: Alerty — bateria / SoC"
+    icon: mdi:battery-alert
+    initial: on
+  ems_notify_cat_rules:
+    name: "EMS: Alerty — reguły domu"
+    icon: mdi:home-alert
+    initial: on
+  ems_notify_cat_security:
+    name: "EMS: Alerty — ochrona / ruch"
+    icon: mdi:shield-home
+    initial: on
   wirtualne_gniazdo_tv:
     name: "Gniazdo smart – TV"
     icon: mdi:television

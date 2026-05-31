@@ -137,8 +137,9 @@ simulator → webhook/Telegram (edge-triggered alerts: blackout, motion, rules)
 | 19 | 40020 | RW | Presence Mode | 0=Home, 1=Away, 2=Vacation |
 | 20 | 40021 | RW | Notifications Enabled | 0=Off, 1=On (master switch) |
 | 21 | 40022 | RW | Notify Test Trigger | write 1 → send test, auto-resets to 0 |
+| 22 | 40023 | RW | Notify Category Mute Mask | bits: 1=grid, 2=battery, 4=rules, 8=security (set bit = muted) |
 
-`NUM_REGISTERS = 22` in `config.py`.
+`NUM_REGISTERS = 23` in `config.py`.
 
 ## Simulation
 
@@ -672,6 +673,7 @@ Rolling Z-score detector over 72-tick windows (6 simulated hours). Flags `pv_und
 - **Motion simulation**: outdoor PIR (always active) + indoor PIR (only when away). Written as `sensor.ems_motion_outdoor/indoor`.
 - **Notification bridge**: edge-triggered (fires only on False→True transition) webhook + Telegram for blackout, critical SoC, window-away, and indoor-motion events. Channel secrets (URL, token, chat ID) are configured via `EMS_WEBHOOK_URL` / `EMS_TELEGRAM_*` env vars; disabled if unset.
   - **UI control** (Settings tab): a master enable/disable switch (Modbus reg 20 → `set_enabled()`), live channel-configured status (from `/metrics`), and a **Send test** button (Modbus reg 21, momentary — sends to every configured channel even when notifications are off). Secrets stay in env vars and are never exposed to the UI.
+  - **Per-category mute** (Settings tab): four switches (grid, battery, rules, security) let you silence individual alert classes. They pack into a Modbus mute mask (reg 22 → `set_muted()`, inverted bits so 0 = all on); each alert is tagged with a category at its `send_if_changed()` call site.
 
 ## MQTT Autodiscovery (`mqtt_bridge.py`)
 

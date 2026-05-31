@@ -29,6 +29,33 @@ _edge: dict[str, bool] = {}
 # Defaults to True so env-configured channels work out of the box.
 _runtime_enabled = True
 
+# Per-category mute mask — set from HA via Modbus register 22.
+# Inverted semantics: a SET bit means the category is MUTED, so the power-on
+# default of 0 means every category is enabled (no surprise silence at boot).
+CATEGORY_BITS = {"grid": 1, "battery": 2, "rules": 4, "security": 8}
+_muted = 0
+
+
+def set_muted(mask: int) -> None:
+    """Set the muted-category bitmask (called each tick from Modbus reg 22)."""
+    global _muted
+    mask = int(mask) & 0xFFFF
+    if mask != _muted:
+        log.info("[NOTIFY] Category mute mask: %d", mask)
+        _muted = mask
+
+
+def muted_mask() -> int:
+    return _muted
+
+
+def category_enabled(category: str | None) -> bool:
+    """True if a category may send. Unknown / None categories are always allowed."""
+    bit = CATEGORY_BITS.get(category or "")
+    if bit is None:
+        return True
+    return not (_muted & bit)
+
 
 def webhook_configured() -> bool:
     return bool(_WEBHOOK_URL)
@@ -66,9 +93,14 @@ def status() -> dict[str, bool]:
     }
 
 
-def send(message: str, severity: str = "info") -> None:
-    """Send a notification via all configured channels (respects the master switch)."""
+def send(message: str, severity: str = "info", category: str | None = None) -> None:
+    """Send a notification via all configured channels.
+
+    Respects the master switch and, when a category is given, its mute bit.
+    """
     if not _runtime_enabled:
+        return
+    if not category_enabled(category):
         return
     log.info("[NOTIFY] %s — %s", severity.upper(), message)
     _send_webhook(message, severity)
@@ -91,11 +123,14 @@ def send_test() -> dict[str, bool]:
     return attempted
 
 
-def send_if_changed(key: str, message: str, condition: bool, severity: str = "info") -> None:
+def send_if_changed(
+    key: str, message: str, condition: bool,
+    severity: str = "info", category: str | None = None,
+) -> None:
     """Send only when condition transitions False → True (edge-triggered)."""
     was = _edge.get(key, False)
     if condition and not was:
-        send(message, severity)
+        send(message, severity, category=category)
     _edge[key] = bool(condition)
 
 

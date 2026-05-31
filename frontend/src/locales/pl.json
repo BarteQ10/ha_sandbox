@@ -244,7 +244,12 @@
     "notifHintEnv": "Ustaw zmienne EMS_WEBHOOK_URL lub EMS_TELEGRAM_TOKEN / EMS_TELEGRAM_CHAT_ID aby włączyć kanał.",
     "notifTestSent": "Test wysłany do: {{channels}} — sprawdź urządzenie",
     "notifEnabledOn": "Powiadomienia włączone",
-    "notifEnabledOff": "Powiadomienia wyłączone"
+    "notifEnabledOff": "Powiadomienia wyłączone",
+    "notifCategories": "Kategorie alertów",
+    "notifCatGrid": "Sieć / blackout",
+    "notifCatBattery": "Bateria / niski SoC",
+    "notifCatRules": "Reguły domu (okno, pranie)",
+    "notifCatSecurity": "Ochrona / ruch"
   },
   "weather": {
     "temp": "Temperatura",

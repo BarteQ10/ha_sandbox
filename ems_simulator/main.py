@@ -215,8 +215,10 @@ def main():
             presence_mode = regs[19] if len(regs) > 19 else 0
             notify_enabled = regs[20] if len(regs) > 20 else 1
             notify_test    = regs[21] if len(regs) > 21 else 0
+            notify_muted   = regs[22] if len(regs) > 22 else 0
             presence.update(presence_mode)
             notify.set_enabled(bool(notify_enabled))
+            notify.set_muted(notify_muted)
             if notify_test:
                 notify.send_test()
                 srv_set_register(21, 0)  # auto-reset the momentary trigger
@@ -402,15 +404,16 @@ def main():
             events.record_edge("grid_instability", "grid", "warning",
                                "Grid instability (fluctuations)", grid_status == GRID_INSTABILITY)
 
-            # Edge-triggered notifications (only sent when condition turns True)
-            notify.send_if_changed("blackout",   "BLACKOUT — island mode active.",   grid_status == GRID_BLACKOUT, severity="critical")
-            notify.send_if_changed("soc_critical", f"Battery critical: {int(soc)}%", soc <= 10,                   severity="critical")
-            notify.send_if_changed("window_away",  "Window open while nobody home!", "window_away" in rule_engine.active_keys, severity="warning")
-            notify.send_if_changed("laundry_done", "Laundry done — take out clothes.", "laundry_done" in rule_engine.active_keys, severity="info")
+            # Edge-triggered notifications (only sent when condition turns True).
+            # Each alert is tagged with a category the user can mute from the UI.
+            notify.send_if_changed("blackout",   "BLACKOUT — island mode active.",   grid_status == GRID_BLACKOUT, severity="critical", category="grid")
+            notify.send_if_changed("soc_critical", f"Battery critical: {int(soc)}%", soc <= 10,                   severity="critical", category="battery")
+            notify.send_if_changed("window_away",  "Window open while nobody home!", "window_away" in rule_engine.active_keys, severity="warning", category="rules")
+            notify.send_if_changed("laundry_done", "Laundry done — take out clothes.", "laundry_done" in rule_engine.active_keys, severity="info", category="rules")
             if _motion["indoor"]:
-                notify.send_if_changed("indoor_motion", "Indoor motion detected while away!", True, severity="warning")
+                notify.send_if_changed("indoor_motion", "Indoor motion detected while away!", True, severity="warning", category="security")
             else:
-                notify.send_if_changed("indoor_motion", "", False, severity="warning")
+                notify.send_if_changed("indoor_motion", "", False, severity="warning", category="security")
 
             if grid_status == GRID_NORMAL and balance < 0 and soc < 20:
                 shed_w = 0
@@ -541,6 +544,7 @@ def main():
                 presence_mode,
                 notify_enabled,
                 0,  # reg 21 notify_test_trigger — always reset (momentary)
+                notify_muted,  # reg 22 notify category mute mask (HA-written)
             ])
 
             inf_write(pv, round(new_soc), load, price, balance, current_temp, cloud, ghi,

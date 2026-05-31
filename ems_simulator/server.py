@@ -50,4 +50,5 @@ def banner():
     print("  [W] 19 Presence Mode                  (0=Home 1=Away 2=Vacation)")
     print("  [W] 20 Notifications Enabled          (0=Off 1=On — master switch)")
     print("  [W] 21 Notify Test Trigger            (write 1 → send test, auto-resets)")
+    print("  [W] 22 Notify Category Mute Mask       (bits: 1=grid 2=battery 4=rules 8=security)")
     print("=" * 64)

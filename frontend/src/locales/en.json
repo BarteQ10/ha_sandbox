@@ -244,7 +244,12 @@
     "notifHintEnv": "Set EMS_WEBHOOK_URL or EMS_TELEGRAM_TOKEN / EMS_TELEGRAM_CHAT_ID env vars to enable a channel.",
     "notifTestSent": "Test sent to: {{channels}} — check your device",
     "notifEnabledOn": "Notifications enabled",
-    "notifEnabledOff": "Notifications disabled"
+    "notifEnabledOff": "Notifications disabled",
+    "notifCategories": "Alert categories",
+    "notifCatGrid": "Grid / blackout",
+    "notifCatBattery": "Battery / low SoC",
+    "notifCatRules": "Home rules (window, laundry)",
+    "notifCatSecurity": "Security / motion"
   },
   "weather": {
     "temp": "Temperature",
