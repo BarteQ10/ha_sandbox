@@ -47,6 +47,7 @@ Status: ✅ done · ⏳ in progress · — todo
 | 3.4 | **V2G (vehicle-to-grid)** | `generators.py`, `main.py` | L | 🟢 | ✅ |
 | 3.5 | **More deferrable appliances** | `config.py`, `generators.py` | M | 🟢 | ✅ |
 | 3.6 | **Grid instability behavior** | `main.py` | M | 🟢 | ✅ |
+| 3.7 | **Standby power model** — TV/PC <5 W w czuwaniu, realistyczne profile dobowe | `generators.py`, `config.py` | S | 🟡 | — |
 
 ---
 
@@ -54,11 +55,11 @@ Status: ✅ done · ⏳ in progress · — todo
 
 | # | Item | Where | Effort | Prio | Status |
 |---|------|-------|--------|------|--------|
-| 4.1 | **Price & load forecasting** | `ml_forecast.py` | M | 🟡 | ✅ |
-| 4.2 | **MPC charge optimizer** | `charge_scheduler.py` | L | 🟡 | ✅ |
+| 4.1 | **Price & load forecasting** | new `forecasting.py` | M | 🟡 | ✅ |
+| 4.2 | **MPC charge optimizer** | new `mpc_scheduler.py` | L | 🟡 | ✅ |
 | 4.3 | **Strategy backtesting** | new `backtest.py` | M | 🟡 | ✅ |
 | 4.4 | **RL control agent** | new `rl/` | L | 🟢 | — |
-| 4.5 | **Anomaly detection on telemetry** | new module | M | 🟢 | ✅ |
+| 4.5 | **Anomaly detection on telemetry** | new `anomaly.py` | M | 🟢 | ✅ |
 
 ---
 
@@ -69,9 +70,33 @@ Status: ✅ done · ⏳ in progress · — todo
 | 5.1 | **Loading / offline states** | `components/*`, `App.tsx` | S | 🟡 | ✅ |
 | 5.2 | **Settings panel** | new `components/Settings.tsx` | M | 🟡 | ✅ |
 | 5.3 | **Alerts / notifications panel** | new `components/Alerts.tsx` | M | 🟡 | ✅ |
-| 5.4 | **Animated energy-flow (Sankey)** | `Flow.tsx` | M | 🟢 | ✅ |
+| 5.4 | **Animated energy-flow (Sankey)** | `Flow.tsx`, new `EnergyFlow.tsx` | M | 🟢 | ✅ |
 | 5.5 | **Daily/weekly reports + CSV export** | new `components/Reports.tsx` | M | 🟡 | ✅ |
 | 5.6 | **PWA / mobile layout** | `vite.config.ts`, manifest | M | 🟢 | ✅ |
 | 5.7 | **Accessibility pass** | `components/*` | M | 🟢 | ✅ |
 | 5.8 | **Render performance (useSyncExternalStore)** | `useHA.tsx` | M | 🟢 | ✅ |
 | 5.9 | **Auth hardening** | `haClient.ts`, docs | S | 🟢 | ✅ |
+| 5.10 | **Presence tab** — zakładka home/away/vacation z timeline aktywności domowników | new `components/Presence.tsx` | M | 🟢 | — |
+
+---
+
+## 6. Presence & home automation
+
+| # | Item | Where | Effort | Prio | Status |
+|---|------|-------|--------|------|--------|
+| 6.1 | **Presence zone simulation** — profil `home/away/vacation` wpływa na profile obciążenia; sensor `sensor.ems_presence_mode` do InfluxDB | `generators.py`, `config.py`, `main.py` | S | 🟡 | — |
+| 6.2 | **Circadian lighting model** — jasność i temperatura barwowa zależna od pory dnia; sensory `sensor.ems_light_brightness`, `sensor.ems_light_ct` | new `lighting.py` | M | 🟢 | — |
+| 6.3 | **Standby-cut simulation** — urządzenie poniżej progu (TV <5 W, PC <8 W przez 10 min) przełącza się w "smart socket off"; zapis do InfluxDB | `generators.py`, `config.py` | M | 🟡 | — |
+| 6.4 | **Vacation mode** — losowe harmonogramy świateł i urządzeń gdy `presence=vacation`; zmiana profilu ładowania | `generators.py`, `main.py` | M | 🟢 | — |
+| 6.5 | **Media player state → room scene** — gdy gra: przyciemnij światła; pauza: rozjaśnij; koniec: wyłącz | new `media_sim.py` | M | 🟢 | — |
+
+---
+
+## 7. Notifications & security
+
+| # | Item | Where | Effort | Prio | Status |
+|---|------|-------|--------|------|--------|
+| 7.1 | **Actionable alert buttons** — przyciski akcji przy alertach ("Przypomnij za 15 min", "Ignoruj") z lokalną pamięcią decyzji | `frontend/Alerts.tsx` | S | 🟡 | — |
+| 7.2 | **Presence-aware alert rules** — "okno otwarte + away", "pranie skończone (drzwi nie otwarto przez 30 min)" | `anomaly.py` lub new `rules.py` | M | 🟡 | — |
+| 7.3 | **Telegram/webhook notification bridge** — wysyłanie alertów (anomalie, security events) na zewnątrz; konfiguracja w `config.py` | new `notifications.py` | M | 🟢 | — |
+| 7.4 | **Motion event simulation** — losowe eventy ruchu gdy `presence=away`; snapshoty do InfluxDB, opcjonalny webhook | new `security.py` | L | 🟢 | — |
