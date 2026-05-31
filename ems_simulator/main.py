@@ -11,7 +11,8 @@ from ems_simulator.generators import pv_from_ghi, base_load, SpikeState, control
 from ems_simulator.charge_scheduler import compute_charge_window
 from ems_simulator.battery import delta as batt_delta, clamp as batt_clamp, soh as batt_soh, MODE_AUTO, MODE_FORCE_CHARGE, MODE_FORCE_DISCHARGE
 from ems_simulator.server import start as srv_start, stop as srv_stop, read as srv_read, write as srv_write, banner as srv_banner, set_register as srv_set_register
-from ems_simulator.influx_writer import start as inf_start, write as inf_write, stop as inf_stop, read_last as inf_read_last
+from ems_simulator.influx_writer import start as inf_start, write as inf_write, stop as inf_stop, read_last as inf_read_last, write_forecast as inf_write_forecast
+from ems_simulator.forecasting import ForecastEngine
 from ems_simulator.log_setup import setup as _setup_logging
 from ems_simulator.config_validator import validate as _validate_config
 
@@ -35,6 +36,10 @@ def main():
     inf_start()
     w_fetch()
     p_fetch()
+
+    forecast_engine = ForecastEngine()
+    forecast_engine.fit_all()  # best-effort: may skip models if InfluxDB has no history yet
+    _forecast = forecast_engine.predict_next_24h()
 
     now_h = datetime.datetime.now().hour
     day_step = int(now_h * STEPS_PER_HOUR)
@@ -86,6 +91,7 @@ def main():
     chg_pv_kwh = 0.0
     _last_chg_compute_h = -1
     _anomaly_prev = 0
+    _fc_summary = forecast_engine.summary(_forecast)
 
     try:
         while True:
@@ -117,6 +123,8 @@ def main():
             day_step = (day_step + 1) % STEPS_PER_DAY
             if day_step == 0:
                 running_cost_pln = 0.0
+                if forecast_engine.needs_refit():
+                    forecast_engine.fit_all()
             hour = day_step / STEPS_PER_HOUR
 
             if anomaly:
@@ -192,11 +200,17 @@ def main():
 
             if not anomaly and day_step % STEPS_PER_HOUR == 0 and day_step != _last_chg_compute_h:
                 _last_chg_compute_h = day_step
+                _forecast = forecast_engine.predict_next_24h()
+                _fc_summary = forecast_engine.summary(_forecast)
                 chg_start, chg_duration, chg_energy, chg_pv_kwh = compute_charge_window(
-                    hour, soc, p_cache
+                    hour, soc, p_cache, forecast=_forecast
                 )
                 log.info(f"[CHG] Window: start={chg_start}h  dur={chg_duration}h  "
                       f"need={chg_energy}kWh  PVtom={chg_pv_kwh}kWh")
+                log.info("[FCST] PV=%.1fkWh  Load=%.1fkWh  PriceAvg=%.1f  PricePeak=%.1f gr/kWh",
+                         _fc_summary["pv_day_kwh"], _fc_summary["load_day_kwh"],
+                         _fc_summary["price_avg"], _fc_summary["price_peak"])
+                inf_write_forecast(**_fc_summary)
             elif anomaly and day_step % (STEPS_PER_HOUR * 5) == 0:
                 log.info(f"[ANOMALY] Charge scheduler paused (no API data)")
 

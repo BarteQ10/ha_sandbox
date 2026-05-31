@@ -173,6 +173,23 @@ def read_last(measurement):
     return None
 
 
+def write_forecast(pv_day_kwh, load_day_kwh, price_avg, price_peak):
+    """Write 24-hour forecast summary metrics (called once per simulated hour)."""
+    if not _ensure_connection():
+        return
+    now = datetime.datetime.now(datetime.timezone.utc)
+    try:
+        points = [
+            Point("sensor.ems_forecast_pv_day_kwh").time(now).field("value", float(pv_day_kwh)),
+            Point("sensor.ems_forecast_load_day_kwh").time(now).field("value", float(load_day_kwh)),
+            Point("sensor.ems_forecast_price_avg").time(now).field("value", float(price_avg)),
+            Point("sensor.ems_forecast_price_peak").time(now).field("value", float(price_peak)),
+        ]
+        _write.write(bucket=BUCKET, record=points)
+    except Exception as e:
+        log.warning("[INFLUX] write_forecast failed: %s", e)
+
+
 def stop():
     global _client
     if _client:
