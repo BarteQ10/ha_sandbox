@@ -22,7 +22,12 @@ function ConnectionIndicator() {
   const { connected } = useHA()
   const { t } = useTranslation()
   return (
-    <Badge variant={connected ? "default" : "destructive"} className="shrink-0 text-[10px] px-1.5 py-0.5">
+    <Badge
+      variant={connected ? "default" : "destructive"}
+      className="shrink-0 text-[10px] px-1.5 py-0.5"
+      aria-live="polite"
+      aria-label={connected ? t("connection.ok") : t("connection.offline")}
+    >
       {connected ? t("connection.ok") : t("connection.offline")}
     </Badge>
   )
@@ -39,8 +44,12 @@ function OfflineBanner() {
   }, [connected])
   if (connected || !graceOver) return null
   return (
-    <div className="flex items-center justify-center gap-2 bg-destructive/90 px-4 py-1.5 text-center text-sm text-destructive-foreground">
-      <WifiOff className="h-4 w-4 shrink-0" />
+    <div
+      role="alert"
+      aria-live="assertive"
+      className="flex items-center justify-center gap-2 bg-destructive/90 px-4 py-1.5 text-center text-sm text-destructive-foreground"
+    >
+      <WifiOff className="h-4 w-4 shrink-0" aria-hidden="true" />
       <span className="text-xs sm:text-sm">{t("connection.banner")}</span>
     </div>
   )
@@ -50,8 +59,14 @@ function LangSwitcher() {
   const { i18n } = useTranslation()
   const next = i18n.language === "pl" ? "en" : "pl"
   return (
-    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => i18n.changeLanguage(next)}>
-      <Languages className="h-4 w-4" />
+    <Button
+      variant="ghost"
+      size="icon"
+      className="h-8 w-8 shrink-0"
+      onClick={() => i18n.changeLanguage(next)}
+      aria-label={`Switch language to ${next.toUpperCase()}`}
+    >
+      <Languages className="h-4 w-4" aria-hidden="true" />
     </Button>
   )
 }
@@ -59,8 +74,16 @@ function LangSwitcher() {
 function ThemeToggle() {
   const { theme, toggle } = useTheme()
   return (
-    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={toggle}>
-      {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+    <Button
+      variant="ghost"
+      size="icon"
+      className="h-8 w-8 shrink-0"
+      onClick={toggle}
+      aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+    >
+      {theme === "dark"
+        ? <Sun className="h-4 w-4" aria-hidden="true" />
+        : <Moon className="h-4 w-4" aria-hidden="true" />}
     </Button>
   )
 }
@@ -73,6 +96,14 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-transparent text-foreground">
+      {/* Skip link — visible on focus for keyboard users */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-[100] focus:rounded focus:bg-primary focus:px-3 focus:py-1.5 focus:text-sm focus:text-primary-foreground focus:shadow"
+      >
+        Skip to main content
+      </a>
+
       <header className="sticky top-0 z-50 border-b bg-card text-card-foreground backdrop-blur-xl">
         <div className="mx-auto max-w-7xl px-3 sm:px-4">
           {/* Top bar: title + utility buttons */}
@@ -93,14 +124,14 @@ function AppContent() {
                 value="rooms"
                 className="flex-1 gap-1.5 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none text-xs sm:text-sm"
               >
-                <Home className="h-4 w-4 shrink-0" />
+                <Home className="h-4 w-4 shrink-0" aria-hidden="true" />
                 {t("nav.rooms")}
               </TabsTrigger>
               <TabsTrigger
                 value="system"
                 className="flex-1 gap-1.5 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none text-xs sm:text-sm"
               >
-                <Bolt className="h-4 w-4 shrink-0" />
+                <Bolt className="h-4 w-4 shrink-0" aria-hidden="true" />
                 {t("nav.system")}
               </TabsTrigger>
             </TabsList>
@@ -110,7 +141,7 @@ function AppContent() {
 
       <OfflineBanner />
 
-      <main className="mx-auto max-w-7xl px-3 py-3 sm:px-4 sm:py-4">
+      <main id="main-content" className="mx-auto max-w-7xl px-3 py-3 sm:px-4 sm:py-4">
         {tab === "rooms" && (
           <div className="space-y-3 sm:space-y-4">
             {/* Room sub-tabs — scrollable on mobile, icon+text on larger screens */}

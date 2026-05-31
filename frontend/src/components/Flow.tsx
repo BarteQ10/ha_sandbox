@@ -5,6 +5,7 @@ import { MiniChart } from "@/components/charts/MiniChart"
 import { StatCard } from "@/components/StatCard"
 import { useEntityNum, useEntityState } from "@/hooks/useHA"
 import { ArrowDown, ArrowUp, Wallet, Zap } from "lucide-react"
+import { EnergyFlow } from "@/components/EnergyFlow"
 
 function EntityBadge({ label, state }: { label: string; state: string }) {
   const on = state === "on" || state === "1" || state === "Boost" || state === "Komfort"
@@ -34,10 +35,26 @@ export function Flow() {
   const net = pv - load
   const importW = net < 0 ? -net : 0
   const exportW = net > 0 ? net : 0
+  // Battery flow: positive = charging (PV surplus), negative = discharging
+  const battFlow = net   // simplified: positive balance charges battery
 
   return (
     <div className="space-y-3 sm:space-y-4">
       <h2 className="text-base font-semibold sm:text-lg">{t("flow.title")}</h2>
+
+      {/* Animated energy-flow diagram (5.4) */}
+      <Card>
+        <CardContent className="p-3 sm:p-4">
+          <EnergyFlow
+            pv={pv}
+            soc={soc}
+            load={load}
+            battKw={battFlow}
+            importW={importW}
+            exportW={exportW}
+          />
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-3 gap-2 sm:gap-3">
         <FlowGauge label={t("flow.pv")} value={pv} max={5500} unit="W" color="#66bb6a" />
