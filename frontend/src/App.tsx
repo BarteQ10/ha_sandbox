@@ -14,6 +14,7 @@ import { Weather } from "@/components/Weather"
 import { Settings } from "@/components/Settings"
 import { Reports } from "@/components/Reports"
 import { Presence } from "@/components/Presence"
+import { DashboardSummary } from "@/components/DashboardSummary"
 import {
   Home, Languages, Sun, Moon, Bolt, ToggleLeft, BarChart3, FileText,
   Sofa, Bed, TreePine, WifiOff, Bell, CloudSun, SlidersHorizontal, Users,
@@ -145,6 +146,8 @@ function AppContent() {
       <main id="main-content" className="mx-auto max-w-7xl px-3 py-3 sm:px-4 sm:py-4">
         {tab === "rooms" && (
           <div className="space-y-3 sm:space-y-4">
+            {/* KPI summary — first thing on the home page */}
+            <DashboardSummary />
             {/* Room sub-tabs — scrollable on mobile, icon+text on larger screens */}
             <div className="overflow-x-auto">
               <Tabs value={roomTab} onValueChange={setRoomTab}>

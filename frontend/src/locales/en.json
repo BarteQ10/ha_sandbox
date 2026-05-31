@@ -17,6 +17,20 @@
     "offline": "OFFLINE",
     "banner": "No connection to Home Assistant — attempting to reconnect..."
   },
+  "summary": {
+    "title": "Overview",
+    "surplus": "Surplus +{{w}} W",
+    "deficit": "Deficit −{{w}} W",
+    "pvNow": "PV now",
+    "loadNow": "Load now",
+    "soc": "Battery",
+    "soh": "Battery health",
+    "sohSub": "State of Health",
+    "balanceToday": "Balance today",
+    "selfWeek": "Self-consumption",
+    "weekPv": "{{kwh}} kWh PV this week",
+    "weekBalance": "This week's balance"
+  },
   "rooms": {
     "salon": "Living Room",
     "kitchen": "Kitchen",

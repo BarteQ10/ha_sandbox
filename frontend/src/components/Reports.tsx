@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -7,53 +7,11 @@ import {
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft, ChevronRight, Download, Sun, Wallet, Zap } from "lucide-react"
-import { fetchHistoryMulti } from "@/api/haClient"
-
-// ─── types ───────────────────────────────────────────────────────────────────
-
-interface DayReport {
-  date: string              // YYYY-MM-DD
-  label: string             // localised short label
-  pvKwh: number
-  netKwh: number            // + export, − import
-  costPln: number           // + revenue, − spending
-  selfPct: number           // self-consumption %
-}
+import {
+  useWeekReport, weekTotals, weekStart, addDays, type DayReport,
+} from "@/hooks/useWeekReport"
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
-
-const ENTITIES = [
-  "sensor.ems_energia_pv_riemann",
-  "sensor.ems_energia_netto_riemann",
-  "sensor.ems_bilans_finansowy_dzis",
-]
-
-function isoDate(d: Date) {
-  return d.toISOString().slice(0, 10)
-}
-
-function addDays(d: Date, n: number) {
-  const r = new Date(d)
-  r.setDate(r.getDate() + n)
-  return r
-}
-
-function weekStart(ref: Date): Date {
-  const d = new Date(ref)
-  d.setDate(d.getDate() - ((d.getDay() + 6) % 7)) // Monday
-  d.setHours(0, 0, 0, 0)
-  return d
-}
-
-/** Last numeric state per calendar date (YYYY-MM-DD) */
-function lastPerDay(series: Array<{ state: string; last_changed: string }>): Map<string, number> {
-  const m = new Map<string, number>()
-  for (const r of series) {
-    const v = parseFloat(r.state)
-    if (!isNaN(v)) m.set(r.last_changed.slice(0, 10), v)
-  }
-  return m
-}
 
 function downloadCSV(rows: DayReport[], t: (k: string) => string) {
   const header = [
@@ -79,65 +37,6 @@ function downloadCSV(rows: DayReport[], t: (k: string) => string) {
   URL.revokeObjectURL(url)
 }
 
-// ─── hook ────────────────────────────────────────────────────────────────────
-
-function useWeekReport(weekOffset: number) {
-  const [rows, setRows] = useState<DayReport[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    let cancelled = false
-
-    async function load() {
-      if (!cancelled) { setLoading(true); setRows([]) }
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-      const mon = weekStart(addDays(today, weekOffset * 7))
-      const sun = addDays(mon, 6)
-      // Fetch from Monday 00:00 to end of Sunday (or now if current week)
-      const endDate = weekOffset === 0 ? new Date() : addDays(sun, 1)
-      const startIso = mon.toISOString()
-      const endIso = endDate.toISOString()
-
-      const data = await fetchHistoryMulti(ENTITIES, startIso, endIso)
-      if (cancelled) return
-
-      const pvMap  = lastPerDay(data.get("sensor.ems_energia_pv_riemann")  ?? [])
-      const netMap = lastPerDay(data.get("sensor.ems_energia_netto_riemann") ?? [])
-      const costMap = lastPerDay(data.get("sensor.ems_bilans_finansowy_dzis") ?? [])
-
-      const result: DayReport[] = []
-      for (let i = 0; i < 7; i++) {
-        const d = addDays(mon, i)
-        if (d > new Date()) break
-        const date = isoDate(d)
-        const pvKwh   = pvMap.get(date)  ?? 0
-        const netKwh  = netMap.get(date) ?? 0
-        const costPln = costMap.get(date) ?? 0
-        const exported = Math.max(0, netKwh)
-        const selfPct = pvKwh > 0 ? Math.min(100, ((pvKwh - exported) / pvKwh) * 100) : 0
-        result.push({
-          date,
-          label: d.toLocaleDateString("pl-PL", { weekday: "short", day: "numeric" }),
-          pvKwh,
-          netKwh,
-          costPln,
-          selfPct: Math.round(selfPct * 10) / 10,
-        })
-      }
-      if (!cancelled) {
-        setRows(result)
-        setLoading(false)
-      }
-    }
-
-    load()
-    return () => { cancelled = true }
-  }, [weekOffset])
-
-  return { rows, loading }
-}
-
 // ─── summary cards ───────────────────────────────────────────────────────────
 
 function SumCard({ icon, label, value, unit, color }: {
@@ -161,9 +60,7 @@ export function Reports() {
   const [weekOffset, setWeekOffset] = useState(0)
   const { rows, loading } = useWeekReport(weekOffset)
 
-  const totalPv   = rows.reduce((s, r) => s + r.pvKwh, 0)
-  const totalCost = rows.reduce((s, r) => s + r.costPln, 0)
-  const avgSelf   = rows.length ? rows.reduce((s, r) => s + r.selfPct, 0) / rows.length : 0
+  const { totalPv, totalCost, totalNet, avgSelf } = weekTotals(rows)
 
   const weekLabel = (() => {
     const today = new Date(); today.setHours(0,0,0,0)
@@ -274,8 +171,8 @@ export function Reports() {
                   <tr>
                     <td className="px-3 py-2 text-xs font-semibold text-muted-foreground">{t("reports.total")}</td>
                     <td className="px-3 py-2 text-right text-xs font-semibold tabular-nums text-green-500">{totalPv.toFixed(2)}</td>
-                    <td className="px-3 py-2 text-right text-xs tabular-nums" style={{ color: rows.reduce((s,r)=>s+r.netKwh,0) >= 0 ? "#4ade80" : "#f87171" }}>
-                      {(rows.reduce((s,r)=>s+r.netKwh,0) >= 0 ? "+" : "")}{rows.reduce((s,r)=>s+r.netKwh,0).toFixed(2)}
+                    <td className="px-3 py-2 text-right text-xs tabular-nums" style={{ color: totalNet >= 0 ? "#4ade80" : "#f87171" }}>
+                      {(totalNet >= 0 ? "+" : "")}{totalNet.toFixed(2)}
                     </td>
                     <td className="px-3 py-2 text-right text-xs font-semibold tabular-nums" style={{ color: totalCost >= 0 ? "#4ade80" : "#f87171" }}>
                       {totalCost >= 0 ? "+" : ""}{totalCost.toFixed(2)}
