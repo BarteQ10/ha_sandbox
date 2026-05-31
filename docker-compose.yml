@@ -56,9 +56,10 @@ services:
       MQTT_HOST: mosquitto    # MQTT bridge (set empty to disable)
       MQTT_PORT: "1883"
       # EMS_RL_ENABLED: "1"       # enable Q-learning agent
-      # EMS_WEBHOOK_URL: ""       # generic webhook for alerts
-      # EMS_TELEGRAM_TOKEN: ""    # Telegram bot token
-      # EMS_TELEGRAM_CHAT_ID: ""  # Telegram chat ID
+      # Secrets come from the gitignored .env file (see .env.example).
+      EMS_WEBHOOK_URL: "${EMS_WEBHOOK_URL:-}"          # generic webhook for alerts
+      EMS_TELEGRAM_TOKEN: "${EMS_TELEGRAM_TOKEN:-}"    # Telegram bot token
+      EMS_TELEGRAM_CHAT_ID: "${EMS_TELEGRAM_CHAT_ID:-}"  # Telegram chat ID
     restart: unless-stopped
     stop_grace_period: 15s  # allow main() to flush InfluxDB on SIGTERM
     depends_on:
