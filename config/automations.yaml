@@ -774,3 +774,233 @@
       address: 17
       value: "{{ 1 if states('input_boolean.ems_ev_override') == 'on' else 0 }}"
   mode: restart
+
+# ── Sekcja 8: Virtual device ecosystem ───────────────────────────────────────
+
+- id: 'ems_sync_v2g_mode'
+  alias: 'EMS: Sync V2G Mode HA -> Modbus (reg 18)'
+  description: Synchronizuje input_boolean.ems_v2g_mode z rejestrem Modbus 18
+  triggers:
+  - entity_id: input_boolean.ems_v2g_mode
+    trigger: state
+  conditions: []
+  actions:
+  - action: modbus.write_register
+    data:
+      hub: wirtualny_inwerter
+      address: 18
+      value: "{{ 1 if states('input_boolean.ems_v2g_mode') == 'on' else 0 }}"
+  mode: restart
+
+- id: 'ems_sync_presence_mode'
+  alias: 'EMS: Sync Tryb Obecnosci HA -> Modbus (reg 19)'
+  description: Synchronizuje input_select.ems_tryb_obecnosci z rejestrem Modbus 19
+  triggers:
+  - entity_id: input_select.ems_tryb_obecnosci
+    trigger: state
+  conditions: []
+  actions:
+  - variables:
+      mode: "{{ states('input_select.ems_tryb_obecnosci') }}"
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: "{{ mode == 'W domu' }}"
+      sequence:
+      - action: modbus.write_register
+        data:
+          hub: wirtualny_inwerter
+          address: 19
+          value: 0
+    - conditions:
+      - condition: template
+        value_template: "{{ mode == 'Poza domem' }}"
+      sequence:
+      - action: modbus.write_register
+        data:
+          hub: wirtualny_inwerter
+          address: 19
+          value: 1
+    - conditions:
+      - condition: template
+        value_template: "{{ mode == 'Urlop' }}"
+      sequence:
+      - action: modbus.write_register
+        data:
+          hub: wirtualny_inwerter
+          address: 19
+          value: 2
+  mode: restart
+
+- id: 'ems_adaptive_lighting'
+  alias: 'EMS: Oswietlenie adaptacyjne (cyrkadianowe)'
+  description: >
+    Co 5 minut aktualizuje jasnosc i temperature barwowa wlaczonych lamp
+    na podstawie sensora cyrkadianowego EMS (gdy ktos jest w domu).
+  triggers:
+  - trigger: time_pattern
+    minutes: '/5'
+  conditions:
+  - condition: state
+    entity_id: input_select.ems_tryb_obecnosci
+    state: "W domu"
+  actions:
+  - variables:
+      brightness: "{{ states('sensor.ems_jasnosc_cyrkadianowa') | int(80) }}"
+      color_temp: "{{ states('sensor.ems_temperatura_barwowa_cyrkadianowa') | int(3000) }}"
+  # Salon – lampa stojaca (ma ściemniacz i barwę)
+  - if:
+    - condition: state
+      entity_id: input_boolean.wirtualne_swiatlo_salon_lampa
+      state: "on"
+    then:
+    - action: input_number.set_value
+      target:
+        entity_id: input_number.wirtualne_jasnosc_salon_lampa
+      data:
+        value: "{{ [1, [100, brightness] | min] | max }}"
+    - action: input_number.set_value
+      target:
+        entity_id: input_number.wirtualne_barwa_salon_lampa
+      data:
+        value: "{{ color_temp }}"
+  # Sypialnia – lampki nocne
+  - if:
+    - condition: state
+      entity_id: input_boolean.wirtualne_swiatlo_sypialnia_lampka1
+      state: "on"
+    then:
+    - action: input_number.set_value
+      target:
+        entity_id: input_number.wirtualne_jasnosc_sypialnia_lampka1
+      data:
+        value: "{{ ([1, [100, brightness] | min] | max) }}"
+    - action: input_number.set_value
+      target:
+        entity_id: input_number.wirtualne_barwa_sypialnia_lampka1
+      data:
+        value: "{{ color_temp }}"
+  # Lazienka – lustro LED (tylko gdy jasnosc > 10%)
+  - if:
+    - condition: state
+      entity_id: input_boolean.wirtualne_swiatlo_lazienka_lustro
+      state: "on"
+    - condition: template
+      value_template: "{{ brightness > 10 }}"
+    then:
+    - action: input_number.set_value
+      target:
+        entity_id: input_number.wirtualne_jasnosc_lazienka_lustro
+      data:
+        value: "{{ [1, [100, brightness] | min] | max }}"
+    - action: input_number.set_value
+      target:
+        entity_id: input_number.wirtualne_barwa_lazienka_lustro
+      data:
+        value: "{{ color_temp }}"
+  mode: restart
+
+- id: 'ems_smart_socket_standby_cut'
+  alias: 'EMS: Smart socket – standby-cut przy wyjsciu'
+  description: >
+    Gdy tryb obecnosci zmienia sie na Poza domem lub Urlop,
+    wylacza gniazda TV i mikrofalowki (standby-cut).
+    Przywraca je po powrocie do domu.
+  triggers:
+  - entity_id: input_select.ems_tryb_obecnosci
+    trigger: state
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: >
+          {{ states('input_select.ems_tryb_obecnosci') in ['Poza domem', 'Urlop'] }}
+      sequence:
+      - action: input_boolean.turn_off
+        target:
+          entity_id:
+            - input_boolean.wirtualne_gniazdo_tv
+            - input_boolean.wirtualne_gniazdo_mikrofalowka
+      - action: notify.persistent_notification
+        data:
+          title: "EMS: Smart Socket"
+          message: >
+            Tryb {{ states('input_select.ems_tryb_obecnosci') }}:
+            odcieto gniazda TV i mikrofalowki (standby-cut).
+    default:
+    - action: input_boolean.turn_on
+      target:
+        entity_id:
+          - input_boolean.wirtualne_gniazdo_tv
+          - input_boolean.wirtualne_gniazdo_mikrofalowka
+  mode: restart
+
+- id: 'ems_media_player_scene'
+  alias: 'EMS: Scena medialna – przyciemnienie przy odtwarzaniu'
+  description: >
+    Gdy symulator sygnalizuje odtwarzanie mediow (sensor.ems_tryb_mediow == playing),
+    przyciemnia lampe salonowa do 25%. Po zakonczeniu przywraca jasnosc cyrkadianowa.
+  triggers:
+  - entity_id: sensor.ems_tryb_mediow
+    trigger: state
+  conditions:
+  - condition: state
+    entity_id: input_select.ems_tryb_obecnosci
+    state: "W domu"
+  - condition: state
+    entity_id: input_boolean.wirtualne_swiatlo_salon_lampa
+    state: "on"
+  actions:
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: "{{ states('sensor.ems_tryb_mediow') == 'playing' }}"
+      sequence:
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.wirtualne_jasnosc_salon_lampa
+        data:
+          value: 25
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.wirtualne_barwa_salon_lampa
+        data:
+          value: 2700
+    - conditions:
+      - condition: template
+        value_template: "{{ states('sensor.ems_tryb_mediow') == 'idle' }}"
+      sequence:
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.wirtualne_jasnosc_salon_lampa
+        data:
+          value: "{{ states('sensor.ems_jasnosc_cyrkadianowa') | int(80) }}"
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.wirtualne_barwa_salon_lampa
+        data:
+          value: "{{ states('sensor.ems_temperatura_barwowa_cyrkadianowa') | int(3000) }}"
+  mode: restart
+
+- id: 'ems_indoor_motion_alert'
+  alias: 'EMS: Alert – ruch wewnetrzny pod nieobecnosc'
+  description: >
+    Gdy czujnik ruchu wewnetrznego aktywuje sie a nikogo nie ma w domu,
+    wysyla powiadomienie.
+  triggers:
+  - entity_id: binary_sensor.ems_czujnik_ruchu_wewnetrzny
+    trigger: state
+    to: "on"
+  conditions:
+  - condition: template
+    value_template: >
+      {{ states('input_select.ems_tryb_obecnosci') in ['Poza domem', 'Urlop'] }}
+  actions:
+  - action: notify.persistent_notification
+    data:
+      title: "⚠️ EMS Security"
+      message: >
+        Wykryto ruch wewnetrzny! Tryb obecnosci:
+        {{ states('input_select.ems_tryb_obecnosci') }}. Godzina: {{ now().strftime('%H:%M') }}.
+  mode: single

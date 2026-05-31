@@ -100,3 +100,23 @@ Status: ✅ done · ⏳ in progress · — todo
 | 7.2 | **Presence-aware alert rules** — "okno otwarte + away", "pranie skończone (drzwi nie otwarto przez 30 min)" | `anomaly.py` lub new `rules.py` | M | 🟡 | ✅ |
 | 7.3 | **Telegram/webhook notification bridge** — wysyłanie alertów (anomalie, security events) na zewnątrz; konfiguracja w `config.py` | new `notifications.py` | M | 🟢 | ✅ |
 | 7.4 | **Motion event simulation** — losowe eventy ruchu gdy `presence=away`; snapshoty do InfluxDB, opcjonalny webhook | new `security.py` | L | 🟢 | ✅ |
+
+---
+
+## 8. Virtual device ecosystem
+
+Integracja symulatora z wirtualnymi urządzeniami Home Assistant — zamknięcie pętli
+między backendem EMS a encjami HA.
+
+| # | Item | Where | Effort | Prio | Status |
+|---|------|-------|--------|------|--------|
+| 8.1 | **Presence mode HA control** — `input_select.ems_tryb_obecnosci` + Modbus sync (reg 19) | `configuration.yaml`, `automations.yaml` | S | 🟡 | ✅ |
+| 8.2 | **V2G mode HA control** — `input_boolean.ems_v2g_mode` + Modbus sync (reg 18, dotąd brakujący) | `configuration.yaml`, `automations.yaml` | S | 🟡 | ✅ |
+| 8.3 | **Circadian lighting templates** — template sensory jasności + CT z krzywej dobowej | `configuration.yaml` | S | 🟢 | ✅ |
+| 8.4 | **Adaptive lighting automations** — stosowanie wartości cyrkadianowych do istniejących ściemniaczy (salon, sypialnia, łazienka) | `automations.yaml` | M | 🟢 | ✅ |
+| 8.5 | **Smart socket simulation** — `input_boolean` dla TV i mikrofalówki; standby-cut przy Poza domem / Urlop | `configuration.yaml`, `automations.yaml` | S | 🟡 | ✅ |
+| 8.6 | **Media player scene** — przyciemnienie lampy salonowej do 25% gdy `sensor.ems_tryb_mediow == playing` | `automations.yaml` | M | 🟢 | ✅ |
+| 8.7 | **Health /metrics REST sensor** — HA odczytuje presence, media, motion z endpointu symulatora (co 15s) | `configuration.yaml`, `health.py` | S | 🟡 | ✅ |
+| 8.8 | **Tuya virtual device** — wirtualne urządzenie przez Tuya IoT Platform Developer Console + integracja HA | external / `configuration.yaml` | L | 🟢 | — |
+| 8.9 | **MQTT device autodiscovery** — symulator publikuje urządzenia przez MQTT (Mosquitto w docker-compose) → HA autodiscovery | new `ems_simulator/mqtt_bridge.py` | M | 🟢 | — |
+| 8.10 | **hass-virtual (HACS)** — dedykowane wirtualne encje przez `custom-components/virtual`; alternatywa dla `input_*` | `configuration.yaml` | S | 🟢 | — |

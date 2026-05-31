@@ -506,6 +506,14 @@ def main():
                 mpc_action=_mpc_action,
                 forecast_pv_kwh=_fc_summary.get("pv_day_kwh", 0.0),
                 forecast_load_kwh=_fc_summary.get("load_day_kwh", 0.0),
+                presence_mode=presence.mode,
+                presence_label=presence.label,
+                media_state=media_player.state,
+                light_brightness=lighting.brightness,
+                light_color_temp_k=lighting.color_temp_k,
+                motion_outdoor=_motion["outdoor"],
+                motion_indoor=_motion["indoor"],
+                standby_load_w=_standby_w,
             )
 
             inf_write_presence(presence.mode, presence.label)

@@ -40,6 +40,14 @@ def update(
     mpc_action: int = 0,
     forecast_pv_kwh: float = 0.0,
     forecast_load_kwh: float = 0.0,
+    presence_mode: int = 0,
+    presence_label: str = "home",
+    media_state: str = "idle",
+    light_brightness: float = 0.0,
+    light_color_temp_k: float = 2700.0,
+    motion_outdoor: bool = False,
+    motion_indoor: bool = False,
+    standby_load_w: int = 0,
 ):
     """Update the shared metrics snapshot (called from the main loop)."""
     with _lock:
@@ -57,6 +65,14 @@ def update(
             mpc_action=mpc_action,
             forecast_pv_kwh=forecast_pv_kwh,
             forecast_load_kwh=forecast_load_kwh,
+            presence_mode=presence_mode,
+            presence_label=presence_label,
+            media_state=media_state,
+            light_brightness=round(light_brightness, 1),
+            light_color_temp_k=round(light_color_temp_k),
+            motion_outdoor=motion_outdoor,
+            motion_indoor=motion_indoor,
+            standby_load_w=standby_load_w,
             updated_at=time.time(),
         )
 
