@@ -53,3 +53,14 @@ export function useEntityNum(entityId: string, fallback = 0): number {
   const val = useEntityState(entityId, String(fallback))
   return Number(val)
 }
+
+/** Read a single attribute off an entity (e.g. a camera's entity_picture). */
+export function useEntityAttribute<T = unknown>(
+  entityId: string,
+  attr: string,
+  fallback?: T,
+): T | undefined {
+  const ent = useEntity(entityId)
+  const val = ent?.attributes?.[attr] as T | undefined
+  return val ?? fallback
+}

@@ -86,6 +86,12 @@
     "brightness": "Bri",
     "setpoint": "Set"
   },
+  "camera": {
+    "unavailable": "No camera — add a camera.* entity in HA",
+    "offline": "Camera offline",
+    "live": "LIVE",
+    "motion": "MOTION"
+  },
   "flow": {
     "title": "Energy Flow",
     "pv": "PV",

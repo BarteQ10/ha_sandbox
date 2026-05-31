@@ -5,6 +5,7 @@ import { Slider } from "@/components/ui/slider"
 import { Button } from "@/components/ui/button"
 import { useEntityState, useEntityNum, useHA } from "@/hooks/useHA"
 import { useCommittedSlider } from "@/hooks/useCommittedSlider"
+import { CameraView } from "@/components/CameraView"
 import {
   Sofa, CookingPot, Bed, Bath, TreePine,
   Lightbulb, Thermometer, Droplets, Blinds,
@@ -50,6 +51,8 @@ interface RoomConfig {
   shutterEntity?: string
   humidityEntity?: string
   setpointEntity?: string
+  cameraEntity?: string      // HA camera.* entity (optional)
+  motionEntity?: string      // binary_sensor.* for a MOTION badge (optional)
 }
 
 const rooms: RoomConfig[] = [
@@ -163,6 +166,8 @@ const rooms: RoomConfig[] = [
       { entityId: "input_boolean.wirtualne_swiatlo_ogrod_glowne", nameKey: "lights.main" },
       { entityId: "input_boolean.wirtualne_swiatlo_ogrod_solarne", nameKey: "lights.solar" },
     ],
+    cameraEntity: "camera.ogrod",
+    motionEntity: "binary_sensor.ems_czujnik_ruchu_zewnetrzny",
   },
 ]
 
@@ -375,6 +380,10 @@ function RoomCard({ room }: { room: RoomConfig }) {
             )}
           </div>
         </div>
+
+        {room.cameraEntity && (
+          <CameraView entityId={room.cameraEntity} motionEntity={room.motionEntity} />
+        )}
 
         <div className="flex items-center justify-between">
           <span className="text-xs text-muted-foreground">{t("roomCard.allLights")}</span>

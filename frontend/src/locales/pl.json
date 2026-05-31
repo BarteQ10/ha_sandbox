@@ -86,6 +86,12 @@
     "brightness": "Jas",
     "setpoint": "Ustaw"
   },
+  "camera": {
+    "unavailable": "Brak kamery — dodaj encję camera.* w HA",
+    "offline": "Kamera offline",
+    "live": "NA ŻYWO",
+    "motion": "RUCH"
+  },
   "flow": {
     "title": "Przepływy energii",
     "pv": "PV",
