@@ -241,7 +241,10 @@
     "notifNotConfigured": "not set",
     "notifTest": "Send test notification",
     "notifHint": "A test message is sent to every configured channel, even when notifications are off.",
-    "notifHintEnv": "Set EMS_WEBHOOK_URL or EMS_TELEGRAM_TOKEN / EMS_TELEGRAM_CHAT_ID env vars to enable a channel."
+    "notifHintEnv": "Set EMS_WEBHOOK_URL or EMS_TELEGRAM_TOKEN / EMS_TELEGRAM_CHAT_ID env vars to enable a channel.",
+    "notifTestSent": "Test sent to: {{channels}} — check your device",
+    "notifEnabledOn": "Notifications enabled",
+    "notifEnabledOff": "Notifications disabled"
   },
   "weather": {
     "temp": "Temperature",

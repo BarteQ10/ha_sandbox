@@ -5,6 +5,8 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { HAProvider, useHA } from "@/hooks/useHA"
 import { ThemeProvider, useTheme } from "@/hooks/useTheme"
+import { ToastProvider } from "@/hooks/useToast"
+import { usePersistentState } from "@/hooks/usePersistentState"
 import { Rooms } from "@/components/Rooms"
 import { Flow } from "@/components/Flow"
 import { Controls } from "@/components/Controls"
@@ -95,10 +97,16 @@ function ThemeToggle() {
 }
 
 function AppContent() {
-  const [tab, setTab] = useState("rooms")
-  const [roomTab, setRoomTab] = useState("day")
-  const [sysTab, setSysTab] = useState("flow")
+  const [tab, setTab] = usePersistentState("ems.tab", "rooms")
+  const [roomTab, setRoomTab] = usePersistentState("ems.roomTab", "day")
+  const [sysTab, setSysTab] = usePersistentState("ems.sysTab", "flow")
   const { t } = useTranslation()
+
+  // Jump from a home KPI tile straight to the relevant System sub-tab.
+  const goToSystem = (target: string) => {
+    setSysTab(target)
+    setTab("system")
+  }
 
   return (
     <div className="min-h-screen bg-transparent text-foreground">
@@ -152,7 +160,7 @@ function AppContent() {
           <div className="grid gap-3 sm:gap-4 lg:grid-cols-[16rem_1fr] lg:items-start">
             {/* KPI summary — left sidebar on desktop, full-width strip on mobile */}
             <div className="lg:sticky lg:top-[5.5rem]">
-              <DashboardSummary variant="side" />
+              <DashboardSummary variant="side" onNavigate={goToSystem} />
             </div>
             {/* Rooms column */}
             <div className="space-y-3 sm:space-y-4">
@@ -262,7 +270,9 @@ export default function App() {
   return (
     <ThemeProvider>
       <HAProvider>
-        <AppContent />
+        <ToastProvider>
+          <AppContent />
+        </ToastProvider>
       </HAProvider>
     </ThemeProvider>
   )

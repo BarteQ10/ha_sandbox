@@ -5,6 +5,7 @@ import { Slider } from "@/components/ui/slider"
 import { Switch } from "@/components/ui/switch"
 import { Button } from "@/components/ui/button"
 import { useEntityNum, useEntityState, useHA } from "@/hooks/useHA"
+import { useToast } from "@/hooks/useToast"
 import {
   Settings2, Battery, Sun, Zap, MapPin, Clock,
   Bell, Webhook, Send, CheckCircle2, XCircle,
@@ -125,12 +126,29 @@ function ChannelStatus({ icon, label, configured }: {
 function NotificationsCard() {
   const { t } = useTranslation()
   const { callService } = useHA()
+  const { toast } = useToast()
 
   const enabled  = useEntityState("input_boolean.ems_notifications_enabled") === "on"
   // Template sensors render Python bool as "True"/"False"
   const webhook  = useEntityState("sensor.ems_powiadomienia_webhook_skonfig") === "True"
   const telegram = useEntityState("sensor.ems_powiadomienia_telegram_skonfig") === "True"
   const anyConfigured = webhook || telegram
+
+  const toggleEnabled = () => {
+    callService("input_boolean", enabled ? "turn_off" : "turn_on", {
+      entity_id: "input_boolean.ems_notifications_enabled",
+    })
+    toast(enabled ? t("settings.notifEnabledOff") : t("settings.notifEnabledOn"))
+  }
+
+  const sendTest = () => {
+    callService("input_button", "press", { entity_id: "input_button.ems_notify_test" })
+    const channels = [
+      telegram ? t("settings.notifTelegram") : null,
+      webhook ? t("settings.notifWebhook") : null,
+    ].filter(Boolean).join(", ")
+    toast(t("settings.notifTestSent", { channels }), "success")
+  }
 
   return (
     <Card>
@@ -147,14 +165,7 @@ function NotificationsCard() {
             <p className="text-sm font-medium">{t("settings.notifEnable")}</p>
             <p className="text-xs text-muted-foreground">{t("settings.notifEnableDesc")}</p>
           </div>
-          <Switch
-            checked={enabled}
-            onCheckedChange={() =>
-              callService("input_boolean", enabled ? "turn_off" : "turn_on", {
-                entity_id: "input_boolean.ems_notifications_enabled",
-              })
-            }
-          />
+          <Switch checked={enabled} onCheckedChange={toggleEnabled} />
         </div>
 
         {/* Channel status */}
@@ -176,11 +187,7 @@ function NotificationsCard() {
           variant="outline"
           className="w-full"
           disabled={!anyConfigured}
-          onClick={() =>
-            callService("input_button", "press", {
-              entity_id: "input_button.ems_notify_test",
-            })
-          }
+          onClick={sendTest}
         >
           <Send className="mr-2 h-4 w-4" />
           {t("settings.notifTest")}

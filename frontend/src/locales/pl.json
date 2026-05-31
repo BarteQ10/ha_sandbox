@@ -241,7 +241,10 @@
     "notifNotConfigured": "brak",
     "notifTest": "Wyślij testowe powiadomienie",
     "notifHint": "Wiadomość testowa jest wysyłana do każdego skonfigurowanego kanału, nawet gdy powiadomienia są wyłączone.",
-    "notifHintEnv": "Ustaw zmienne EMS_WEBHOOK_URL lub EMS_TELEGRAM_TOKEN / EMS_TELEGRAM_CHAT_ID aby włączyć kanał."
+    "notifHintEnv": "Ustaw zmienne EMS_WEBHOOK_URL lub EMS_TELEGRAM_TOKEN / EMS_TELEGRAM_CHAT_ID aby włączyć kanał.",
+    "notifTestSent": "Test wysłany do: {{channels}} — sprawdź urządzenie",
+    "notifEnabledOn": "Powiadomienia włączone",
+    "notifEnabledOff": "Powiadomienia wyłączone"
   },
   "weather": {
     "temp": "Temperatura",
