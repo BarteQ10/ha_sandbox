@@ -173,6 +173,23 @@ def read_last(measurement):
     return None
 
 
+def write_mpc(action, cost_estimate, naive_cost, savings):
+    """Write MPC optimizer metrics (called once per simulated hour)."""
+    if not _ensure_connection():
+        return
+    now = datetime.datetime.now(datetime.timezone.utc)
+    try:
+        points = [
+            Point("sensor.ems_mpc_action").time(now).field("value", float(action)),
+            Point("sensor.ems_mpc_cost_estimate").time(now).field("value", float(cost_estimate)),
+            Point("sensor.ems_mpc_naive_cost").time(now).field("value", float(naive_cost)),
+            Point("sensor.ems_mpc_savings").time(now).field("value", float(savings)),
+        ]
+        _write.write(bucket=BUCKET, record=points)
+    except Exception as e:
+        log.warning("[INFLUX] write_mpc failed: %s", e)
+
+
 def write_forecast(pv_day_kwh, load_day_kwh, price_avg, price_peak):
     """Write 24-hour forecast summary metrics (called once per simulated hour)."""
     if not _ensure_connection():

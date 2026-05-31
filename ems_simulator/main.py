@@ -11,8 +11,10 @@ from ems_simulator.generators import pv_from_ghi, base_load, SpikeState, control
 from ems_simulator.charge_scheduler import compute_charge_window
 from ems_simulator.battery import delta as batt_delta, clamp as batt_clamp, soh as batt_soh, MODE_AUTO, MODE_FORCE_CHARGE, MODE_FORCE_DISCHARGE
 from ems_simulator.server import start as srv_start, stop as srv_stop, read as srv_read, write as srv_write, banner as srv_banner, set_register as srv_set_register
-from ems_simulator.influx_writer import start as inf_start, write as inf_write, stop as inf_stop, read_last as inf_read_last, write_forecast as inf_write_forecast
+from ems_simulator.influx_writer import start as inf_start, write as inf_write, stop as inf_stop, read_last as inf_read_last, write_forecast as inf_write_forecast, write_mpc as inf_write_mpc
 from ems_simulator.forecasting import ForecastEngine
+from ems_simulator.mpc_scheduler import solve as mpc_solve
+from ems_simulator.battery import MODE_AUTO as _MODE_AUTO
 from ems_simulator.log_setup import setup as _setup_logging
 from ems_simulator.config_validator import validate as _validate_config
 
@@ -92,6 +94,7 @@ def main():
     _last_chg_compute_h = -1
     _anomaly_prev = 0
     _fc_summary = forecast_engine.summary(_forecast)
+    _mpc_action = _MODE_AUTO  # MPC recommended action for current hour
 
     try:
         while True:
@@ -211,6 +214,10 @@ def main():
                          _fc_summary["pv_day_kwh"], _fc_summary["load_day_kwh"],
                          _fc_summary["price_avg"], _fc_summary["price_peak"])
                 inf_write_forecast(**_fc_summary)
+                _mpc_result = mpc_solve(soc, _forecast, current_hour=int(hour))
+                _mpc_action = _mpc_result.current_action
+                inf_write_mpc(_mpc_action, _mpc_result.cost_estimate,
+                              _mpc_result.naive_cost, _mpc_result.savings)
             elif anomaly and day_step % (STEPS_PER_HOUR * 5) == 0:
                 log.info(f"[ANOMALY] Charge scheduler paused (no API data)")
 
@@ -264,6 +271,9 @@ def main():
                 running_cost_pln += -balance * effective_price * dt_h / (100.0 * 1000.0)
 
             actual_force = force
+            # Apply MPC recommendation when user has not set a manual override
+            if actual_force == MODE_AUTO and _mpc_action != MODE_AUTO:
+                actual_force = _mpc_action
             if storm_safe:
                 if actual_force != MODE_FORCE_CHARGE:
                     log.info(f"[STORM] Safeguard active — force charging to 100%")
