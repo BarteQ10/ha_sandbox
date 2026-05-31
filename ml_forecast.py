@@ -3,8 +3,7 @@
 GHI=0 at night automatically -> forecast PV=0 at night.
 """
 
-import os
-from datetime import datetime, timedelta
+from datetime import datetime
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -48,7 +47,7 @@ def query_pv_influx(days: int) -> pd.DataFrame:
     client.close()
 
     merged = None
-    for name, df in out.items():
+    for _name, df in out.items():
         if df.empty:
             continue
         if merged is None:

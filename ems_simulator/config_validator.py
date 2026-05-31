@@ -91,8 +91,9 @@ def validate() -> None:
     if prev_end != 24:
         raise ValueError(f"config.DISTRIBUTION_ZONES must end at 24, ends at {prev_end}")
 
-    # Scheduled appliances
-    for name, power, duration, win_start, win_end in c.SCHEDULED_APPLIANCES:
+    # Scheduled appliances (name, power, duration, win_start, win_end, price_threshold)
+    for appl in c.SCHEDULED_APPLIANCES:
+        name, power, duration = appl[0], appl[1], appl[2]
         if power <= 0:
             raise ValueError(f"SCHEDULED_APPLIANCES[{name!r}] power must be > 0")
         if duration <= 0:

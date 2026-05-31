@@ -18,13 +18,12 @@ Algorithm (greedy local search, O(n²)):
 """
 
 import logging
-from dataclasses import dataclass, field
-from typing import List
+from dataclasses import dataclass
 
 import numpy as np
 
-from ems_simulator.config import BATTERY_KWH
 from ems_simulator.battery import MODE_AUTO, MODE_FORCE_CHARGE, MODE_FORCE_DISCHARGE
+from ems_simulator.config import BATTERY_KWH
 
 log = logging.getLogger(__name__)
 
@@ -38,7 +37,7 @@ PRICE_SCALE = 100.0 * 1000.0  # gr/kWh → PLN/Wh conversion denominator
 
 @dataclass
 class MPCResult:
-    schedule: List[int]          # one MODE_* per hour, length 24
+    schedule: list[int]          # one MODE_* per hour, length 24
     cost_estimate: float         # projected cost with MPC (PLN)
     naive_cost: float            # projected cost without MPC (PLN)
     savings: float               # naive_cost - cost_estimate (PLN)
@@ -133,7 +132,6 @@ def solve(current_soc, forecast, current_hour=None, bat_kwh=BATTERY_KWH):
     expensive_hours = sorted(range(24), key=lambda h: -price[h])
     cheap_hours = sorted(range(24), key=lambda h: price[h])
 
-    price_median = float(np.median(price))
     price_p75 = float(np.percentile(price, 75))
     price_p25 = float(np.percentile(price, 25))
 

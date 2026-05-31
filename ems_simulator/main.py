@@ -1,25 +1,64 @@
-import time
-import random as _random
 import datetime
 import logging
+import random as _random
 import signal
+import time
 
-from ems_simulator.config import TICK_S, GRID_NORMAL, GRID_BLACKOUT, GRID_INSTABILITY, STEPS_PER_HOUR, STEPS_PER_DAY
-from ems_simulator.weather import fetch as w_fetch, get as w_get, needs_refresh as w_needs_refresh
-from ems_simulator.pricing import fetch as p_fetch, get as p_get, max_today as p_max_today, needs_refresh as p_needs_refresh, fallback_price as p_fallback, distribution_rate as p_dist_rate, _price_cache as p_cache
-from ems_simulator.generators import pv_from_ghi, base_load, SpikeState, controllable_load, DeviceTimer, SoilingState, hp_cop, EVProfile, make_scheduled_appliances
-from ems_simulator.charge_scheduler import compute_charge_window
-from ems_simulator.battery import delta as batt_delta, clamp as batt_clamp, soh as batt_soh, MODE_AUTO, MODE_FORCE_CHARGE, MODE_FORCE_DISCHARGE
-from ems_simulator.server import start as srv_start, stop as srv_stop, read as srv_read, write as srv_write, banner as srv_banner, set_register as srv_set_register
-from ems_simulator.influx_writer import start as inf_start, write as inf_write, stop as inf_stop, read_last as inf_read_last, write_forecast as inf_write_forecast, write_mpc as inf_write_mpc, write_anomalies as inf_write_anomalies
-from ems_simulator.forecasting import ForecastEngine
-from ems_simulator.mpc_scheduler import solve as mpc_solve
-from ems_simulator.battery import MODE_AUTO as _MODE_AUTO
-from ems_simulator.thermal import ThermalModel
 import ems_simulator.health as health
 from ems_simulator.anomaly import AnomalyDetector
-from ems_simulator.log_setup import setup as _setup_logging
+from ems_simulator.battery import MODE_AUTO, MODE_FORCE_CHARGE, MODE_FORCE_DISCHARGE
+from ems_simulator.battery import MODE_AUTO as _MODE_AUTO
+from ems_simulator.battery import clamp as batt_clamp
+from ems_simulator.battery import delta as batt_delta
+from ems_simulator.battery import soh as batt_soh
+from ems_simulator.charge_scheduler import compute_charge_window
+from ems_simulator.config import (
+    GRID_BLACKOUT,
+    GRID_INSTABILITY,
+    GRID_NORMAL,
+    STEPS_PER_DAY,
+    STEPS_PER_HOUR,
+    TICK_S,
+)
 from ems_simulator.config_validator import validate as _validate_config
+from ems_simulator.forecasting import ForecastEngine
+from ems_simulator.generators import (
+    DeviceTimer,
+    EVProfile,
+    SoilingState,
+    SpikeState,
+    base_load,
+    controllable_load,
+    hp_cop,
+    make_scheduled_appliances,
+    pv_from_ghi,
+)
+from ems_simulator.influx_writer import read_last as inf_read_last
+from ems_simulator.influx_writer import start as inf_start
+from ems_simulator.influx_writer import stop as inf_stop
+from ems_simulator.influx_writer import write as inf_write
+from ems_simulator.influx_writer import write_anomalies as inf_write_anomalies
+from ems_simulator.influx_writer import write_forecast as inf_write_forecast
+from ems_simulator.influx_writer import write_mpc as inf_write_mpc
+from ems_simulator.log_setup import setup as _setup_logging
+from ems_simulator.mpc_scheduler import solve as mpc_solve
+from ems_simulator.pricing import _price_cache as p_cache
+from ems_simulator.pricing import distribution_rate as p_dist_rate
+from ems_simulator.pricing import fallback_price as p_fallback
+from ems_simulator.pricing import fetch as p_fetch
+from ems_simulator.pricing import get as p_get
+from ems_simulator.pricing import max_today as p_max_today
+from ems_simulator.pricing import needs_refresh as p_needs_refresh
+from ems_simulator.server import banner as srv_banner
+from ems_simulator.server import read as srv_read
+from ems_simulator.server import set_register as srv_set_register
+from ems_simulator.server import start as srv_start
+from ems_simulator.server import stop as srv_stop
+from ems_simulator.server import write as srv_write
+from ems_simulator.thermal import ThermalModel
+from ems_simulator.weather import fetch as w_fetch
+from ems_simulator.weather import get as w_get
+from ems_simulator.weather import needs_refresh as w_needs_refresh
 
 log = logging.getLogger(__name__)
 
@@ -126,7 +165,7 @@ def main():
                 log.info(f"[TIMER] Constrained: boiler {boiler}->{boiler_eff}  HP {hp}->{hp_eff}  EV {ev}->{ev_eff}")
             if ev_override:
                 if ev_eff != 7400:
-                    log.info(f"[EV_OVR] Manual override — EV forced to 7400W")
+                    log.info("[EV_OVR] Manual override — EV forced to 7400W")
                 ev_eff = 7400
 
             day_step = (day_step + 1) % STEPS_PER_DAY
@@ -140,7 +179,7 @@ def main():
                 ghi, temp, cloud = None, current_temp, 0
                 rce = None
                 if day_step % (STEPS_PER_HOUR * 5) == 0:
-                    log.info(f"[ANOMALY] API failure simulation active")
+                    log.info("[ANOMALY] API failure simulation active")
             else:
                 if w_needs_refresh(hour, day_step):
                     w_fetch()
@@ -193,7 +232,7 @@ def main():
             if spike.just_started:
                 log.info(f"[SPIKE] +{sp}W for {spike.remaining + 1}tics")
             if spike.just_ended:
-                log.info(f"[SPIKE] Ended")
+                log.info("[SPIKE] Ended")
 
             # Grid instability: random voltage/frequency deviations → PV inverter
             # curtails output, load fluctuates, effective import price spikes.
@@ -217,7 +256,7 @@ def main():
 
             if not anomaly and _anomaly_prev:
                 _last_chg_compute_h = -1
-                log.info(f"[ANOMALY] API restored — scheduler re-enabled")
+                log.info("[ANOMALY] API restored — scheduler re-enabled")
 
             if not anomaly and day_step % STEPS_PER_HOUR == 0 and day_step != _last_chg_compute_h:
                 _last_chg_compute_h = day_step
@@ -237,7 +276,7 @@ def main():
                 inf_write_mpc(_mpc_action, _mpc_result.cost_estimate,
                               _mpc_result.naive_cost, _mpc_result.savings)
             elif anomaly and day_step % (STEPS_PER_HOUR * 5) == 0:
-                log.info(f"[ANOMALY] Charge scheduler paused (no API data)")
+                log.info("[ANOMALY] Charge scheduler paused (no API data)")
 
             balance = pv - load
 
@@ -296,7 +335,7 @@ def main():
                 actual_force = _mpc_action
             if storm_safe:
                 if actual_force != MODE_FORCE_CHARGE:
-                    log.info(f"[STORM] Safeguard active — force charging to 100%")
+                    log.info("[STORM] Safeguard active — force charging to 100%")
                 actual_force = MODE_FORCE_CHARGE
             if grid_status == GRID_BLACKOUT and actual_force == MODE_FORCE_CHARGE:
                 actual_force = MODE_AUTO
@@ -321,7 +360,7 @@ def main():
             if storm_safe:
                 log.info(f"[STORM]  Force charging  {soc:.0f} -> {new_soc:.0f}%")
             elif grid_status == GRID_BLACKOUT and actual_force == MODE_FORCE_CHARGE:
-                log.info(f"[ISLAND] Force Charge ignored (no grid), running in Auto")
+                log.info("[ISLAND] Force Charge ignored (no grid), running in Auto")
             elif actual_force == MODE_FORCE_CHARGE:
                 log.info(f"[FORCE]  Charging  {soc:.0f} -> {new_soc:.0f}%")
             elif actual_force == MODE_FORCE_DISCHARGE:

@@ -2,7 +2,7 @@ import datetime
 import logging
 import random
 
-from ems_simulator.config import PRICE_BANDS, DISTRIBUTION_ZONES, DISTRIBUTION_LOW
+from ems_simulator.config import DISTRIBUTION_LOW, DISTRIBUTION_ZONES, PRICE_BANDS
 from ems_simulator.http_util import get_json
 
 log = logging.getLogger(__name__)

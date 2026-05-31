@@ -14,12 +14,13 @@ The model uses simulated time (each EMS tick = 5 simulated minutes at 60x speed)
 """
 
 import logging
+
 from ems_simulator.config import (
-    HOUSE_THERMAL_MASS_KWH_PER_C,
-    HOUSE_UA_W_PER_C,
-    HOUSE_SETPOINT_C,
     HOUSE_DEAD_BAND_C,
     HOUSE_INITIAL_TEMP_C,
+    HOUSE_SETPOINT_C,
+    HOUSE_THERMAL_MASS_KWH_PER_C,
+    HOUSE_UA_W_PER_C,
     TICK_S,
 )
 

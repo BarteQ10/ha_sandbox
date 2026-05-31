@@ -1,4 +1,5 @@
 from pyModbusTCP.server import ModbusServer
+
 from ems_simulator.config import MODBUS_HOST, MODBUS_PORT, NUM_REGISTERS
 
 server = ModbusServer(MODBUS_HOST, port=MODBUS_PORT, no_block=True)

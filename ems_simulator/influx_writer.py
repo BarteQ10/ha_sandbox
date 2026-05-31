@@ -32,10 +32,9 @@ def _connect():
     _last_attempt = time.monotonic()
     try:
         if _client is not None:
-            try:
+            import contextlib
+            with contextlib.suppress(Exception):
                 _client.close()
-            except Exception:
-                pass
         _client = InfluxDBClient(url=URL, token=TOKEN, org=ORG)
         _write = _client.write_api(write_options=SYNCHRONOUS)
         health = _client.health()
@@ -69,7 +68,7 @@ def write(pv, soc, load, price, balance, temp, cloud=None, ghi=None, peak_price=
     if not _ensure_connection():
         return
 
-    now = datetime.datetime.now(datetime.timezone.utc)
+    now = datetime.datetime.now(datetime.UTC)
 
     dt_h = 5.0 * 60.0 / 3600.0  # each tick = 5 simulated minutes = 1/12 h
     cost_pln = -balance * price * dt_h / (100.0 * 1000.0)
@@ -181,7 +180,7 @@ def write_anomalies(flags):
     """Write anomaly detector flags (called each tick or every N ticks)."""
     if not _ensure_connection():
         return
-    now = datetime.datetime.now(datetime.timezone.utc)
+    now = datetime.datetime.now(datetime.UTC)
     try:
         points = [
             Point(f"sensor.ems_anom_{sig}").time(now).field("value", 1.0 if active else 0.0)
@@ -197,7 +196,7 @@ def write_mpc(action, cost_estimate, naive_cost, savings):
     """Write MPC optimizer metrics (called once per simulated hour)."""
     if not _ensure_connection():
         return
-    now = datetime.datetime.now(datetime.timezone.utc)
+    now = datetime.datetime.now(datetime.UTC)
     try:
         points = [
             Point("sensor.ems_mpc_action").time(now).field("value", float(action)),
@@ -214,7 +213,7 @@ def write_forecast(pv_day_kwh, load_day_kwh, price_avg, price_peak):
     """Write 24-hour forecast summary metrics (called once per simulated hour)."""
     if not _ensure_connection():
         return
-    now = datetime.datetime.now(datetime.timezone.utc)
+    now = datetime.datetime.now(datetime.UTC)
     try:
         points = [
             Point("sensor.ems_forecast_pv_day_kwh").time(now).field("value", float(pv_day_kwh)),

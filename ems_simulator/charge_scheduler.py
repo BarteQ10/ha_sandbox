@@ -1,6 +1,7 @@
 import datetime
 import math
-from ems_simulator.config import BATTERY_KWH, PV_PEAK_KW, PRICE_BANDS
+
+from ems_simulator.config import BATTERY_KWH, PRICE_BANDS, PV_PEAK_KW
 from ems_simulator.weather import forecast_df
 
 CHARGE_POWER_KW = 5.0

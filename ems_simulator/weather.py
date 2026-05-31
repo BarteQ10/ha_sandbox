@@ -1,7 +1,7 @@
 import datetime
 import logging
 
-from ems_simulator.config import WEATHER_URL, WEATHER_ML_URL, LAT, LON
+from ems_simulator.config import LAT, LON, WEATHER_ML_URL, WEATHER_URL
 from ems_simulator.http_util import get_json
 
 log = logging.getLogger(__name__)
@@ -35,7 +35,7 @@ def fetch():
         _cache = c
         today = datetime.date.today()
         log.info("[WEATHER] Fetched %d entries", len(c))
-        for h in sorted(set(k[1] for k in c if k[0] == today)):
+        for h in sorted({k[1] for k in c if k[0] == today}):
             e = c.get((today, h))
             if e:
                 log.info("  h%02d: GHI=%3.0fW/m2  %4.1fC  clouds=%2.0f%%",

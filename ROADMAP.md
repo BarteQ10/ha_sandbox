@@ -19,7 +19,7 @@ Status: ✅ done · ⏳ in progress · — todo
 | 1.4 | **Frontend tests** | vitest + React Testing Library | M | 🟡 | ✅ |
 | 1.5 | **Structured logging** | all `ems_simulator/*.py` | M | 🟡 | ✅ |
 | 1.6 | **Config validation** | `config.py` | M | 🟡 | ✅ |
-| 1.7 | **Type hints + mypy/ruff** | all `*.py`, `.pre-commit-config.yaml` | M | 🟢 | — |
+| 1.7 | **Type hints + mypy/ruff** | all `*.py`, `.pre-commit-config.yaml` | M | 🟢 | ✅ |
 | 1.8 | **Dockerize the simulator** | `Dockerfile`, `docker-compose.yml` | M | 🟡 | ✅ |
 
 ---

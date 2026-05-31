@@ -1,4 +1,3 @@
-import datetime
 
 # Modbus
 MODBUS_HOST = "0.0.0.0"

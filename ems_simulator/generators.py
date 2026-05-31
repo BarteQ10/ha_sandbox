@@ -1,15 +1,27 @@
-import random
-import math
 import datetime
 import logging
+import math
+import random
 
-from ems_simulator.config import (PV_PEAK_KW, INVERTER_MAX_W,
-    SPIKE_CHANCE, SPIKE_WATTS, SPIKE_MAX_TICKS,
-    DEVICE_MIN_ON_SIM_MIN, DEVICE_MIN_OFF_SIM_MIN, TICK_S,
-    SOILING_BASE_SUMMER, SOILING_BASE_WINTER, SNOW_EVENT_CHANCE, SNOW_RECOVERY_TICKS,
+from ems_simulator.config import (
+    DEVICE_MIN_OFF_SIM_MIN,
+    DEVICE_MIN_ON_SIM_MIN,
+    EV_ARRIVAL_HOUR,
+    EV_CHARGE_MAX_W,
+    EV_DAILY_KWH_NEEDED,
+    EV_DEPARTURE_HOUR,
     HP_COP_CURVE,
-    EV_ARRIVAL_HOUR, EV_DEPARTURE_HOUR, EV_DAILY_KWH_NEEDED, EV_CHARGE_MAX_W,
-    SCHEDULED_APPLIANCES, PRIORITY_ORDER)
+    INVERTER_MAX_W,
+    PV_PEAK_KW,
+    SCHEDULED_APPLIANCES,
+    SNOW_EVENT_CHANCE,
+    SNOW_RECOVERY_TICKS,
+    SOILING_BASE_SUMMER,
+    SOILING_BASE_WINTER,
+    SPIKE_CHANCE,
+    SPIKE_MAX_TICKS,
+    SPIKE_WATTS,
+)
 
 log = logging.getLogger(__name__)
 
@@ -150,7 +162,7 @@ class SpikeState:
 def hp_cop(temp):
     if temp is None:
         return 3.0
-    for (t1, c1), (t2, c2) in zip(HP_COP_CURVE, HP_COP_CURVE[1:]):
+    for (t1, c1), (t2, c2) in zip(HP_COP_CURVE, HP_COP_CURVE[1:], strict=False):
         if t1 <= temp <= t2:
             frac = (temp - t1) / (t2 - t1)
             return c1 + frac * (c2 - c1)

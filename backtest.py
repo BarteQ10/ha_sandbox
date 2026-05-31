@@ -16,7 +16,6 @@ Usage:
 import argparse
 import sys
 from dataclasses import dataclass, field
-from typing import List
 
 import numpy as np
 import pandas as pd
@@ -102,7 +101,7 @@ class SimResult:
     export_kwh: float = 0.0
     charge_cycles: float = 0.0       # equivalent full cycles (2×capacity per cycle)
     self_sufficiency: float = 0.0    # fraction of load met without grid import
-    hourly_cost: List[float] = field(default_factory=list)
+    hourly_cost: list[float] = field(default_factory=list)
 
 
 def _simulate_hours(df, actions):
@@ -110,7 +109,7 @@ def _simulate_hours(df, actions):
 
     Returns SimResult.
     """
-    MODE_AUTO, MODE_CHARGE, MODE_DISCHARGE = 0, 1, 2
+    _MODE_AUTO, MODE_CHARGE, MODE_DISCHARGE = 0, 1, 2
 
     soc = SOC_INIT
     total_cost = 0.0
@@ -328,7 +327,7 @@ def plot_results(df, results, days):
 
     axes[2].set_title("Cumulative cost (PLN)")
     colors = ["gray", "steelblue", "green", "darkorange"]
-    for r, color in zip(results, colors):
+    for r, color in zip(results, colors, strict=False):
         cum = pd.Series(r.hourly_cost).cumsum().values
         axes[2].plot(ts, cum, label=r.name, linewidth=1.5, color=color)
     axes[2].set_ylabel("PLN")
