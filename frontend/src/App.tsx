@@ -16,10 +16,11 @@ import { Reports } from "@/components/Reports"
 import { Presence } from "@/components/Presence"
 import { Backtest } from "@/components/Backtest"
 import { EventLog } from "@/components/EventLog"
+import { Cameras } from "@/components/Cameras"
 import { DashboardSummary } from "@/components/DashboardSummary"
 import {
   Home, Languages, Sun, Moon, Bolt, ToggleLeft, BarChart3, FileText,
-  Sofa, Bed, TreePine, WifiOff, Bell, CloudSun, SlidersHorizontal, Users, FlaskConical, ScrollText,
+  Sofa, Bed, TreePine, WifiOff, Bell, CloudSun, SlidersHorizontal, Users, FlaskConical, ScrollText, Video,
 } from "lucide-react"
 
 function ConnectionIndicator() {
@@ -201,6 +202,10 @@ function AppContent() {
                     <ScrollText className="h-4 w-4 shrink-0" />
                     <span className="hidden sm:inline">{t("nav.events")}</span>
                   </TabsTrigger>
+                  <TabsTrigger value="cameras" className="flex-1 shrink-0 gap-1">
+                    <Video className="h-4 w-4 shrink-0" />
+                    <span className="hidden sm:inline">{t("nav.cameras")}</span>
+                  </TabsTrigger>
                   <TabsTrigger value="weather" className="flex-1 shrink-0 gap-1">
                     <CloudSun className="h-4 w-4 shrink-0" />
                     <span className="hidden sm:inline">{t("nav.weather")}</span>
@@ -229,6 +234,7 @@ function AppContent() {
             {sysTab === "energy"   && <Energy />}
             {sysTab === "alerts"   && <Alerts />}
             {sysTab === "events"   && <EventLog />}
+            {sysTab === "cameras"  && <Cameras />}
             {sysTab === "weather"  && <Weather />}
             {sysTab === "reports"  && <Reports />}
             {sysTab === "backtest" && <Backtest />}

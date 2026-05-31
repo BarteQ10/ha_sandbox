@@ -64,3 +64,12 @@ export function useEntityAttribute<T = unknown>(
   const val = ent?.attributes?.[attr] as T | undefined
   return val ?? fallback
 }
+
+/** All entity IDs in a domain (e.g. "camera"), sorted. Auto-discovers entities. */
+export function useEntitiesByDomain(domain: string): string[] {
+  const { entities } = useHA()
+  const prefix = `${domain}.`
+  return Object.keys(entities)
+    .filter((id) => id.startsWith(prefix))
+    .sort()
+}

@@ -12,7 +12,14 @@
     "reports": "Raporty",
     "presence": "Obecność",
     "backtest": "Backtest",
-    "events": "Zdarzenia"
+    "events": "Zdarzenia",
+    "cameras": "Kamery"
+  },
+  "cameras": {
+    "title": "Kamery",
+    "empty": "Nie znaleziono kamer",
+    "emptyHint": "Dodaj dowolną encję camera.* w HA (np. Generic Camera) — pojawi się tu automatycznie.",
+    "note": "Auto-wykryte ze wszystkich encji camera.* w Home Assistant."
   },
   "events": {
     "title": "Log zdarzeń",
@@ -113,7 +120,10 @@
     "unavailable": "Brak kamery — dodaj encję camera.* w HA",
     "offline": "Kamera offline",
     "live": "NA ŻYWO",
-    "motion": "RUCH"
+    "motion": "RUCH",
+    "toStream": "Przełącz na stream na żywo",
+    "toSnapshot": "Przełącz na zdjęcia",
+    "fullscreen": "Pełny ekran"
   },
   "flow": {
     "title": "Przepływy energii",

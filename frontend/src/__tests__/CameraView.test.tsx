@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { render, screen } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 
 // ── mocks ─────────────────────────────────────────────────────────────────────
 
@@ -65,6 +66,25 @@ describe("CameraView", () => {
     const img = screen.getByRole("img") as HTMLImageElement
     expect(img.src).toContain("/api/camera_proxy_stream/camera.ogrod")
     expect(screen.getByText("camera.live")).toBeInTheDocument()
+  })
+
+  it("toggles between snapshot and stream", async () => {
+    mockUseEntity.mockReturnValue(camEntity())
+    await renderCamera()  // starts in snapshot
+    let img = screen.getByRole("img") as HTMLImageElement
+    expect(img.src).toContain("/api/camera_proxy/camera.ogrod")
+
+    // toggle button switches to stream
+    await userEvent.click(screen.getByLabelText("camera.toStream"))
+    img = screen.getByRole("img") as HTMLImageElement
+    expect(img.src).toContain("/api/camera_proxy_stream/camera.ogrod")
+    expect(screen.getByText("camera.live")).toBeInTheDocument()
+  })
+
+  it("renders a fullscreen control", async () => {
+    mockUseEntity.mockReturnValue(camEntity())
+    await renderCamera()
+    expect(screen.getByLabelText("camera.fullscreen")).toBeInTheDocument()
   })
 
   it("shows the friendly name label", async () => {

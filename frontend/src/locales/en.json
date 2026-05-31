@@ -12,7 +12,14 @@
     "reports": "Reports",
     "presence": "Presence",
     "backtest": "Backtest",
-    "events": "Events"
+    "events": "Events",
+    "cameras": "Cameras"
+  },
+  "cameras": {
+    "title": "Cameras",
+    "empty": "No cameras found",
+    "emptyHint": "Add any camera.* entity in HA (e.g. Generic Camera) — it appears here automatically.",
+    "note": "Auto-discovered from all camera.* entities in Home Assistant."
   },
   "events": {
     "title": "Event Log",
@@ -113,7 +120,10 @@
     "unavailable": "No camera — add a camera.* entity in HA",
     "offline": "Camera offline",
     "live": "LIVE",
-    "motion": "MOTION"
+    "motion": "MOTION",
+    "toStream": "Switch to live stream",
+    "toSnapshot": "Switch to snapshots",
+    "fullscreen": "Fullscreen"
   },
   "flow": {
     "title": "Energy Flow",

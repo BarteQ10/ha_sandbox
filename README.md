@@ -576,6 +576,7 @@ HA → Modbus TCP → Python Simulator
   - **Energy**: Riemann integrals, 24h price chart, daily financial balance
   - **Alerts**: actionable alert cards with snooze (15 min) / dismiss (1 h) buttons
   - **Events**: chronological event log from the simulator's `/events` endpoint — anomalies, rules, security (motion), energy (standby cuts), media, grid — with category filter, severity colour, relative time, and auto-refresh
+  - **Cameras**: auto-discovered grid of all `camera.*` entities; each tile has a snapshot/stream toggle (snapshot polling ⇄ MJPEG live) and a fullscreen button. The garden room card also embeds its camera with a MOTION badge
   - **Weather**: GHI + temperature forecast, PV forecast tomorrow
   - **Reports**: daily/weekly summary with CSV export
   - **Backtest**: on-demand 4-strategy comparison (baseline / auto / scheduled / MPC) over stored history via the simulator's `/backtest` endpoint — best strategy, savings vs baseline, per-strategy table, cumulative-cost chart
