@@ -21,6 +21,11 @@ vi.mock("react-i18next", () => ({
   }),
 }))
 
+// MiniChart fetches HA history — stub it so tests stay synchronous/offline
+vi.mock("@/components/charts/MiniChart", () => ({
+  MiniChart: () => null,
+}))
+
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 function setupEntities({
@@ -41,8 +46,8 @@ function setupEntities({
       "sensor.ems_presence_mode": presenceMode,
       "sensor.ems_jasnosc_cyrkadianowa": brightness,
       "sensor.ems_temperatura_barwowa_cyrkadianowa": colorTempK,
-      "sensor.ems_light_load_w": lightLoad,
-      "sensor.ems_standby_load_w": standby,
+      "sensor.ems_oswietlenie_load": lightLoad,
+      "sensor.ems_standby_load": standby,
       "sensor.ems_rule_window_away": windowAway,
       "sensor.ems_rule_laundry_done": laundryDone,
     }

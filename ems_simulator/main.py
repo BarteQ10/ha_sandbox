@@ -528,6 +528,7 @@ def main():
                 motion_outdoor=_motion["outdoor"],
                 motion_indoor=_motion["indoor"],
                 standby_load_w=_standby_w,
+                light_load_w=lighting.load_w,
                 notify_enabled=notify.is_enabled(),
                 notify_webhook=notify.webhook_configured(),
                 notify_telegram=notify.telegram_configured(),

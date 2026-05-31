@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next"
 import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { StatCard } from "@/components/StatCard"
+import { MiniChart } from "@/components/charts/MiniChart"
 import { useEntityNum, useEntityState, useHA } from "@/hooks/useHA"
 import {
   Home, Plane, Palmtree, Sun, Bell, AlertTriangle,
@@ -48,8 +49,8 @@ export function Presence() {
   // Circadian lighting (InfluxDB → slower, HA template → near-realtime)
   const brightness    = useEntityNum("sensor.ems_jasnosc_cyrkadianowa",            0)
   const colorTempK    = useEntityNum("sensor.ems_temperatura_barwowa_cyrkadianowa", 2700)
-  const lightLoadW    = useEntityNum("sensor.ems_light_load_w",                     0)
-  const standbyW      = useEntityNum("sensor.ems_standby_load_w",                   0)
+  const lightLoadW    = useEntityNum("sensor.ems_oswietlenie_load",                 0)
+  const standbyW      = useEntityNum("sensor.ems_standby_load",                     0)
 
   // Media player (HA template sensor reads from /metrics)
   const mediaState    = useEntityState("sensor.ems_tryb_mediow", "idle")
@@ -183,7 +184,8 @@ export function Presence() {
             <p className="text-sm text-muted-foreground">{t("presence.standbyLoad")}</p>
             <p className="text-sm font-semibold">{Math.round(standbyW)} W</p>
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">{t("presence.standbyHint")}</p>
+          <p className="mt-1 mb-2 text-xs text-muted-foreground">{t("presence.standbyHint")}</p>
+          <MiniChart entityId="sensor.ems_standby_load" hours={12} color="#a78bfa" />
         </CardContent>
       </Card>
 
