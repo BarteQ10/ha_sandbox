@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { render, screen, waitFor } from "@testing-library/react"
+import { render, screen, waitFor, fireEvent } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
 // ── mocks ─────────────────────────────────────────────────────────────────────
@@ -91,5 +91,39 @@ describe("EventLog", () => {
     await userEvent.click(pauseBtn)
     // After pausing, the resume control is shown
     expect(screen.getByLabelText("events.resume")).toBeInTheDocument()
+  })
+
+  it("starts in live mode", async () => {
+    await renderLog()
+    await waitFor(() => expect(screen.getByText("events.modeLive")).toBeInTheDocument())
+  })
+
+  it("loads a date range as a history query (from/to ISO params)", async () => {
+    await renderLog()
+    await waitFor(() => expect(screen.getByText("Grid blackout")).toBeInTheDocument())
+
+    fireEvent.change(screen.getByLabelText("events.from"), { target: { value: "2026-05-01" } })
+    await userEvent.click(screen.getByText("events.loadHistory"))
+
+    await waitFor(() => {
+      // from/to are ISO strings (exact value is timezone-dependent — just assert presence)
+      expect(mockFetchEvents).toHaveBeenLastCalledWith(
+        expect.objectContaining({ from: expect.any(String), to: expect.any(String) }),
+      )
+    })
+    // mode badge flips to HISTORY and a Live button appears
+    expect(screen.getByText("events.modeHistory")).toBeInTheDocument()
+    expect(screen.getByText("events.backToLive")).toBeInTheDocument()
+  })
+
+  it("returns to live mode from history", async () => {
+    await renderLog()
+    await waitFor(() => expect(screen.getByText("Grid blackout")).toBeInTheDocument())
+    fireEvent.change(screen.getByLabelText("events.from"), { target: { value: "2026-05-01" } })
+    await userEvent.click(screen.getByText("events.loadHistory"))
+    await waitFor(() => expect(screen.getByText("events.modeHistory")).toBeInTheDocument())
+
+    await userEvent.click(screen.getByText("events.backToLive"))
+    await waitFor(() => expect(screen.getByText("events.modeLive")).toBeInTheDocument())
   })
 })

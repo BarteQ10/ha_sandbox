@@ -87,3 +87,69 @@ def test_ids_are_monotonic():
     events.record("rule", "info", "b")
     snap = events.snapshot()
     assert snap[0]["id"] > snap[1]["id"]
+
+
+# ── persistence backends ──────────────────────────────────────────────────────
+
+def test_sink_called_on_record():
+    written = []
+    events.set_backends(sink=written.append)
+    events.record("grid", "critical", "blackout")
+    assert len(written) == 1
+    assert written[0]["message"] == "blackout"
+
+
+def test_sink_failure_does_not_break_record():
+    def bad_sink(_e):
+        raise RuntimeError("influx down")
+    events.set_backends(sink=bad_sink)
+    events.record("grid", "critical", "blackout")  # must not raise
+    assert len(events.snapshot()) == 1
+
+
+def test_no_sink_is_fine():
+    events.record("rule", "info", "x")  # no backends registered
+    assert len(events.snapshot()) == 1
+
+
+def test_seed_loads_history_newest_first():
+    items = [
+        {"id": 12, "ts": 200.0, "category": "grid", "severity": "critical", "message": "newer"},
+        {"id": 11, "ts": 100.0, "category": "rule", "severity": "info", "message": "older"},
+    ]
+    events.seed(items)
+    snap = events.snapshot()
+    assert [e["message"] for e in snap] == ["newer", "older"]
+
+
+def test_seed_advances_id_sequence():
+    events.seed([{"id": 50, "ts": 1.0, "category": "rule", "severity": "info", "message": "h"}])
+    events.record("rule", "info", "next")
+    # new event id must be > seeded max (51)
+    assert events.snapshot()[0]["id"] == 51
+
+
+def test_seed_does_not_repersist():
+    written = []
+    events.set_backends(sink=written.append)
+    events.seed([{"id": 1, "ts": 1.0, "category": "rule", "severity": "info", "message": "h"}])
+    assert written == []  # seeding must not call the sink
+
+
+def test_history_delegates_to_reader():
+    events.set_backends(reader=lambda start, stop, cat, limit: [
+        {"id": 1, "ts": 1.0, "category": cat or "all", "severity": "info", "message": f"{start}->{limit}"},
+    ])
+    out = events.history(start="-3d", limit=42)
+    assert out[0]["message"] == "-3d->42"
+
+
+def test_history_empty_without_reader():
+    assert events.history() == []
+
+
+def test_history_swallows_reader_errors():
+    def bad_reader(*a):
+        raise RuntimeError("query failed")
+    events.set_backends(reader=bad_reader)
+    assert events.history() == []

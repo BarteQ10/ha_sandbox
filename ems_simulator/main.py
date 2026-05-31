@@ -38,11 +38,13 @@ from ems_simulator.generators import (
     pv_from_ghi,
     standby_load,
 )
+from ems_simulator.influx_writer import read_events as inf_read_events
 from ems_simulator.influx_writer import read_last as inf_read_last
 from ems_simulator.influx_writer import start as inf_start
 from ems_simulator.influx_writer import stop as inf_stop
 from ems_simulator.influx_writer import write as inf_write
 from ems_simulator.influx_writer import write_anomalies as inf_write_anomalies
+from ems_simulator.influx_writer import write_event as inf_write_event
 from ems_simulator.influx_writer import write_forecast as inf_write_forecast
 from ems_simulator.influx_writer import write_lighting as inf_write_lighting
 from ems_simulator.influx_writer import write_media_state as inf_write_media
@@ -99,6 +101,14 @@ def main():
     inf_start()
     w_fetch()
     p_fetch()
+
+    # Persist events to InfluxDB and hydrate the in-memory buffer from history,
+    # so the event log survives restarts.
+    events.set_backends(sink=inf_write_event, reader=inf_read_events)
+    _seed_events = inf_read_events(start="-7d", limit=events.MAX_EVENTS)
+    if _seed_events:
+        events.seed(_seed_events)
+        log.info("[EVENTS] Restored %d events from InfluxDB", len(_seed_events))
 
     forecast_engine = ForecastEngine()
     forecast_engine.fit_all()  # best-effort: may skip models if InfluxDB has no history yet

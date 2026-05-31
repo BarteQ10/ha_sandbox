@@ -17,15 +17,19 @@ export interface EventsResponse {
   events: LogEvent[]
   stats: { total: number; by_category: Record<string, number> }
   categories: EventCategory[]
+  mode?: "live" | "history"
 }
 
 export async function fetchEvents(
-  opts: { limit?: number; category?: string; since?: number } = {},
+  opts: { limit?: number; category?: string; since?: number; from?: string; to?: string } = {},
 ): Promise<EventsResponse> {
   const params = new URLSearchParams()
   if (opts.limit) params.set("limit", String(opts.limit))
   if (opts.category && opts.category !== "all") params.set("category", opts.category)
   if (opts.since) params.set("since", String(opts.since))
+  // Historical range (RFC3339 UTC) — switches the backend to an InfluxDB query
+  if (opts.from) params.set("from", opts.from)
+  if (opts.to) params.set("to", opts.to)
 
   const res = await fetch(`${SIM_URL}/events?${params.toString()}`, {
     method: "GET",

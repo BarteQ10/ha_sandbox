@@ -7,6 +7,7 @@ rules, security, standby cuts, media and grid changes in one timeline.
 
 In-memory only (recent history) — cleared on restart by design.
 """
+import contextlib
 import threading
 import time
 from collections import deque
@@ -21,19 +22,36 @@ _lock = threading.Lock()
 _edge: dict[str, bool] = {}
 _seq = 0
 
+# Optional persistence backends, registered by main.py at startup. Kept as
+# callbacks so this module stays decoupled from InfluxDB (and testable).
+_sink = None    # callable(event_dict) -> None   — persists one event
+_reader = None  # callable(start, stop, category, limit) -> list[dict] — reads history
+
+
+def set_backends(sink=None, reader=None) -> None:
+    """Register persistence callbacks (sink to write, reader for history)."""
+    global _sink, _reader
+    _sink = sink
+    _reader = reader
+
 
 def record(category: str, severity: str, message: str) -> None:
-    """Append a discrete event to the log."""
+    """Append a discrete event to the log (and persist it if a sink is set)."""
     global _seq
     with _lock:
         _seq += 1
-        _events.append({
+        event = {
             "id": _seq,
             "ts": time.time(),
             "category": category,
             "severity": severity,
             "message": message,
-        })
+        }
+        _events.append(event)
+    # Persist outside the lock; never let telemetry break the sim loop.
+    if _sink is not None:
+        with contextlib.suppress(Exception):
+            _sink(event)
 
 
 def record_edge(key: str, category: str, severity: str, message: str, condition: bool) -> None:
@@ -68,6 +86,31 @@ def snapshot(limit: int = 100, category: str | None = None, since: float | None 
     return items
 
 
+def seed(items: list[dict]) -> None:
+    """Load historical events into the buffer at startup (newest-first input).
+
+    Does not re-persist them. Advances the id sequence past the loaded max.
+    """
+    global _seq
+    if not items:
+        return
+    with _lock:
+        for e in reversed(items):  # input is newest-first; buffer wants oldest-first
+            _events.append(e)
+        _seq = max([_seq, *(int(e.get("id", 0)) for e in items)])
+
+
+def history(start: str = "-7d", stop: str | None = None,
+            category: str | None = None, limit: int = 500) -> list[dict]:
+    """Query persisted events via the registered reader (empty if none)."""
+    if _reader is None:
+        return []
+    try:
+        return _reader(start, stop, category, limit)
+    except Exception:
+        return []
+
+
 def stats() -> dict:
     """Counts per category + total, for badges / summaries."""
     with _lock:
@@ -79,9 +122,11 @@ def stats() -> dict:
 
 
 def clear() -> None:
-    """Reset the log (used in tests)."""
-    global _seq
+    """Reset the log and persistence backends (used in tests)."""
+    global _seq, _sink, _reader
     with _lock:
         _events.clear()
         _edge.clear()
         _seq = 0
+    _sink = None
+    _reader = None

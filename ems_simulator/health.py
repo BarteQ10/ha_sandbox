@@ -166,16 +166,25 @@ class _Handler(BaseHTTPRequestHandler):
             except (ValueError, TypeError):
                 limit = 100
             category = q.get("category", [None])[0]
-            since = None
-            if "since" in q:
-                try:
-                    since = float(q["since"][0])
-                except (ValueError, TypeError):
-                    since = None
+            frm = q.get("from", [None])[0]
+            to = q.get("to", [None])[0]
+            if frm:
+                # Historical query from InfluxDB over a date range
+                evs = events.history(start=frm, stop=to, category=category, limit=limit)
+            else:
+                # Recent events from the in-memory buffer
+                since = None
+                if "since" in q:
+                    try:
+                        since = float(q["since"][0])
+                    except (ValueError, TypeError):
+                        since = None
+                evs = events.snapshot(limit=limit, category=category, since=since)
             self._send_json(200, {
-                "events": events.snapshot(limit=limit, category=category, since=since),
+                "events": evs,
                 "stats": events.stats(),
                 "categories": list(events.CATEGORIES),
+                "mode": "history" if frm else "live",
             })
 
         else:

@@ -176,6 +176,77 @@ def read_last(measurement):
     return None
 
 
+# ── event log persistence ───────────────────────────────────────────────────────
+
+# Allowed Flux range tokens: relative duration (-7d) or RFC3339 UTC timestamp.
+_FLUX_RANGE = re.compile(r'^(-\d+[smhdw]|\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z)$')
+_SAFE_TAG = re.compile(r'^[a-z_]+$')
+
+
+def write_event(event: dict) -> None:
+    """Persist a single event-log entry to InfluxDB (measurement 'ems_event')."""
+    if not _ensure_connection():
+        return
+    try:
+        ts = datetime.datetime.fromtimestamp(float(event["ts"]), datetime.UTC)
+        point = (
+            Point("ems_event")
+            .time(ts)
+            .tag("category", str(event["category"]))
+            .tag("severity", str(event["severity"]))
+            .field("message", str(event["message"]))
+            .field("eid", int(event["id"]))
+        )
+        _write.write(bucket=BUCKET, record=point)
+    except Exception as e:
+        log.warning("[INFLUX] write_event failed: %s", e)
+
+
+def read_events(start="-7d", stop=None, category=None, limit=500) -> list[dict]:
+    """Query persisted events. Returns list of dicts (newest first).
+
+    start/stop: Flux range tokens (relative like '-7d' or RFC3339 UTC). Anything
+    not matching the allow-list is rejected (default start, no stop).
+    """
+    if not _ensure_connection():
+        return []
+    limit = max(1, min(int(limit), 5000))
+    start = start if (start and _FLUX_RANGE.match(start)) else "-7d"
+    stop_clause = ""
+    if stop and _FLUX_RANGE.match(stop):
+        stop_clause = f", stop: {stop}"
+    cat_clause = ""
+    if category and category != "all":
+        if not _SAFE_TAG.match(category):
+            return []
+        cat_clause = f'|> filter(fn: (r) => r.category == "{category}")'
+
+    q = (
+        f'from(bucket: "{BUCKET}")'
+        f' |> range(start: {start}{stop_clause})'
+        f' |> filter(fn: (r) => r._measurement == "ems_event")'
+        f' {cat_clause}'
+        f' |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")'
+        f' |> sort(columns: ["_time"], desc: true)'
+        f' |> limit(n: {limit})'
+    )
+    out: list[dict] = []
+    try:
+        for table in _client.query_api().query(q):
+            for r in table.records:
+                v = r.values
+                out.append({
+                    "id": int(v.get("eid", 0) or 0),
+                    "ts": r.get_time().timestamp(),
+                    "category": v.get("category", ""),
+                    "severity": v.get("severity", ""),
+                    "message": v.get("message", ""),
+                })
+    except Exception as e:
+        log.warning("[INFLUX] read_events failed: %s", e)
+    return out
+
+
 def write_anomalies(flags):
     """Write anomaly detector flags (called each tick or every N ticks)."""
     if not _ensure_connection():
