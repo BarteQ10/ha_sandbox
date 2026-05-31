@@ -158,6 +158,7 @@ def main():
             anomaly      = regs[15] if len(regs) > 15 else 0
             storm_safe   = regs[16] if len(regs) > 16 else 0
             ev_override  = regs[17] if len(regs) > 17 else 0
+            v2g_mode     = regs[18] if len(regs) > 18 else 0
             boiler_eff = timer_boiler.constrain(boiler)
             hp_eff = timer_hp.constrain(hp)
             ev_eff = timer_ev.constrain(ev)
@@ -205,6 +206,13 @@ def main():
                 ev_profile.add_energy(tick_energy)
                 if ev_needed < tick_energy:
                     ev_eff = 0
+
+            # V2G: EV discharges to house when plugged, V2G mode active, and balance negative
+            v2g_power = 0
+            if v2g_mode and ev_plugged and not ev_eff:
+                v2g_power = ev_profile.v2g_tick()
+                if v2g_power and day_step % STEPS_PER_HOUR == 0:
+                    log.info("[V2G] EV discharging %dW  EV SoC=%.0f%%", v2g_power, ev_profile.ev_soc_pct)
 
             cop = hp_cop(current_temp)
             ctrl_load, hp_thermal = controllable_load(boiler_eff, hp_eff, ev_eff, cop)
@@ -278,7 +286,7 @@ def main():
             elif anomaly and day_step % (STEPS_PER_HOUR * 5) == 0:
                 log.info("[ANOMALY] Charge scheduler paused (no API data)")
 
-            balance = pv - load
+            balance = pv + v2g_power - load
 
             _anom_flags = anomaly_detector.update(pv, load, soc, price, ghi, balance)
 
@@ -396,6 +404,7 @@ def main():
                 anomaly,
                 storm_safe,
                 ev_override,
+                v2g_mode,
             ])
 
             inf_write(pv, round(new_soc), load, price, balance, current_temp, cloud, ghi,

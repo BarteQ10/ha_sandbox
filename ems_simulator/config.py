@@ -2,7 +2,7 @@
 # Modbus
 MODBUS_HOST = "0.0.0.0"
 MODBUS_PORT = 5020
-NUM_REGISTERS = 18
+NUM_REGISTERS = 19
 TICK_S = 5
 
 # Derived timing constants (60× simulated speed, TICK_S=5s → 5 simulated minutes per tick)
@@ -72,8 +72,11 @@ GRID_INSTABILITY = 2
 # EV profile
 EV_ARRIVAL_HOUR = 17
 EV_DEPARTURE_HOUR = 7
-EV_DAILY_KWH_NEEDED = 15.0  # kWh needed to fill the car each day
-EV_CHARGE_MAX_W = 7400  # max charging power
+EV_DAILY_KWH_NEEDED = 15.0   # kWh needed to fill the car each day
+EV_CHARGE_MAX_W = 7400        # max charging power
+EV_BATTERY_KWH = 60.0         # usable EV battery capacity (for V2G SoC tracking)
+V2G_POWER_W = 3700            # V2G discharge rate (W)
+V2G_MIN_SOC_PCT = 30.0        # stop V2G when EV SoC drops below this
 
 # Scheduled deferrable appliances
 # (name, power_w, duration_h, window_start_h, window_end_h, price_threshold_gr)

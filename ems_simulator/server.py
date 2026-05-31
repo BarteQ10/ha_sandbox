@@ -46,4 +46,5 @@ def banner():
     print("  [W] 15 API Anomaly Simulator          (0=Off 1=On)")
     print("  [W] 16 Storm Safeguard                (0=Off 1=Force 100% SoC)")
     print("  [W] 17 EV Override                    (0=Auto/EMS 1=Manual 7400W)")
+    print("  [W] 18 V2G Mode                       (0=Off 1=On — EV discharges to house)")
     print("=" * 64)

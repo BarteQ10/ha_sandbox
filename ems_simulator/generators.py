@@ -7,6 +7,7 @@ from ems_simulator.config import (
     DEVICE_MIN_OFF_SIM_MIN,
     DEVICE_MIN_ON_SIM_MIN,
     EV_ARRIVAL_HOUR,
+    EV_BATTERY_KWH,
     EV_CHARGE_MAX_W,
     EV_DAILY_KWH_NEEDED,
     EV_DEPARTURE_HOUR,
@@ -23,6 +24,9 @@ from ems_simulator.config import (
     SPIKE_CHANCE,
     SPIKE_MAX_TICKS,
     SPIKE_WATTS,
+    TICK_S,
+    V2G_MIN_SOC_PCT,
+    V2G_POWER_W,
 )
 
 log = logging.getLogger(__name__)
@@ -221,12 +225,15 @@ def hp_cop(temp):
 class EVProfile:
     def __init__(self):
         self._energy_delivered_today = 0.0
+        self._ev_soc_kwh = EV_BATTERY_KWH * 0.2  # start at 20% SoC (just arrived)
         self._last_reset_day = -1
 
     def tick(self, day_step, hour, ev_override_active):
         sim_day = day_step // 288
         if sim_day != self._last_reset_day:
             self._energy_delivered_today = 0.0
+            # EV departs with the energy it accumulated; reset SoC to low on next arrival
+            self._ev_soc_kwh = max(0.0, self._ev_soc_kwh - EV_DAILY_KWH_NEEDED)
             self._last_reset_day = sim_day
         is_home = hour >= EV_ARRIVAL_HOUR or hour < EV_DEPARTURE_HOUR
         is_plugged = is_home and not ev_override_active
@@ -235,13 +242,28 @@ class EVProfile:
 
     def add_energy(self, kwh):
         self._energy_delivered_today += kwh
+        self._ev_soc_kwh = min(EV_BATTERY_KWH, self._ev_soc_kwh + kwh)
+
+    def v2g_tick(self):
+        """Discharge EV at V2G_POWER_W for one tick.  Returns actual power (W) or 0."""
+        ev_soc_pct = self._ev_soc_kwh / EV_BATTERY_KWH * 100.0
+        if ev_soc_pct <= V2G_MIN_SOC_PCT:
+            return 0
+        kwh_out = V2G_POWER_W * TICK_S * 60.0 / (3600.0 * 1000.0)
+        self._ev_soc_kwh = max(0.0, self._ev_soc_kwh - kwh_out)
+        return V2G_POWER_W
 
     def restore_energy(self, kwh):
         self._energy_delivered_today = max(0.0, float(kwh))
+        self._ev_soc_kwh = min(EV_BATTERY_KWH, self._ev_soc_kwh + float(kwh))
 
     @property
     def energy_delivered_today(self):
         return self._energy_delivered_today
+
+    @property
+    def ev_soc_pct(self):
+        return self._ev_soc_kwh / EV_BATTERY_KWH * 100.0
 
 
 class ScheduledAppliance:
