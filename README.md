@@ -2,6 +2,9 @@
 
 Modbus TCP simulator + Home Assistant config for Energy Management System development.
 
+> Planning to move to real hardware? See **[MIGRATION.md](MIGRATION.md)** for how
+> the control intelligence transfers ~1:1 and what HA takes on.
+
 ## Quick Start
 
 ```bash
