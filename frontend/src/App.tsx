@@ -149,36 +149,41 @@ function AppContent() {
 
       <main id="main-content" className="mx-auto max-w-7xl px-3 py-3 sm:px-4 sm:py-4">
         {tab === "rooms" && (
-          <div className="space-y-3 sm:space-y-4">
-            {/* KPI summary — first thing on the home page */}
-            <DashboardSummary />
-            {/* Room sub-tabs — scrollable on mobile, icon+text on larger screens */}
-            <div className="overflow-x-auto">
-              <Tabs value={roomTab} onValueChange={setRoomTab}>
-                <TabsList className="flex w-max min-w-full sm:w-full">
-                  <TabsTrigger value="day" className="flex-1 gap-1">
-                    <Sofa className="h-4 w-4 shrink-0" />
-                    <span>{t("rooms.day")}</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="night" className="flex-1 gap-1">
-                    <Bed className="h-4 w-4 shrink-0" />
-                    <span>{t("rooms.night")}</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="garden" className="flex-1 gap-1">
-                    <TreePine className="h-4 w-4 shrink-0" />
-                    <span>{t("rooms.gardenLabel")}</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="media" className="flex-1 gap-1">
-                    <Music className="h-4 w-4 shrink-0" />
-                    <span>{t("nav.media")}</span>
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
+          <div className="grid gap-3 sm:gap-4 lg:grid-cols-[16rem_1fr] lg:items-start">
+            {/* KPI summary — left sidebar on desktop, full-width strip on mobile */}
+            <div className="lg:sticky lg:top-[5.5rem]">
+              <DashboardSummary variant="side" />
             </div>
-            {roomTab === "day"    && <Rooms roomIds={["salon", "kuchnia"]} />}
-            {roomTab === "night"  && <Rooms roomIds={["sypialnia", "lazienka"]} />}
-            {roomTab === "garden" && <Rooms roomIds={["ogrod"]} />}
-            {roomTab === "media"  && <Media />}
+            {/* Rooms column */}
+            <div className="space-y-3 sm:space-y-4">
+              {/* Room sub-tabs — scrollable on mobile, icon+text on larger screens */}
+              <div className="overflow-x-auto">
+                <Tabs value={roomTab} onValueChange={setRoomTab}>
+                  <TabsList className="flex w-max min-w-full sm:w-full">
+                    <TabsTrigger value="day" className="flex-1 gap-1">
+                      <Sofa className="h-4 w-4 shrink-0" />
+                      <span>{t("rooms.day")}</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="night" className="flex-1 gap-1">
+                      <Bed className="h-4 w-4 shrink-0" />
+                      <span>{t("rooms.night")}</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="garden" className="flex-1 gap-1">
+                      <TreePine className="h-4 w-4 shrink-0" />
+                      <span>{t("rooms.gardenLabel")}</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="media" className="flex-1 gap-1">
+                      <Music className="h-4 w-4 shrink-0" />
+                      <span>{t("nav.media")}</span>
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </div>
+              {roomTab === "day"    && <Rooms roomIds={["salon", "kuchnia"]} />}
+              {roomTab === "night"  && <Rooms roomIds={["sypialnia", "lazienka"]} />}
+              {roomTab === "garden" && <Rooms roomIds={["ogrod"]} />}
+              {roomTab === "media"  && <Media />}
+            </div>
           </div>
         )}
 

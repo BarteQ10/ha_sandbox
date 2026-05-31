@@ -43,7 +43,11 @@ function sohColor(pct: number) {
 
 // ─── component ───────────────────────────────────────────────────────────────────
 
-export function DashboardSummary() {
+// "bar"  → horizontal strip across the top (up to 6 columns)
+// "side" → narrow left sidebar; tiles stack into a single column on desktop
+type SummaryVariant = "bar" | "side"
+
+export function DashboardSummary({ variant = "bar" }: { variant?: SummaryVariant }) {
   const { t } = useTranslation()
 
   // Live values
@@ -60,6 +64,12 @@ export function DashboardSummary() {
   const sohPct = Math.round(sohRaw * 1000) / 10   // e.g. 0.982 → 98.2
   const netNow = pv - load
 
+  // Tile grid: "bar" spreads across the top; "side" collapses to one column
+  // once there's a desktop sidebar to live in.
+  const tileGrid = variant === "side"
+    ? "grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-1"
+    : "grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6"
+
   return (
     <Card className="border-primary/20">
       <CardContent className="p-3 sm:p-4">
@@ -73,7 +83,7 @@ export function DashboardSummary() {
           </span>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+        <div className={tileGrid}>
           {/* Live */}
           <Kpi
             icon={Sun} label={t("summary.pvNow")}
