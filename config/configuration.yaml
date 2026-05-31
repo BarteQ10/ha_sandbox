@@ -1,5 +1,17 @@
 default_config:
 
+# MQTT integration — autodiscovery from EMS Simulator (mqtt_bridge.py)
+# The Mosquitto broker is defined in docker-compose.yml.
+# In HA UI: Settings → Devices & Services → Add Integration → MQTT
+# Host: mosquitto (docker internal) or 192.168.0.18 (external)
+# Port: 1883, no auth needed for local dev
+#
+# mqtt:
+#   broker: mosquitto
+#   port: 1883
+#   discovery: true
+#   discovery_prefix: homeassistant
+
 http:
   cors_allowed_origins:
     - http://localhost:5173
@@ -20,6 +32,35 @@ lovelace:
 automation: !include automations.yaml
 script: !include scripts.yaml
 scene: !include scenes.yaml
+
+# ── hass-virtual (HACS: custom-components/virtual) ───────────────────────────
+# Install via HACS → Integrations → search "Virtual" → twrecked/hass-virtual
+# Then uncomment the block below and restart HA.
+#
+# virtual:
+#   - name: "EMS Virtual TV Switch"
+#     class: switch
+#     initial_value: "on"
+#   - name: "EMS Virtual Media Player"
+#     class: media_player
+#     initial_value: "idle"
+#     supported_features:
+#       - play
+#       - pause
+#       - stop
+#   - name: "EMS Virtual Presence Sensor"
+#     class: binary_sensor
+#     device_class: presence
+#     initial_value: "on"
+#   - name: "EMS Virtual Outdoor Motion"
+#     class: binary_sensor
+#     device_class: motion
+#     initial_value: "off"
+#   - name: "EMS Bedroom Climate"
+#     class: climate
+#     initial_value: "21"
+#     min_temp: 16
+#     max_temp: 28
 
 modbus:
   - name: wirtualny_inwerter

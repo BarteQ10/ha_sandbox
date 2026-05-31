@@ -118,5 +118,5 @@ między backendem EMS a encjami HA.
 | 8.6 | **Media player scene** — przyciemnienie lampy salonowej do 25% gdy `sensor.ems_tryb_mediow == playing` | `automations.yaml` | M | 🟢 | ✅ |
 | 8.7 | **Health /metrics REST sensor** — HA odczytuje presence, media, motion z endpointu symulatora (co 15s) | `configuration.yaml`, `health.py` | S | 🟡 | ✅ |
 | 8.8 | **Tuya virtual device** — wirtualne urządzenie przez Tuya IoT Platform Developer Console + integracja HA | external / `configuration.yaml` | L | 🟢 | — |
-| 8.9 | **MQTT device autodiscovery** — symulator publikuje urządzenia przez MQTT (Mosquitto w docker-compose) → HA autodiscovery | new `ems_simulator/mqtt_bridge.py` | M | 🟢 | — |
-| 8.10 | **hass-virtual (HACS)** — dedykowane wirtualne encje przez `custom-components/virtual`; alternatywa dla `input_*` | `configuration.yaml` | S | 🟢 | — |
+| 8.9 | **MQTT device autodiscovery** — symulator publikuje urządzenia przez MQTT (Mosquitto w docker-compose) → HA autodiscovery | new `ems_simulator/mqtt_bridge.py` | M | 🟢 | ✅ |
+| 8.10 | **hass-virtual (HACS)** — dedykowane wirtualne encje przez `custom-components/virtual`; alternatywa dla `input_*` | `configuration.yaml` | S | 🟢 | ✅ |

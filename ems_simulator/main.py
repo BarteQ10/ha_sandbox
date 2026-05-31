@@ -55,6 +55,8 @@ from ems_simulator.lighting import CircadianModel
 from ems_simulator.log_setup import setup as _setup_logging
 from ems_simulator.media_sim import MediaPlayerSim
 from ems_simulator.mpc_scheduler import solve as mpc_solve
+from ems_simulator.mqtt_bridge import MQTTBridge
+from ems_simulator.mqtt_bridge import enabled as mqtt_enabled
 from ems_simulator.presence import PresenceManager
 from ems_simulator.pricing import _price_cache as p_cache
 from ems_simulator.pricing import distribution_rate as p_dist_rate
@@ -122,6 +124,10 @@ def main():
 
     if notify.enabled():
         log.info("[NOTIFY] Notification bridge active")
+
+    mqtt_bridge = MQTTBridge(write_register_fn=srv_set_register)
+    if mqtt_enabled():
+        mqtt_bridge.start()
 
     now_h = datetime.datetime.now().hour
     day_step = int(now_h * STEPS_PER_HOUR)
@@ -528,12 +534,25 @@ def main():
                 inf_write_rules(rule_engine.active_keys)
                 inf_write_motion(_motion["outdoor"], _motion["indoor"])
 
+            if day_step % 2 == 0:  # MQTT push every 2 ticks (10 sim-min = ~10 real-sec)
+                mqtt_bridge.push({
+                    "pv_w": pv, "soc_pct": new_soc, "load_w": load, "price_gr": price,
+                    "balance_w": balance, "t_house": round(thermal.t_house, 1),
+                    "standby_load_w": _standby_w, "media_state": _media_state,
+                    "presence_label": presence.label, "mpc_action": _mpc_action,
+                    "light_brightness": lighting.brightness,
+                    "light_color_temp_k": lighting.color_temp_k,
+                    "motion_outdoor": _motion["outdoor"],
+                    "motion_indoor":  _motion["indoor"],
+                })
+
             _anomaly_prev = anomaly
             time.sleep(TICK_S)
 
     except KeyboardInterrupt:
         if _rl_enabled and _rl_agent is not None:
             _rl_agent.save()
+        mqtt_bridge.stop()
         health.stop()
         inf_stop()
         srv_stop()

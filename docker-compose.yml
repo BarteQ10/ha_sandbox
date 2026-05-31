@@ -30,18 +30,38 @@ services:
       DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ems-token
     restart: unless-stopped
 
+  mosquitto:
+    container_name: mosquitto_dev
+    image: eclipse-mosquitto:2
+    ports:
+      - "1883:1883"   # MQTT
+      - "9001:9001"   # MQTT over WebSocket
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
+    restart: unless-stopped
+
   ems-simulator:
     container_name: ems_simulator_dev
     build: .
     ports:
       - "5020:5020"        # Modbus TCP (MODBUS_PORT)
+      - "8088:8088"        # Health / metrics HTTP
     environment:
       INFLUX_URL: http://influxdb:8086
       INFLUX_TOKEN: ems-token
       INFLUX_ORG: home
       INFLUX_BUCKET: ems
       LOG_LEVEL: INFO
+      MQTT_HOST: mosquitto    # MQTT bridge (set empty to disable)
+      MQTT_PORT: "1883"
+      # EMS_RL_ENABLED: "1"       # enable Q-learning agent
+      # EMS_WEBHOOK_URL: ""       # generic webhook for alerts
+      # EMS_TELEGRAM_TOKEN: ""    # Telegram bot token
+      # EMS_TELEGRAM_CHAT_ID: ""  # Telegram chat ID
     restart: unless-stopped
     stop_grace_period: 15s  # allow main() to flush InfluxDB on SIGTERM
     depends_on:
       - influxdb
+      - mosquitto
