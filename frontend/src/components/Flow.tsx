@@ -35,8 +35,42 @@ export function Flow() {
   const net = pv - load
   const importW = net < 0 ? -net : 0
   const exportW = net > 0 ? net : 0
-  // Battery flow: positive = charging (PV surplus), negative = discharging
-  const battFlow = net   // simplified: positive balance charges battery
+
+  // Grid / blackout detection — covers Polish and English option strings
+  const gridLower = grid.toLowerCase()
+  const isBlackout = gridLower.includes("blackout") || gridLower.includes("awaria") || grid === "1"
+
+  // Force-mode detection from inverter select entity.
+  // "dis" catches "ForceDis", "Force Discharge", "discharge".
+  // Discharge must be checked FIRST — "charge" is a substring of "discharge",
+  // so checking charge first would produce a false positive.
+  const invLower = inverter.toLowerCase()
+  const isForceDischarge =
+    invLower.includes("dis")      ||  // ForceDis · Force Discharge · discharge
+    invLower.includes("rozładow") ||  // Rozładowanie (Polish noun)
+    invLower.includes("rozładuj") ||  // Rozładuj (Polish verb)
+    inverter === "2"
+
+  const isForceCharge = !isForceDischarge && (
+    invLower.includes("charg")   ||   // ForceChg · Force Charge · charge
+    invLower.includes("ładow")   ||   // Ładowanie
+    invLower.includes("ładuj")   ||   // Ładuj
+    inverter === "1"
+  )
+
+  // Battery power: positive = charging, negative = discharging.
+  // Force modes override the auto (balance-based) direction; clamp at SoC limits.
+  let battKw: number
+  if (isForceDischarge) {
+    battKw = soc > 1 ? -5000 : 0   // stop when essentially empty
+  } else if (isForceCharge) {
+    battKw = soc < 99 ? 5000 : 0   // stop when essentially full
+  } else {
+    battKw = net                    // auto: charge on surplus, discharge on deficit
+  }
+  // Hard clamps so the diagram never shows impossible flows
+  if (soc <= 0)   battKw = Math.max(0, battKw)    // empty battery can't discharge
+  if (soc >= 100) battKw = Math.min(0, battKw)    // full battery can't charge
 
   return (
     <div className="space-y-3 sm:space-y-4">
@@ -49,9 +83,8 @@ export function Flow() {
             pv={pv}
             soc={soc}
             load={load}
-            battKw={battFlow}
-            importW={importW}
-            exportW={exportW}
+            battKw={battKw}
+            isBlackout={isBlackout}
           />
         </CardContent>
       </Card>
