@@ -110,6 +110,17 @@
     "weekPv": "{{kwh}} kWh PV w tym tygodniu",
     "weekBalance": "Bilans tygodnia"
   },
+  "forecast": {
+    "title": "Prognoza kosztu",
+    "weekProjected": "Tydzień (prognoza)",
+    "avgDaily": "Średnia dzienna",
+    "pvTomorrow": "PV jutro",
+    "note": "Liczenie prognozy…",
+    "noteDays": "Na podstawie {{count}} pełnych dni",
+    "noteDays_one": "Na podstawie {{count}} pełnego dnia",
+    "noteDays_few": "Na podstawie {{count}} pełnych dni",
+    "noteDays_many": "Na podstawie {{count}} pełnych dni"
+  },
   "rooms": {
     "salon": "Salon",
     "kitchen": "Kuchnia",

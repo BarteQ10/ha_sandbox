@@ -21,6 +21,7 @@ import { EventLog } from "@/components/EventLog"
 import { Cameras } from "@/components/Cameras"
 import { Media } from "@/components/Media"
 import { DashboardSummary } from "@/components/DashboardSummary"
+import { CostForecast } from "@/components/CostForecast"
 import {
   Home, Languages, Sun, Moon, Bolt, ToggleLeft, BarChart3, FileText,
   Sofa, Bed, TreePine, WifiOff, Bell, CloudSun, SlidersHorizontal, Users, FlaskConical, ScrollText, Video, Music,
@@ -159,8 +160,9 @@ function AppContent() {
         {tab === "rooms" && (
           <div className="grid gap-3 sm:gap-4 lg:grid-cols-[16rem_1fr] lg:items-start">
             {/* KPI summary — left sidebar on desktop, full-width strip on mobile */}
-            <div className="lg:sticky lg:top-[5.5rem]">
+            <div className="space-y-3 sm:space-y-4 lg:sticky lg:top-[5.5rem]">
               <DashboardSummary variant="side" onNavigate={goToSystem} />
+              <CostForecast />
             </div>
             {/* Rooms column */}
             <div className="space-y-3 sm:space-y-4">
