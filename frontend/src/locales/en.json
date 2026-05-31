@@ -223,6 +223,20 @@
     "mediaPlaying": "Playing",
     "mediaPaused": "Paused"
   },
+  "compare": {
+    "title": "MPC vs RL Decisions",
+    "auto": "Auto",
+    "charge": "Charge",
+    "discharge": "Discharge",
+    "applied": "Applied",
+    "exploration": "Exploration (ε)",
+    "ticksTrained": "{{n}} ticks trained",
+    "agree": "✓ agree",
+    "diverge": "✗ diverge",
+    "rlDisabled": "RL agent disabled — set EMS_RL_ENABLED=1 to compare. Showing MPC only.",
+    "history": "Decision history (12h)",
+    "noData": "No decision history yet"
+  },
   "energy": {
     "title": "Energy & Finance",
     "pvToday": "PV Today",

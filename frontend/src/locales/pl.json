@@ -223,6 +223,20 @@
     "mediaPlaying": "Odtwarza",
     "mediaPaused": "Wstrzymany"
   },
+  "compare": {
+    "title": "Decyzje MPC vs RL",
+    "auto": "Auto",
+    "charge": "Ładuj",
+    "discharge": "Rozładuj",
+    "applied": "Zastosowano",
+    "exploration": "Eksploracja (ε)",
+    "ticksTrained": "{{n}} ticków treningu",
+    "agree": "✓ zgodne",
+    "diverge": "✗ rozbieżne",
+    "rlDisabled": "Agent RL wyłączony — ustaw EMS_RL_ENABLED=1 aby porównać. Pokazany tylko MPC.",
+    "history": "Historia decyzji (12h)",
+    "noData": "Brak historii decyzji"
+  },
   "energy": {
     "title": "Energia & Finanse",
     "pvToday": "PV dzisiaj",

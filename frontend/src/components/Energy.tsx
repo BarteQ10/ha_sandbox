@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next"
 import { Card, CardContent } from "@/components/ui/card"
 import { MiniChart } from "@/components/charts/MiniChart"
 import { StatCard } from "@/components/StatCard"
+import { MpcRlCompare } from "@/components/MpcRlCompare"
 import { useEntityNum } from "@/hooks/useHA"
 import { Wallet, Zap, Sun, Clock } from "lucide-react"
 
@@ -74,6 +75,9 @@ export function Energy() {
           </CardContent>
         </Card>
       </div>
+
+      {/* MPC vs RL decision comparison (4.2 / 4.4) */}
+      <MpcRlCompare />
 
       <h2 className="text-lg font-semibold">{t("energy.priceHistory")}</h2>
 

@@ -279,6 +279,32 @@ template:
         state: >
           {{ state_attr('sensor.ems_metrics_snapshot', 'notify_telegram') | default(false) }}
 
+      # MPC / RL decision comparison
+      - name: "EMS: MPC akcja"
+        icon: mdi:robot
+        state: >
+          {{ state_attr('sensor.ems_metrics_snapshot', 'mpc_action') | default(0) | int }}
+
+      - name: "EMS: RL akcja"
+        icon: mdi:brain
+        state: >
+          {{ state_attr('sensor.ems_metrics_snapshot', 'rl_action') | default(0) | int }}
+
+      - name: "EMS: RL wlaczony"
+        icon: mdi:brain
+        state: >
+          {{ state_attr('sensor.ems_metrics_snapshot', 'rl_enabled') | default(false) }}
+
+      - name: "EMS: RL epsilon"
+        icon: mdi:chart-bell-curve
+        state: >
+          {{ state_attr('sensor.ems_metrics_snapshot', 'rl_epsilon') | default(0) | float }}
+
+      - name: "EMS: RL ticks"
+        icon: mdi:counter
+        state: >
+          {{ state_attr('sensor.ems_metrics_snapshot', 'rl_ticks') | default(0) | int }}
+
       - name: "EMS: Standby load"
         unit_of_measurement: "W"
         icon: mdi:power-plug
@@ -333,6 +359,10 @@ sensor:
       - mpc_action
       - forecast_pv_kwh
       - forecast_load_kwh
+      - rl_enabled
+      - rl_action
+      - rl_epsilon
+      - rl_ticks
       - notify_enabled
       - notify_webhook
       - notify_telegram
