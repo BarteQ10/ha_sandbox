@@ -129,7 +129,17 @@
     "tariffZone": "Strefa",
     "tariffPeak": "szczyt",
     "tariffOffPeak": "poza szczytem",
-    "tariffNote": "Źródło: config.py DISTRIBUTION_ZONES. Zmiana wymaga edycji konfiguracji symulatora."
+    "tariffNote": "Źródło: config.py DISTRIBUTION_ZONES. Zmiana wymaga edycji konfiguracji symulatora.",
+    "notifTitle": "Powiadomienia",
+    "notifEnable": "Włącz powiadomienia",
+    "notifEnableDesc": "Główny przełącznik alertów webhook / Telegram (blackout, ruch, reguły)",
+    "notifWebhook": "Webhook",
+    "notifTelegram": "Telegram",
+    "notifConfigured": "skonfigurowany",
+    "notifNotConfigured": "brak",
+    "notifTest": "Wyślij testowe powiadomienie",
+    "notifHint": "Wiadomość testowa jest wysyłana do każdego skonfigurowanego kanału, nawet gdy powiadomienia są wyłączone.",
+    "notifHintEnv": "Ustaw zmienne EMS_WEBHOOK_URL lub EMS_TELEGRAM_TOKEN / EMS_TELEGRAM_CHAT_ID aby włączyć kanał."
   },
   "weather": {
     "temp": "Temperatura",

@@ -132,8 +132,10 @@ simulator → webhook/Telegram (edge-triggered alerts: blackout, motion, rules)
 | 17 | 40018 | RW | EV Override | 0=Auto/EMS, 1=Manual 7400W |
 | 18 | 40019 | RW | V2G Mode | 0=Off, 1=On (EV discharges to house) |
 | 19 | 40020 | RW | Presence Mode | 0=Home, 1=Away, 2=Vacation |
+| 20 | 40021 | RW | Notifications Enabled | 0=Off, 1=On (master switch) |
+| 21 | 40022 | RW | Notify Test Trigger | write 1 → send test, auto-resets to 0 |
 
-`NUM_REGISTERS = 20` in `config.py`.
+`NUM_REGISTERS = 22` in `config.py`.
 
 ## Simulation
 
@@ -234,6 +236,8 @@ Without these sync automations, changing HA entities has no effect on the simula
 27. **Smart socket standby-cut** — cuts TV/microwave sockets when presence is Away/Vacation, restores on return
 28. **Media player scene** — dims salon lamp to 25% when `sensor.ems_tryb_mediow == playing`, restores circadian on idle
 29. **Indoor motion alert** — HA notification when indoor motion is detected while away
+30. **Notifications enable sync** — synchronizes `input_boolean.ems_notifications_enabled` → Modbus reg 20
+31. **Notify test button** — `input_button.ems_notify_test` → Modbus reg 21 = 1 (simulator sends test + auto-resets)
 
 ## Dashboard (legacy Lovelace)
 
@@ -571,7 +575,7 @@ HA → Modbus TCP → Python Simulator
   - **Weather**: GHI + temperature forecast, PV forecast tomorrow
   - **Reports**: daily/weekly summary with CSV export
   - **Presence**: mode control, motion sensors, media player state, circadian lighting, standby load, rule alerts
-  - **Settings**: EMS thresholds, system config, tariff zones
+  - **Settings**: EMS thresholds, **notifications (enable toggle + channel status + test button)**, system config, tariff zones
 - **History charts**: 12h PV/battery history, 24h price chart with proper time-scaled X-axis
 - **Glassmorphism UI**: semi-transparent cards with backdrop blur, gradient backgrounds
 - **Dark/light theme**: toggle with system preference detection, persisted to localStorage
@@ -657,7 +661,8 @@ Rolling Z-score detector over 72-tick windows (6 simulated hours). Flags `pv_und
 
 - **Rule engine**: `window_away` (window open while nobody home) and `laundry_done` (washer finished, clothes not removed). Active flags written as `sensor.ems_rule_*`.
 - **Motion simulation**: outdoor PIR (always active) + indoor PIR (only when away). Written as `sensor.ems_motion_outdoor/indoor`.
-- **Notification bridge**: edge-triggered (fires only on False→True transition) webhook + Telegram for blackout, critical SoC, window-away, and indoor-motion events. Configured via `EMS_WEBHOOK_URL` / `EMS_TELEGRAM_*` env vars; disabled if unset.
+- **Notification bridge**: edge-triggered (fires only on False→True transition) webhook + Telegram for blackout, critical SoC, window-away, and indoor-motion events. Channel secrets (URL, token, chat ID) are configured via `EMS_WEBHOOK_URL` / `EMS_TELEGRAM_*` env vars; disabled if unset.
+  - **UI control** (Settings tab): a master enable/disable switch (Modbus reg 20 → `set_enabled()`), live channel-configured status (from `/metrics`), and a **Send test** button (Modbus reg 21, momentary — sends to every configured channel even when notifications are off). Secrets stay in env vars and are never exposed to the UI.
 
 ## MQTT Autodiscovery (`mqtt_bridge.py`)
 

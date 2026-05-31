@@ -2,8 +2,13 @@ import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Slider } from "@/components/ui/slider"
-import { useEntityNum, useHA } from "@/hooks/useHA"
-import { Settings2, Battery, Sun, Zap, MapPin, Clock } from "lucide-react"
+import { Switch } from "@/components/ui/switch"
+import { Button } from "@/components/ui/button"
+import { useEntityNum, useEntityState, useHA } from "@/hooks/useHA"
+import {
+  Settings2, Battery, Sun, Zap, MapPin, Clock,
+  Bell, Webhook, Send, CheckCircle2, XCircle,
+} from "lucide-react"
 
 const LAT = import.meta.env.VITE_LAT ?? "52.23"
 const LON = import.meta.env.VITE_LON ?? "21.01"
@@ -92,6 +97,103 @@ function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string;
   )
 }
 
+// ─── Notification channel status badge ───────────────────────────────────────
+
+function ChannelStatus({ icon, label, configured }: {
+  icon: React.ReactNode; label: string; configured: boolean
+}) {
+  const { t } = useTranslation()
+  return (
+    <div className="flex items-center justify-between py-1.5 text-sm border-b last:border-0">
+      <div className="flex items-center gap-2 text-muted-foreground">
+        {icon}
+        {label}
+      </div>
+      <span className={`flex items-center gap-1 text-xs font-medium ${
+        configured ? "text-green-600 dark:text-green-400" : "text-muted-foreground"
+      }`}>
+        {configured
+          ? <><CheckCircle2 className="h-3.5 w-3.5" /> {t("settings.notifConfigured")}</>
+          : <><XCircle className="h-3.5 w-3.5" /> {t("settings.notifNotConfigured")}</>}
+      </span>
+    </div>
+  )
+}
+
+// ─── Notifications card ────────────────────────────────────────────────────────
+
+function NotificationsCard() {
+  const { t } = useTranslation()
+  const { callService } = useHA()
+
+  const enabled  = useEntityState("input_boolean.ems_notifications_enabled") === "on"
+  // Template sensors render Python bool as "True"/"False"
+  const webhook  = useEntityState("sensor.ems_powiadomienia_webhook_skonfig") === "True"
+  const telegram = useEntityState("sensor.ems_powiadomienia_telegram_skonfig") === "True"
+  const anyConfigured = webhook || telegram
+
+  return (
+    <Card>
+      <CardHeader className="pb-2 pt-4 px-4">
+        <div className="flex items-center gap-2">
+          <Bell className="h-4 w-4 text-muted-foreground" />
+          <p className="text-sm font-semibold">{t("settings.notifTitle")}</p>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3 px-4 pb-4">
+        {/* Master switch */}
+        <div className="flex items-center justify-between">
+          <div className="min-w-0">
+            <p className="text-sm font-medium">{t("settings.notifEnable")}</p>
+            <p className="text-xs text-muted-foreground">{t("settings.notifEnableDesc")}</p>
+          </div>
+          <Switch
+            checked={enabled}
+            onCheckedChange={() =>
+              callService("input_boolean", enabled ? "turn_off" : "turn_on", {
+                entity_id: "input_boolean.ems_notifications_enabled",
+              })
+            }
+          />
+        </div>
+
+        {/* Channel status */}
+        <div>
+          <ChannelStatus
+            icon={<Webhook className="h-3.5 w-3.5" />}
+            label={t("settings.notifWebhook")}
+            configured={webhook}
+          />
+          <ChannelStatus
+            icon={<Send className="h-3.5 w-3.5" />}
+            label={t("settings.notifTelegram")}
+            configured={telegram}
+          />
+        </div>
+
+        {/* Test button */}
+        <Button
+          variant="outline"
+          className="w-full"
+          disabled={!anyConfigured}
+          onClick={() =>
+            callService("input_button", "press", {
+              entity_id: "input_button.ems_notify_test",
+            })
+          }
+        >
+          <Send className="mr-2 h-4 w-4" />
+          {t("settings.notifTest")}
+        </Button>
+
+        <p className="text-[11px] text-muted-foreground">
+          {anyConfigured ? t("settings.notifHint") : t("settings.notifHintEnv")}
+        </p>
+      </CardContent>
+    </Card>
+  )
+}
+
 // ─── Distribution tariff table ────────────────────────────────────────────────
 
 const TARIFF_ZONES = [
@@ -133,6 +235,9 @@ export function Settings() {
           />
         </CardContent>
       </Card>
+
+      {/* Notifications */}
+      <NotificationsCard />
 
       {/* System configuration */}
       <Card>

@@ -48,6 +48,9 @@ def update(
     motion_outdoor: bool = False,
     motion_indoor: bool = False,
     standby_load_w: int = 0,
+    notify_enabled: bool = False,
+    notify_webhook: bool = False,
+    notify_telegram: bool = False,
 ):
     """Update the shared metrics snapshot (called from the main loop)."""
     with _lock:
@@ -73,6 +76,9 @@ def update(
             motion_outdoor=motion_outdoor,
             motion_indoor=motion_indoor,
             standby_load_w=standby_load_w,
+            notify_enabled=notify_enabled,
+            notify_webhook=notify_webhook,
+            notify_telegram=notify_telegram,
             updated_at=time.time(),
         )
 

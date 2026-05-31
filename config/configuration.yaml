@@ -269,6 +269,16 @@ template:
         state: >
           {{ state_attr('sensor.ems_metrics_snapshot', 'media_state') | default('idle') }}
 
+      - name: "EMS: Powiadomienia webhook skonfig"
+        icon: mdi:webhook
+        state: >
+          {{ state_attr('sensor.ems_metrics_snapshot', 'notify_webhook') | default(false) }}
+
+      - name: "EMS: Powiadomienia telegram skonfig"
+        icon: mdi:send
+        state: >
+          {{ state_attr('sensor.ems_metrics_snapshot', 'notify_telegram') | default(false) }}
+
       - name: "EMS: Jasnosc z symulatora"
         unit_of_measurement: "%"
         icon: mdi:brightness-6
@@ -310,6 +320,9 @@ sensor:
       - mpc_action
       - forecast_pv_kwh
       - forecast_load_kwh
+      - notify_enabled
+      - notify_webhook
+      - notify_telegram
     value_template: "{{ value_json.status | default('ok') }}"
 
   - platform: rest
@@ -357,12 +370,21 @@ input_boolean:
   ems_v2g_mode:
     name: "EMS: Tryb V2G (pojazd → sieć)"
     icon: mdi:car-arrow-left
+  ems_notifications_enabled:
+    name: "EMS: Powiadomienia włączone"
+    icon: mdi:bell-ring
+    initial: on
   wirtualne_gniazdo_tv:
     name: "Gniazdo smart – TV"
     icon: mdi:television
   wirtualne_gniazdo_mikrofalowka:
     name: "Gniazdo smart – Mikrofalówka"
     icon: mdi:microwave
+
+input_button:
+  ems_notify_test:
+    name: "EMS: Wyślij test powiadomienia"
+    icon: mdi:bell-check
 
 input_select:
   ems_tryb_pompy_ciepla:

@@ -832,6 +832,44 @@
           value: 2
   mode: restart
 
+- id: 'ems_sync_notifications_enabled'
+  alias: 'EMS: Sync Powiadomienia HA -> Modbus (reg 20)'
+  description: Synchronizuje input_boolean.ems_notifications_enabled z rejestrem Modbus 20
+  triggers:
+  - entity_id: input_boolean.ems_notifications_enabled
+    trigger: state
+  conditions: []
+  actions:
+  - action: modbus.write_register
+    data:
+      hub: wirtualny_inwerter
+      address: 20
+      value: "{{ 1 if states('input_boolean.ems_notifications_enabled') == 'on' else 0 }}"
+  mode: restart
+
+- id: 'ems_notify_test_button'
+  alias: 'EMS: Test powiadomienia -> Modbus (reg 21)'
+  description: >
+    Po naciśnięciu input_button.ems_notify_test zapisuje 1 do rejestru 21.
+    Symulator wykrywa zbocze, wysyła test i auto-resetuje rejestr do 0.
+  triggers:
+  - entity_id: input_button.ems_notify_test
+    trigger: state
+  conditions: []
+  actions:
+  - action: modbus.write_register
+    data:
+      hub: wirtualny_inwerter
+      address: 21
+      value: 1
+  - action: notify.persistent_notification
+    data:
+      title: "EMS: Test powiadomienia"
+      message: >
+        Wysłano test do skonfigurowanych kanałów (webhook / Telegram).
+        Jeśli żaden nie jest skonfigurowany, nic się nie stanie.
+  mode: single
+
 - id: 'ems_adaptive_lighting'
   alias: 'EMS: Oswietlenie adaptacyjne (cyrkadianowe)'
   description: >

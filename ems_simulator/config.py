@@ -2,7 +2,7 @@
 # Modbus
 MODBUS_HOST = "0.0.0.0"
 MODBUS_PORT = 5020
-NUM_REGISTERS = 20
+NUM_REGISTERS = 22
 TICK_S = 5
 
 # Derived timing constants (60× simulated speed, TICK_S=5s → 5 simulated minutes per tick)

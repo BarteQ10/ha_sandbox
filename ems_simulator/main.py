@@ -201,7 +201,13 @@ def main():
             ev_override   = regs[17] if len(regs) > 17 else 0
             v2g_mode      = regs[18] if len(regs) > 18 else 0
             presence_mode = regs[19] if len(regs) > 19 else 0
+            notify_enabled = regs[20] if len(regs) > 20 else 1
+            notify_test    = regs[21] if len(regs) > 21 else 0
             presence.update(presence_mode)
+            notify.set_enabled(bool(notify_enabled))
+            if notify_test:
+                notify.send_test()
+                srv_set_register(21, 0)  # auto-reset the momentary trigger
             boiler_eff = timer_boiler.constrain(boiler)
             hp_eff = timer_hp.constrain(hp)
             ev_eff = timer_ev.constrain(ev)
@@ -488,6 +494,8 @@ def main():
                 ev_override,
                 v2g_mode,
                 presence_mode,
+                notify_enabled,
+                0,  # reg 21 notify_test_trigger — always reset (momentary)
             ])
 
             inf_write(pv, round(new_soc), load, price, balance, current_temp, cloud, ghi,
@@ -520,6 +528,9 @@ def main():
                 motion_outdoor=_motion["outdoor"],
                 motion_indoor=_motion["indoor"],
                 standby_load_w=_standby_w,
+                notify_enabled=notify.is_enabled(),
+                notify_webhook=notify.webhook_configured(),
+                notify_telegram=notify.telegram_configured(),
             )
 
             inf_write_presence(presence.mode, presence.label)
