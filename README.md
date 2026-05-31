@@ -23,11 +23,29 @@ docker compose up --build
 |---------|------|---------|
 | `homeassistant` | 8123 | Home Assistant — automations + UI ("the brain") |
 | `influxdb` | 8086 | Telemetry DB — the simulator writes here directly |
-| `ems-simulator` | 5020 | This project — Modbus TCP server + simulation loop |
+| `mosquitto` | 1883 / 9001 | MQTT broker (TCP + WebSocket) for device autodiscovery |
+| `ems-simulator` | 5020 / 8088 | This project — Modbus TCP server + health/metrics HTTP |
 
 The `ems-simulator` service builds from the local `Dockerfile` and reaches InfluxDB over the compose network (`INFLUX_URL=http://influxdb:8086`). Override credentials in the service `environment:` block.
 
-> No MQTT broker is included: the simulator talks to HA over **Modbus TCP** and writes telemetry to **InfluxDB directly** (see the data-flow diagram below).
+> The simulator talks to HA over **three channels**: Modbus TCP (registers),
+> direct InfluxDB writes (telemetry), and MQTT autodiscovery (live entities). See
+> the data-flow diagram below.
+
+### Environment variables
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `INFLUX_URL` | `http://influxdb:8086` | InfluxDB endpoint |
+| `INFLUX_TOKEN` / `INFLUX_ORG` / `INFLUX_BUCKET` | `ems-token` / `home` / `ems` | InfluxDB auth |
+| `LOG_LEVEL` | `INFO` | Logging verbosity |
+| `MQTT_HOST` | `mosquitto` | MQTT broker host (empty = disable bridge) |
+| `MQTT_PORT` | `1883` | MQTT broker port |
+| `MQTT_USER` / `MQTT_PASS` | *(empty)* | MQTT auth (optional) |
+| `HEALTH_PORT` | `8088` | Health/metrics HTTP port |
+| `EMS_RL_ENABLED` | `0` | `1` enables the Q-learning control agent (`rl/`) |
+| `EMS_WEBHOOK_URL` | *(empty)* | Generic webhook for alerts (POST JSON) |
+| `EMS_TELEGRAM_TOKEN` / `EMS_TELEGRAM_CHAT_ID` | *(empty)* | Telegram bot notifications |
 
 ### Graceful shutdown
 
@@ -37,15 +55,35 @@ The simulator handles **SIGTERM** (sent by `docker stop` / `docker compose down`
 
 ```
 ems_simulator/
-├── config.py              # Location, PV/inverter kW, battery kWh, COP/price/soiling/EV config
+├── config.py              # Location, PV/inverter kW, battery kWh, COP/price/soiling/EV/presence config
+├── config_validator.py    # Startup validation of config invariants
+├── log_setup.py           # Structured logging setup
 ├── weather.py             # Open-Meteo API: GHI + temperature + cloud cover
 ├── pricing.py             # PSE API + distribution_rate() tariff helper
-├── generators.py          # PV (clip + soiling), load, spike, DeviceTimer, COP, EVProfile, ScheduledAppliance
-├── battery.py             # SoC delta from power balance
+├── http_util.py           # HTTP retry + backoff helper
+├── generators.py          # PV (clip + soiling), load, spike, DeviceTimer, COP, EVProfile, ScheduledAppliance, StandbyDevice
+├── battery.py             # SoC delta from power balance + State-of-Health (SoH)
+├── thermal.py             # RC house thermal model (temperature dynamics)
 ├── charge_scheduler.py    # Dynamic charge window (PV forecast + price bands)
+├── forecasting.py         # RandomForest PV/load/price 24h forecasting
+├── mpc_scheduler.py       # Model-Predictive-Control battery optimizer
+├── anomaly.py             # Z-score anomaly detection on telemetry
+├── presence.py            # Presence zones: home/away/vacation load profiles
+├── lighting.py            # Circadian lighting model (brightness + colour temp)
+├── media_sim.py           # Simulated media player (dims lights when playing)
+├── rules.py               # Presence-aware rule engine (window_away, laundry_done)
+├── security.py            # Motion event simulation (indoor/outdoor PIR)
+├── notifications.py       # Webhook + Telegram alert bridge (edge-triggered)
+├── mqtt_bridge.py         # MQTT autodiscovery → HA entities
+├── health.py              # Health / metrics HTTP endpoint (port 8088)
 ├── server.py              # Modbus TCP server (pyModbusTCP)
 ├── influx_writer.py       # Direct InfluxDB writes (influxdb-client)
 └── main.py                # Main loop (entry point)
+rl/
+├── state.py               # State encoding + reward shaping
+└── agent.py               # Tabular Q-learning agent (EMS_RL_ENABLED=1)
+backtest.py            # 4-strategy historical comparison (baseline/auto/scheduled/MPC)
+ml_forecast.py        # Standalone RandomForest PV forecast + plots
 run.py                # Top-level launcher
 ```
 
@@ -63,10 +101,11 @@ run.py                # Top-level launcher
 ### Data flow
 
 ```
-simulator (Modbus) → InfluxDB (direct, 5s interval)
-simulator (Modbus) → HA (Modbus TCP) → automations
-                         ↓
-                 InfluxDB (for ML / forecasting)
+simulator → InfluxDB        (direct writes, 5s interval — telemetry + ML training)
+simulator → HA (Modbus TCP) → automations → Modbus writes back (control loop)
+simulator → MQTT (Mosquitto) → HA autodiscovery (live entities, ~10s push)
+simulator → HTTP :8088      (health / metrics — HA REST sensor polls /metrics)
+simulator → webhook/Telegram (edge-triggered alerts: blackout, motion, rules)
 ```
 
 ## Modbus Registers
@@ -91,6 +130,10 @@ simulator (Modbus) → HA (Modbus TCP) → automations
 | 15 | 40016 | RW | API Anomaly Simulator | 0=Off, 1=On (forces synthetic data) |
 | 16 | 40017 | RW | Storm Safeguard | 0=Off, 1=Force 100% SoC |
 | 17 | 40018 | RW | EV Override | 0=Auto/EMS, 1=Manual 7400W |
+| 18 | 40019 | RW | V2G Mode | 0=Off, 1=On (EV discharges to house) |
+| 19 | 40020 | RW | Presence Mode | 0=Home, 1=Away, 2=Vacation |
+
+`NUM_REGISTERS = 20` in `config.py`.
 
 ## Simulation
 
@@ -150,6 +193,15 @@ Without these sync automations, changing HA entities has no effect on the simula
 - `input_number.ems_koszt_degradacji_baterii` — Battery degradation cost (gr/kWh, default 15)
 - `input_boolean.ems_storm_safeguard` — Storm safeguard toggle (big red button on dashboard)
 - `input_boolean.ems_ev_override` — EV manual override (forces 7400W regardless of economics)
+- `input_boolean.ems_v2g_mode` — V2G toggle (EV discharges to house, reg 18)
+- `input_select.ems_tryb_obecnosci` — Presence mode (W domu/Poza domem/Urlop, reg 19)
+- `input_boolean.wirtualne_gniazdo_tv` / `wirtualne_gniazdo_mikrofalowka` — smart sockets
+
+### From /metrics REST sensor (presence subsystem)
+- `sensor.ems_metrics_snapshot` — polls simulator `:8088/metrics` every 15 s
+- `sensor.ems_jasnosc_cyrkadianowa` / `sensor.ems_temperatura_barwowa_cyrkadianowa` — circadian lighting (template)
+- `sensor.ems_tryb_mediow` — media player state (idle/playing/paused)
+- `binary_sensor.ems_czujnik_ruchu_zewnetrzny` / `_wewnetrzny` — outdoor/indoor motion
 
 ## Automations
 
@@ -176,8 +228,17 @@ Without these sync automations, changing HA entities has no effect on the simula
 21. **Anomaly sync** — synchronizes `input_boolean.ems_symuluj_awarie_api` → Modbus reg 15
 22. **Storm Safeguard sync** — synchronizes `input_boolean.ems_storm_safeguard` → Modbus reg 16
 23. **EV Override sync** — synchronizes `input_boolean.ems_ev_override` → Modbus reg 17
+24. **V2G sync** — synchronizes `input_boolean.ems_v2g_mode` → Modbus reg 18
+25. **Presence sync** — synchronizes `input_select.ems_tryb_obecnosci` → Modbus reg 19 (0/1/2)
+26. **Adaptive lighting** — every 5 min applies circadian brightness + colour temp to salon/sypialnia/lazienka dimmers (only when home)
+27. **Smart socket standby-cut** — cuts TV/microwave sockets when presence is Away/Vacation, restores on return
+28. **Media player scene** — dims salon lamp to 25% when `sensor.ems_tryb_mediow == playing`, restores circadian on idle
+29. **Indoor motion alert** — HA notification when indoor motion is detected while away
 
-## Dashboard
+## Dashboard (legacy Lovelace)
+
+> The primary UI is the **React frontend** (see below). `ui-lovelace.yaml` is the
+> older HA-native dashboard, kept for reference.
 
 3 views defined in `ui-lovelace.yaml`:
 - **Przeplywy** — gauges, daily stats, battery runtime, 12h history
@@ -502,7 +563,15 @@ HA → Modbus TCP → Python Simulator
 - **Multi-light control**: individual light toggles with dimmer (1-100%) and color temperature (2700-6500K) or RGB (R/G/B 0-255) sliders, plus All-ON/OFF per room
 - **Thermostat setpoint**: +/- buttons in Salon, Kuchnia, Sypialnia for target temperature (16-30°C, step 0.5)
 - **Room sub-views**: Wspolne / Prywatne / Ogrod tabs
-- **System view**: energy flow gauges, inverter/boiler/HP controls, daily stats, price history, charge window, PV forecast
+- **System view**: 7 sub-tabs — Flow, Controls, Energy, Alerts, Weather, Reports, Presence, Settings
+  - **Flow**: animated SVG energy-flow diagram + gauges + 12h history
+  - **Controls**: inverter/HP/grid selects, boiler/PV/anomaly switches, **presence mode + V2G + smart socket**, storm/EV override, EV limit + degradation sliders
+  - **Energy**: Riemann integrals, 24h price chart, daily financial balance
+  - **Alerts**: actionable alert cards with snooze (15 min) / dismiss (1 h) buttons
+  - **Weather**: GHI + temperature forecast, PV forecast tomorrow
+  - **Reports**: daily/weekly summary with CSV export
+  - **Presence**: mode control, motion sensors, media player state, circadian lighting, standby load, rule alerts
+  - **Settings**: EMS thresholds, system config, tariff zones
 - **History charts**: 12h PV/battery history, 24h price chart with proper time-scaled X-axis
 - **Glassmorphism UI**: semi-transparent cards with backdrop blur, gradient backgrounds
 - **Dark/light theme**: toggle with system preference detection, persisted to localStorage
@@ -519,8 +588,15 @@ frontend/src/
 ├── components/
 │   ├── Rooms.tsx            # Room cards (lights, dimmer, color temp, blinds, temp)
 │   ├── Flow.tsx             # Energy flow view
-│   ├── Controls.tsx         # Device controls
+│   ├── EnergyFlow.tsx       # Animated SVG energy-flow diagram
+│   ├── Controls.tsx         # Device controls (incl. presence/V2G/smart socket)
 │   ├── Energy.tsx           # Energy & finance
+│   ├── Alerts.tsx           # Actionable alerts (snooze/dismiss)
+│   ├── Weather.tsx          # Weather + PV forecast
+│   ├── Reports.tsx          # Daily/weekly reports + CSV export
+│   ├── Presence.tsx         # Presence, motion, media, circadian lighting
+│   ├── Settings.tsx         # EMS thresholds + system config
+│   ├── StatCard.tsx         # Reusable stat card
 │   ├── charts/
 │   │   ├── FlowGauge.tsx    # SVG ring gauge
 │   │   └── MiniChart.tsx    # Line chart with HA history
@@ -532,3 +608,82 @@ frontend/src/
 ├── App.tsx                  # Root with tabs, theme, lang switcher
 └── i18n.ts                  # i18next configuration
 ```
+
+---
+
+## Forecasting & MPC (`forecasting.py`, `mpc_scheduler.py`)
+
+The simulator forecasts the next 24h and uses Model-Predictive-Control to schedule the battery.
+
+- **`ForecastEngine`** — three RandomForest sub-models (PV, load, price) trained from InfluxDB history + Open-Meteo weather. Re-fits at startup and daily midnight. Falls back to deterministic estimates when history is sparse (`MIN_TRAIN_ROWS=24`).
+- **`mpc_scheduler.solve()`** — greedy local search over the 24h price/load forecast. Discharges at p75+ price hours, charges at p25- price hours, up to 3 refinement passes. Returns a per-hour schedule + cost/savings estimate + the action for the current hour.
+- **Application**: in `main.py`, when the user has set inverter mode to **Auto**, the MPC recommendation overrides it. A manual Force Charge/Discharge always wins.
+- Metrics written to InfluxDB: `sensor.ems_mpc_action`, `sensor.ems_mpc_savings`, `sensor.ems_forecast_*`.
+
+## RL Control Agent (`rl/`)
+
+Optional tabular Q-learning agent. Enable with `EMS_RL_ENABLED=1`.
+
+- **State**: `(soc_bin, hour_bin, price_bin, pv_bin)` = 10×24×5×4 = 4 800 states
+- **Actions**: 0=Auto, 1=Force Charge, 2=Force Discharge
+- **Algorithm**: online ε-greedy Q-learning (ε decays 0.80 → 0.05 over ~24 real hours)
+- **Reward**: negative tick cost, with penalties for low SoC and blackout-with-empty-battery
+- **Persistence**: Q-table saved to `rl/qtable.npy` daily and on shutdown, reloaded on startup
+- **Priority**: when enabled, the RL action overrides Auto *before* MPC.
+
+## House Thermal Model (`thermal.py`)
+
+RC (resistance-capacitance) model of indoor temperature:
+
+```
+dT = (Q_in - UA × (T_house - T_out)) × dt / C   per tick
+```
+
+- `C = 8 kWh/°C` thermal mass, `UA = 80 W/°C` heat-loss coefficient, setpoint 20°C ± 0.5°C deadband
+- The heat pump's thermal output (`HP_power × COP`) heats the house; losses scale with the indoor-outdoor gap
+- Written to InfluxDB as `sensor.ems_t_house`
+
+## Anomaly Detection (`anomaly.py`)
+
+Rolling Z-score detector over 72-tick windows (6 simulated hours). Flags `pv_underperform`, `load_spike`, `price_spike`, `soc_drain` when a value deviates > 3σ. Written to InfluxDB as `sensor.ems_anom_*` every 6 ticks.
+
+## Presence, Lighting & Standby (`presence.py`, `lighting.py`, `generators.py`)
+
+- **Presence zones** (reg 19): `home` (load ×1.0), `away` (×0.35), `vacation` (×0.15). The base-load multiplier models reduced occupancy.
+- **Circadian lighting**: brightness 0→100→0 and colour temp 2700→6500→2700 K over the day. Away forces lights off; vacation simulates random evening presence. A small additive load (~40 W max) feeds the simulation. Sensors: `sensor.ems_light_brightness`, `sensor.ems_light_color_temp_k`.
+- **Standby devices**: TV/PC/Router/NAS/Microwave with standby + occasional active power. **Smart-socket cut**: eligible low-standby devices (TV ≤7 W, microwave ≤3 W) are cut to 0 W when away, auto-restoring after 6 simulated hours. Aggregate written as `sensor.ems_standby_load_w`.
+
+## Rules, Notifications & Security (`rules.py`, `notifications.py`, `security.py`)
+
+- **Rule engine**: `window_away` (window open while nobody home) and `laundry_done` (washer finished, clothes not removed). Active flags written as `sensor.ems_rule_*`.
+- **Motion simulation**: outdoor PIR (always active) + indoor PIR (only when away). Written as `sensor.ems_motion_outdoor/indoor`.
+- **Notification bridge**: edge-triggered (fires only on False→True transition) webhook + Telegram for blackout, critical SoC, window-away, and indoor-motion events. Configured via `EMS_WEBHOOK_URL` / `EMS_TELEGRAM_*` env vars; disabled if unset.
+
+## MQTT Autodiscovery (`mqtt_bridge.py`)
+
+Publishes the simulator as a single HA device via the MQTT discovery protocol (requires `paho-mqtt` + a running broker — Mosquitto is in `docker-compose.yml`).
+
+- **Entities**: 12 sensors, 2 binary sensors (motion), 1 switch (V2G), 1 select (presence)
+- **Control loop**: writable entities subscribe to command topics and write back to Modbus
+- **State push**: every ~10 s from the main loop
+- **Setup in HA**: Settings → Devices & Services → Add Integration → MQTT, host `mosquitto`, port `1883`, no auth (broker uses `allow_anonymous`)
+- Graceful fallback: bridge disables itself if `paho-mqtt` is missing or `MQTT_HOST` is empty
+
+## Health / Metrics Endpoint (`health.py`)
+
+Lightweight HTTP server on port 8088 (daemon thread):
+
+- `GET /health` → `{"status": "ok"|"degraded", "uptime_s", "ticks", "influx_ok", ...}` (503 if no update in 30 s)
+- `GET /metrics` → full simulation snapshot: PV, SoC, load, price, t_house, SoH, presence, media, motion, standby, MPC action, forecast summary
+
+HA polls `/metrics` via a REST sensor (`sensor.ems_metrics_snapshot`, 15 s interval) to expose presence/media/motion as native HA sensors.
+
+## Tests
+
+```bash
+pytest                       # backend (Python)
+cd frontend && npx vitest run  # frontend (TypeScript)
+```
+
+- **Backend**: `tests/` — battery, generators (incl. StandbyDevice), pricing, http_util, presence, lighting, rules, security, media_sim
+- **Frontend**: `frontend/src/__tests__/` — haClient, useTheme, useCommittedSlider, utils, Presence, Controls
