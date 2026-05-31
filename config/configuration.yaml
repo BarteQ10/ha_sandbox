@@ -391,39 +391,6 @@ sensor:
     unit_time: h
     round: 2
 
-input_boolean:
-  wirtualny_bojler:
-    name: "EMS: Wirtualny Bojler (Grzałka)"
-    icon: mdi:water-heater
-  wirtualna_pralka:
-    name: "EMS: Wirtualna Pralka"
-    icon: mdi:washing-machine
-  ems_peak_shaving_active:
-    name: "EMS: Aktywne Peak Shaving"
-    icon: mdi:flash-alert
-  ems_symuluj_awarie_api:
-    name: "EMS: Symuluj awarie API"
-    icon: mdi:alert-octagon
-  ems_storm_safeguard:
-    name: "EMS: Zabezpiecz przed burza"
-    icon: mdi:weather-lightning
-  ems_ev_override:
-    name: "EMS: EV Override (max)"
-    icon: mdi:car-electric
-  ems_v2g_mode:
-    name: "EMS: Tryb V2G (pojazd → sieć)"
-    icon: mdi:car-arrow-left
-  ems_notifications_enabled:
-    name: "EMS: Powiadomienia włączone"
-    icon: mdi:bell-ring
-    initial: on
-  wirtualne_gniazdo_tv:
-    name: "Gniazdo smart – TV"
-    icon: mdi:television
-  wirtualne_gniazdo_mikrofalowka:
-    name: "Gniazdo smart – Mikrofalówka"
-    icon: mdi:microwave
-
 input_button:
   ems_notify_test:
     name: "EMS: Wyślij test powiadomienia"
@@ -577,6 +544,39 @@ input_number:
     icon: mdi:water-percent
 
 input_boolean:
+  # ── EMS controls + smart sockets (merged here; were a duplicate input_boolean
+  #    key earlier in the file, which YAML silently dropped) ──
+  wirtualny_bojler:
+    name: "EMS: Wirtualny Bojler (Grzałka)"
+    icon: mdi:water-heater
+  wirtualna_pralka:
+    name: "EMS: Wirtualna Pralka"
+    icon: mdi:washing-machine
+  ems_peak_shaving_active:
+    name: "EMS: Aktywne Peak Shaving"
+    icon: mdi:flash-alert
+  ems_symuluj_awarie_api:
+    name: "EMS: Symuluj awarie API"
+    icon: mdi:alert-octagon
+  ems_storm_safeguard:
+    name: "EMS: Zabezpiecz przed burza"
+    icon: mdi:weather-lightning
+  ems_ev_override:
+    name: "EMS: EV Override (max)"
+    icon: mdi:car-electric
+  ems_v2g_mode:
+    name: "EMS: Tryb V2G (pojazd → sieć)"
+    icon: mdi:car-arrow-left
+  ems_notifications_enabled:
+    name: "EMS: Powiadomienia włączone"
+    icon: mdi:bell-ring
+    initial: on
+  wirtualne_gniazdo_tv:
+    name: "Gniazdo smart – TV"
+    icon: mdi:television
+  wirtualne_gniazdo_mikrofalowka:
+    name: "Gniazdo smart – Mikrofalówka"
+    icon: mdi:microwave
   wirtualne_swiatlo_salon_glowne:
     name: "Swiatlo glowne - Salon"
     icon: mdi:lightbulb
