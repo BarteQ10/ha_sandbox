@@ -4,7 +4,7 @@ import datetime
 import logging
 import signal
 
-from ems_simulator.config import TICK_S, GRID_NORMAL, GRID_BLACKOUT, STEPS_PER_HOUR, STEPS_PER_DAY
+from ems_simulator.config import TICK_S, GRID_NORMAL, GRID_BLACKOUT, GRID_INSTABILITY, STEPS_PER_HOUR, STEPS_PER_DAY
 from ems_simulator.weather import fetch as w_fetch, get as w_get, needs_refresh as w_needs_refresh
 from ems_simulator.pricing import fetch as p_fetch, get as p_get, max_today as p_max_today, needs_refresh as p_needs_refresh, fallback_price as p_fallback, distribution_rate as p_dist_rate, _price_cache as p_cache
 from ems_simulator.generators import pv_from_ghi, base_load, SpikeState, controllable_load, DeviceTimer, SoilingState, hp_cop, EVProfile, make_scheduled_appliances
@@ -192,6 +192,19 @@ def main():
                 log.info(f"[SPIKE] +{sp}W for {spike.remaining + 1}tics")
             if spike.just_ended:
                 log.info(f"[SPIKE] Ended")
+
+            # Grid instability: random voltage/frequency deviations → PV inverter
+            # curtails output, load fluctuates, effective import price spikes.
+            if grid_status == GRID_INSTABILITY:
+                if _random.random() < 0.3:          # 30% of ticks: PV derates
+                    curtail_factor = _random.uniform(0.4, 0.9)
+                    pv = int(pv * curtail_factor)
+                if _random.random() < 0.2:          # 20% of ticks: load surge/drop
+                    load = int(load * _random.uniform(0.85, 1.3))
+                price = int(price * _random.uniform(1.0, 2.5))  # price volatility
+                if day_step % (STEPS_PER_HOUR * 2) == 0:
+                    log.info("[INSTAB] Grid instability — PV=%dW load=%dW price=%d gr/kWh",
+                             pv, load, price)
 
             if curtail == 1 and pv > load:
                 old_pv = pv

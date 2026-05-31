@@ -186,14 +186,30 @@ class EVProfile:
 
 
 class ScheduledAppliance:
-    def __init__(self, name, power_w, duration_h, window_start, window_end):
+    def __init__(self, name, power_w, duration_h, window_start, window_end, price_threshold=0):
         self.name = name
         self.power_w = power_w
         self.duration_h = duration_h
         self.window_start = window_start
         self.window_end = window_end
+        self.price_threshold = price_threshold  # gr/kWh; 0 = start immediately
         self.state = "idle"  # idle / running / done
         self._remaining_ticks = 0
+
+    def _window_active(self, hour):
+        if self.window_start <= self.window_end:
+            return self.window_start <= hour < self.window_end
+        return hour >= self.window_start or hour < self.window_end
+
+    def _hours_left_in_window(self, hour):
+        """Approximate simulated hours remaining in the current window."""
+        h = int(hour)
+        if self.window_start <= self.window_end:
+            return max(0, self.window_end - h)
+        # Wrapping window: e.g. 22-6
+        if h >= self.window_start:
+            return 24 - h + self.window_end
+        return self.window_end - h
 
     def tick(self, hour, price_gr):
         if self.state == "done":
@@ -205,16 +221,17 @@ class ScheduledAppliance:
                 log.info("[APPL] %s finished", self.name)
                 return 0
             return self.power_w
-        if self.state == "idle":
-            window_active = False
-            if self.window_start <= self.window_end:
-                window_active = self.window_start <= hour < self.window_end
-            else:
-                window_active = hour >= self.window_start or hour < self.window_end
-            if window_active:
+        if self.state == "idle" and self._window_active(hour):
+            # Start if: no price preference, price is cheap enough, or time is running out
+            urgent = self._hours_left_in_window(hour) <= self.duration_h + 1
+            cheap = self.price_threshold == 0 or price_gr <= self.price_threshold
+            if cheap or urgent:
                 self.state = "running"
                 self._remaining_ticks = int(self.duration_h * 12)
-                log.info("[APPL] %s started (%dW, %sh)", self.name, self.power_w, self.duration_h)
+                reason = "urgent" if urgent and not cheap else "cheap" if cheap else "ok"
+                log.info("[APPL] %s started (%dW %.1fh, price=%d/%d gr, %s)",
+                         self.name, self.power_w, self.duration_h,
+                         price_gr, self.price_threshold, reason)
                 return self.power_w
         return 0
 

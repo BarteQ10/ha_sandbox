@@ -69,10 +69,16 @@ EV_DAILY_KWH_NEEDED = 15.0  # kWh needed to fill the car each day
 EV_CHARGE_MAX_W = 7400  # max charging power
 
 # Scheduled deferrable appliances
-# (name, power_w, duration_h, window_start_h, window_end_h)
+# (name, power_w, duration_h, window_start_h, window_end_h, price_threshold_gr)
+# price_threshold_gr: appliance waits for price <= threshold before starting;
+#                     0 = start as soon as window opens (legacy behaviour).
+#                     If < 2 h remain in window the appliance starts regardless.
 SCHEDULED_APPLIANCES = [
-    ("Washer", 2000, 1.5, 8, 22),
-    ("Dishwasher", 1500, 1.0, 22, 6),
+    ("Washer",       2000, 1.5,  8, 22, 45),   # waits for cheap daytime slot
+    ("Dishwasher",   1500, 1.0, 22,  6, 30),   # night cheap window
+    ("Tumble Dryer", 2500, 1.0,  8, 22, 40),   # price-sensitive daytime
+    ("Water Heater", 2000, 0.5,  0,  6, 25),   # cheap overnight top-up
+    ("EV Preheat",   1500, 0.5,  5,  7,  0),   # fixed early-morning (departs 07:00)
 ]
 
 # Self-consumption priority (order to shed loads when grid import exceeds limit)
