@@ -14,6 +14,7 @@ Usage:
 """
 
 import argparse
+import os
 import sys
 from dataclasses import dataclass, field
 
@@ -21,11 +22,11 @@ import numpy as np
 import pandas as pd
 from influxdb_client import InfluxDBClient
 
-# ── config ─────────────────────────────────────────────────────────────────────
-BUCKET = "ems"
-ORG = "home"
-TOKEN = "ems-token"
-URL = "http://localhost:8086"
+# ── config (env-overridable, matches influx_writer.py) ──────────────────────────
+URL = os.environ.get("INFLUX_URL", "http://localhost:8086")
+TOKEN = os.environ.get("INFLUX_TOKEN", "ems-token")
+ORG = os.environ.get("INFLUX_ORG", "home")
+BUCKET = os.environ.get("INFLUX_BUCKET", "ems")
 
 BATTERY_KWH = 15.0
 CHARGE_KW = 5.0
@@ -337,6 +338,72 @@ def plot_results(df, results, days):
     fname = f"backtest_{days}d.png"
     fig.savefig(fname, dpi=150)
     print(f"  Plot saved: {fname}")
+
+
+# ── programmatic API (used by the health server /backtest endpoint) ─────────────
+
+def run_backtest(days: int = 7) -> dict:
+    """Run all strategies and return a JSON-serializable result dict.
+
+    Shape:
+      {
+        "days": int, "rows": int, "from": iso, "to": iso,
+        "strategies": [
+          {"name", "cost_pln", "savings_pct", "import_kwh", "export_kwh",
+           "self_sufficiency", "charge_cycles", "cumulative_cost": [...]}
+        ],
+        "best": name, "savings_pln": float, "savings_year_est": float,
+        "timeline": [iso, ...]            # hourly timestamps for the charts
+      }
+    On no data: {"error": "no_data", "days": int}.
+    """
+    days = max(1, min(int(days), 90))
+    df = load_history(days)
+    if df.empty:
+        return {"error": "no_data", "days": days}
+
+    results = [
+        strategy_baseline(df),
+        strategy_auto(df),
+        strategy_scheduled(df),
+        strategy_mpc(df),
+    ]
+    baseline = next((r for r in results if "baseline" in r.name), results[0])
+    best = min(results, key=lambda r: r.cost_pln)
+    saved = baseline.cost_pln - best.cost_pln
+
+    def _cum(hourly):
+        out, acc = [], 0.0
+        for c in hourly:
+            acc += c
+            out.append(round(acc, 4))
+        return out
+
+    strategies = []
+    for r in results:
+        savings_pct = (1 - r.cost_pln / baseline.cost_pln) * 100 if baseline.cost_pln > 0 else 0.0
+        strategies.append({
+            "name": r.name,
+            "cost_pln": round(r.cost_pln, 2),
+            "savings_pct": round(savings_pct, 1),
+            "import_kwh": round(r.import_kwh, 1),
+            "export_kwh": round(r.export_kwh, 1),
+            "self_sufficiency": round(r.self_sufficiency, 3),
+            "charge_cycles": round(r.charge_cycles, 1),
+            "cumulative_cost": _cum(r.hourly_cost),
+        })
+
+    return {
+        "days": days,
+        "rows": len(df),
+        "from": df["ds"].min().isoformat(),
+        "to": df["ds"].max().isoformat(),
+        "strategies": strategies,
+        "best": best.name,
+        "savings_pln": round(saved, 2),
+        "savings_year_est": round(saved / days * 365, 0),
+        "timeline": [t.isoformat() for t in df["ds"]],
+    }
 
 
 # ── entry point ────────────────────────────────────────────────────────────────

@@ -10,7 +10,29 @@
     "weather": "Weather",
     "settings": "Settings",
     "reports": "Reports",
-    "presence": "Presence"
+    "presence": "Presence",
+    "backtest": "Backtest"
+  },
+  "backtest": {
+    "title": "Strategy Backtesting",
+    "period": "Period:",
+    "daysUnit": "d",
+    "run": "Run backtest",
+    "running": "Running…",
+    "bestStrategy": "Best strategy",
+    "savingsVsBaseline": "Savings vs baseline",
+    "year": "yr",
+    "dataRange": "{{rows}} hourly rows · {{from}} → {{to}}",
+    "strategy": "Strategy",
+    "cost": "Cost (zł)",
+    "savings": "Savings",
+    "import": "Import (kWh)",
+    "selfSuff": "Self-suff.",
+    "cycles": "Cycles",
+    "cumulativeTitle": "Cumulative cost over time",
+    "hint": "Pick a period and run a backtest over your stored history.",
+    "noData": "No historical data yet — let the simulator run to collect data first.",
+    "error": "Backtest failed: {{msg}}"
   },
   "connection": {
     "ok": "HA OK",

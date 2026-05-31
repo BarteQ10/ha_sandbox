@@ -13,7 +13,8 @@ import logging
 import os
 import threading
 import time
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import parse_qs, urlparse
 
 log = logging.getLogger(__name__)
 
@@ -107,14 +108,25 @@ class _Handler(BaseHTTPRequestHandler):
         self.send_response(code)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(data)))
+        # CORS — allow the React dev/prod app (separate origin) to read these.
+        # Dev tool on a trusted home network; see README security note.
+        self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
         self.wfile.write(data)
 
+    def do_OPTIONS(self):  # CORS preflight (harmless for simple GETs)
+        self.send_response(204)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
+        self.end_headers()
+
     def do_GET(self):
         uptime = round(time.monotonic() - _started_at)
+        parsed = urlparse(self.path)
+        path = parsed.path.rstrip("/") or "/"
         snap = _snapshot()
 
-        if self.path in ("/health", "/health/"):
+        if path == "/health":
             stale = snap and (time.time() - snap.get("updated_at", 0)) > 30
             status = "degraded" if (not snap or stale) else "ok"
             body = {
@@ -126,21 +138,39 @@ class _Handler(BaseHTTPRequestHandler):
             }
             self._send_json(200 if status == "ok" else 503, body)
 
-        elif self.path in ("/metrics", "/metrics/"):
+        elif path == "/metrics":
             body = {"uptime_s": uptime, **snap}
             self._send_json(200, body)
 
+        elif path == "/backtest":
+            days = 7
+            try:
+                q = parse_qs(parsed.query)
+                days = int(q.get("days", ["7"])[0])
+            except (ValueError, TypeError):
+                days = 7
+            try:
+                from backtest import run_backtest
+                result = run_backtest(days)
+                code = 200 if "error" not in result else 503
+                self._send_json(code, result)
+            except Exception as e:
+                log.warning("[HEALTH] /backtest failed: %s", e)
+                self._send_json(500, {"error": "backtest_failed", "detail": str(e)})
+
         else:
-            self._send_json(404, {"error": "not found", "paths": ["/health", "/metrics"]})
+            self._send_json(404, {"error": "not found",
+                                  "paths": ["/health", "/metrics", "/backtest?days=N"]})
 
 
 class _Server(threading.Thread):
     def __init__(self):
         super().__init__(name="health-http", daemon=True)
-        self._httpd = HTTPServer(("0.0.0.0", HEALTH_PORT), _Handler)
+        # Threading server so a slow /backtest does not block /health and /metrics.
+        self._httpd = ThreadingHTTPServer(("0.0.0.0", HEALTH_PORT), _Handler)
 
     def run(self):
-        log.info("[HEALTH] Listening on port %d  (GET /health  GET /metrics)", HEALTH_PORT)
+        log.info("[HEALTH] Listening on port %d  (GET /health  /metrics  /backtest)", HEALTH_PORT)
         self._httpd.serve_forever()
 
     def stop(self):

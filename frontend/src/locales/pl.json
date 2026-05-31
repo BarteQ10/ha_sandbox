@@ -10,7 +10,29 @@
     "weather": "Pogoda",
     "settings": "Ustawienia",
     "reports": "Raporty",
-    "presence": "Obecność"
+    "presence": "Obecność",
+    "backtest": "Backtest"
+  },
+  "backtest": {
+    "title": "Backtesting strategii",
+    "period": "Okres:",
+    "daysUnit": "d",
+    "run": "Uruchom backtest",
+    "running": "Liczę…",
+    "bestStrategy": "Najlepsza strategia",
+    "savingsVsBaseline": "Oszczędność vs baseline",
+    "year": "rok",
+    "dataRange": "{{rows}} godzin danych · {{from}} → {{to}}",
+    "strategy": "Strategia",
+    "cost": "Koszt (zł)",
+    "savings": "Oszczędność",
+    "import": "Import (kWh)",
+    "selfSuff": "Autonomia",
+    "cycles": "Cykle",
+    "cumulativeTitle": "Skumulowany koszt w czasie",
+    "hint": "Wybierz okres i uruchom backtest na zgromadzonej historii.",
+    "noData": "Brak danych historycznych — najpierw uruchom symulator, by zebrać dane.",
+    "error": "Backtest nie powiódł się: {{msg}}"
   },
   "connection": {
     "ok": "HA OK",

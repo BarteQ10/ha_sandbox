@@ -14,10 +14,11 @@ import { Weather } from "@/components/Weather"
 import { Settings } from "@/components/Settings"
 import { Reports } from "@/components/Reports"
 import { Presence } from "@/components/Presence"
+import { Backtest } from "@/components/Backtest"
 import { DashboardSummary } from "@/components/DashboardSummary"
 import {
   Home, Languages, Sun, Moon, Bolt, ToggleLeft, BarChart3, FileText,
-  Sofa, Bed, TreePine, WifiOff, Bell, CloudSun, SlidersHorizontal, Users,
+  Sofa, Bed, TreePine, WifiOff, Bell, CloudSun, SlidersHorizontal, Users, FlaskConical,
 } from "lucide-react"
 
 function ConnectionIndicator() {
@@ -203,6 +204,10 @@ function AppContent() {
                     <FileText className="h-4 w-4 shrink-0" />
                     <span className="hidden sm:inline">{t("nav.reports")}</span>
                   </TabsTrigger>
+                  <TabsTrigger value="backtest" className="flex-1 shrink-0 gap-1">
+                    <FlaskConical className="h-4 w-4 shrink-0" />
+                    <span className="hidden sm:inline">{t("nav.backtest")}</span>
+                  </TabsTrigger>
                   <TabsTrigger value="presence" className="flex-1 shrink-0 gap-1">
                     <Users className="h-4 w-4 shrink-0" />
                     <span className="hidden sm:inline">{t("nav.presence")}</span>
@@ -220,6 +225,7 @@ function AppContent() {
             {sysTab === "alerts"   && <Alerts />}
             {sysTab === "weather"  && <Weather />}
             {sysTab === "reports"  && <Reports />}
+            {sysTab === "backtest" && <Backtest />}
             {sysTab === "presence" && <Presence />}
             {sysTab === "settings" && <Settings />}
           </div>

@@ -577,6 +577,7 @@ HA → Modbus TCP → Python Simulator
   - **Alerts**: actionable alert cards with snooze (15 min) / dismiss (1 h) buttons
   - **Weather**: GHI + temperature forecast, PV forecast tomorrow
   - **Reports**: daily/weekly summary with CSV export
+  - **Backtest**: on-demand 4-strategy comparison (baseline / auto / scheduled / MPC) over stored history via the simulator's `/backtest` endpoint — best strategy, savings vs baseline, per-strategy table, cumulative-cost chart
   - **Presence**: mode control, motion sensors, media player state, circadian lighting, standby load, rule alerts
   - **Settings**: EMS thresholds, **notifications (enable toggle + channel status + test button)**, system config, tariff zones
 - **History charts**: 12h PV/battery history, 24h price chart with proper time-scaled X-axis
@@ -682,7 +683,8 @@ Publishes the simulator as a single HA device via the MQTT discovery protocol (r
 Lightweight HTTP server on port 8088 (daemon thread):
 
 - `GET /health` → `{"status": "ok"|"degraded", "uptime_s", "ticks", "influx_ok", ...}` (503 if no update in 30 s)
-- `GET /metrics` → full simulation snapshot: PV, SoC, load, price, t_house, SoH, presence, media, motion, standby, MPC action, forecast summary
+- `GET /metrics` → full simulation snapshot: PV, SoC, load, price, t_house, SoH, presence, media, motion, standby, MPC/RL action, forecast summary
+- `GET /backtest?days=N` → runs `backtest.py` over the last N days of InfluxDB history and returns the 4-strategy comparison as JSON (used by the Backtest tab). Served on a threading HTTP server with CORS so the React app can call it cross-origin.
 
 HA polls `/metrics` via a REST sensor (`sensor.ems_metrics_snapshot`, 15 s interval) to expose presence/media/motion as native HA sensors.
 
