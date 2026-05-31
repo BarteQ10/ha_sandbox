@@ -16,7 +16,7 @@ Status: ✅ done · ⏳ in progress · — todo
 | 1.1 | **`requirements.txt`** | repo root | S | 🔴 | ✅ |
 | 1.2 | **CI: build + test gate** | `.github/workflows/deploy.yml` | S | 🔴 | ✅ |
 | 1.3 | **Backend unit tests** | `tests/` + pytest | M | 🔴 | ✅ |
-| 1.4 | **Frontend tests** | vitest + React Testing Library | M | 🟡 | — |
+| 1.4 | **Frontend tests** | vitest + React Testing Library | M | 🟡 | ✅ |
 | 1.5 | **Structured logging** | all `ems_simulator/*.py` | M | 🟡 | ✅ |
 | 1.6 | **Config validation** | `config.py` | M | 🟡 | ✅ |
 | 1.7 | **Type hints + mypy/ruff** | all `*.py`, `.pre-commit-config.yaml` | M | 🟢 | — |
