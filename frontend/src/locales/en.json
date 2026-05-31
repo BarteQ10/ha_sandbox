@@ -86,7 +86,11 @@
     "evOn": "TURN ON (7400W)",
     "evAuto": "Auto",
     "evLimit": "EV Charge Limit",
-    "degradationCost": "Battery Degradation Cost"
+    "degradationCost": "Battery Degradation Cost",
+    "presenceDevices": "Presence & Smart Devices",
+    "presence": "Presence Mode",
+    "v2g": "V2G (car→grid)",
+    "smartSocketTv": "Smart Socket – TV"
   },
   "reports": {
     "thisWeek": "This week",
@@ -185,8 +189,15 @@
     "rulesTitle": "Automation Rules",
     "ruleWindowAway": "Window open while nobody is home!",
     "ruleLaundryDone": "Laundry done — please take out the clothes.",
-    "info1": "Set presence mode via Modbus register 19: 0 = Home, 1 = Away, 2 = Vacation.",
-    "info2": "Away/Vacation reduces base load by 65–85%. Circadian lighting adjusts brightness and colour temperature automatically."
+    "motionTitle": "Motion Sensors",
+    "motionOutdoor": "Outdoor",
+    "motionIndoor": "Indoor",
+    "motionDetected": "Motion detected!",
+    "motionClear": "Clear",
+    "mediaTitle": "Media Player",
+    "mediaIdle": "Idle",
+    "mediaPlaying": "Playing",
+    "mediaPaused": "Paused"
   },
   "energy": {
     "title": "Energy & Finance",

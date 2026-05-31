@@ -86,7 +86,11 @@
     "evOn": "WŁĄCZ (7400W)",
     "evAuto": "Auto",
     "evLimit": "Limit ładowania EV",
-    "degradationCost": "Koszt degradacji baterii"
+    "degradationCost": "Koszt degradacji baterii",
+    "presenceDevices": "Obecność & Urządzenia Smart",
+    "presence": "Tryb obecności",
+    "v2g": "V2G (pojazd→sieć)",
+    "smartSocketTv": "Gniazdo Smart – TV"
   },
   "reports": {
     "thisWeek": "Ten tydzień",
@@ -185,8 +189,15 @@
     "rulesTitle": "Reguły automatyzacji",
     "ruleWindowAway": "Okno otwarte gdy nikogo nie ma w domu!",
     "ruleLaundryDone": "Pranie zakończone — wyciągnij ubrania.",
-    "info1": "Ustaw tryb obecności przez rejestr Modbus 19: 0 = W domu, 1 = Wyjście, 2 = Urlop.",
-    "info2": "Tryb Wyjście/Urlop redukuje pobór bazowy o 65–85%. Oświetlenie cyrkadianowe automatycznie dostosowuje jasność i temperaturę barwową."
+    "motionTitle": "Czujniki ruchu",
+    "motionOutdoor": "Na zewnątrz",
+    "motionIndoor": "Wewnątrz",
+    "motionDetected": "Ruch wykryty!",
+    "motionClear": "Brak ruchu",
+    "mediaTitle": "Media Player",
+    "mediaIdle": "Bezczynny",
+    "mediaPlaying": "Odtwarza",
+    "mediaPaused": "Wstrzymany"
   },
   "energy": {
     "title": "Energia & Finanse",

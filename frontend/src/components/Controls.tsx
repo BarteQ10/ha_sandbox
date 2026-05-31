@@ -33,7 +33,13 @@ function ControlSwitch({ label, entityId, domain, serviceOn, serviceOff }: {
   )
 }
 
-function ControlSelect({ label, entityId, options }: { label: string; entityId: string; options: string[] }) {
+function ControlSelect({ label, entityId, options, domain = "input_select", service = "select_option" }: {
+  label: string
+  entityId: string
+  options: string[]
+  domain?: string
+  service?: string
+}) {
   const state = useEntityState(entityId)
   const { callService } = useHA()
   const value = options.includes(state) ? state : options[0]
@@ -44,7 +50,7 @@ function ControlSelect({ label, entityId, options }: { label: string; entityId: 
         <Select
           value={value}
           onValueChange={(v) =>
-            callService("input_select", "select_option", { entity_id: entityId, option: v })
+            callService(domain, service, { entity_id: entityId, option: v })
           }
         >
           <SelectTrigger className="w-full">
@@ -82,12 +88,13 @@ export function Controls() {
   const { callService } = useHA()
   const { t } = useTranslation()
   const stormOn = useEntityState("input_boolean.ems_storm_safeguard") === "on"
-  const evOn = useEntityState("input_boolean.ems_ev_override") === "on"
+  const evOn    = useEntityState("input_boolean.ems_ev_override") === "on"
 
   return (
     <div className="space-y-3 sm:space-y-4">
       <h2 className="text-base font-semibold sm:text-lg">{t("controls.title")}</h2>
 
+      {/* ── EMS core ── */}
       <div className="grid gap-3 md:grid-cols-3">
         <ControlSelect
           label={t("controls.inverterMode")}
@@ -130,6 +137,32 @@ export function Controls() {
         />
       </div>
 
+      {/* ── Presence & smart devices (MQTT) ── */}
+      <h2 className="text-sm font-semibold text-muted-foreground pt-1">{t("controls.presenceDevices")}</h2>
+
+      <div className="grid gap-3 md:grid-cols-3">
+        <ControlSelect
+          label={t("controls.presence")}
+          entityId="input_select.ems_tryb_obecnosci"
+          options={["W domu", "Poza domem", "Urlop"]}
+        />
+        <ControlSwitch
+          label={t("controls.v2g")}
+          entityId="input_boolean.ems_v2g_mode"
+          domain="input_boolean"
+          serviceOn="turn_on"
+          serviceOff="turn_off"
+        />
+        <ControlSwitch
+          label={t("controls.smartSocketTv")}
+          entityId="input_boolean.wirtualne_gniazdo_tv"
+          domain="input_boolean"
+          serviceOn="turn_on"
+          serviceOff="turn_off"
+        />
+      </div>
+
+      {/* ── Storm / EV override ── */}
       <div className="grid gap-3 md:grid-cols-2">
         <Card className={`border-2 ${stormOn ? "border-red-500" : "border-gray-700"}`}>
           <CardContent className="p-4 text-center">
