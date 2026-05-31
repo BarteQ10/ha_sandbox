@@ -58,7 +58,7 @@ Status: ✅ done · ⏳ in progress · — todo
 | 4.2 | **MPC charge optimizer** | `charge_scheduler.py` | L | 🟡 | ✅ |
 | 4.3 | **Strategy backtesting** | new `backtest.py` | M | 🟡 | ✅ |
 | 4.4 | **RL control agent** | new `rl/` | L | 🟢 | — |
-| 4.5 | **Anomaly detection on telemetry** | new module | M | 🟢 | — |
+| 4.5 | **Anomaly detection on telemetry** | new module | M | 🟢 | ✅ |
 
 ---
 

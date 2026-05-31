@@ -177,6 +177,22 @@ def read_last(measurement):
     return None
 
 
+def write_anomalies(flags):
+    """Write anomaly detector flags (called each tick or every N ticks)."""
+    if not _ensure_connection():
+        return
+    now = datetime.datetime.now(datetime.timezone.utc)
+    try:
+        points = [
+            Point(f"sensor.ems_anom_{sig}").time(now).field("value", 1.0 if active else 0.0)
+            for sig, active in flags.items()
+        ]
+        if points:
+            _write.write(bucket=BUCKET, record=points)
+    except Exception as e:
+        log.warning("[INFLUX] write_anomalies failed: %s", e)
+
+
 def write_mpc(action, cost_estimate, naive_cost, savings):
     """Write MPC optimizer metrics (called once per simulated hour)."""
     if not _ensure_connection():

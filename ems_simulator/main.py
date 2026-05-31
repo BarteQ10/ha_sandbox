@@ -11,12 +11,13 @@ from ems_simulator.generators import pv_from_ghi, base_load, SpikeState, control
 from ems_simulator.charge_scheduler import compute_charge_window
 from ems_simulator.battery import delta as batt_delta, clamp as batt_clamp, soh as batt_soh, MODE_AUTO, MODE_FORCE_CHARGE, MODE_FORCE_DISCHARGE
 from ems_simulator.server import start as srv_start, stop as srv_stop, read as srv_read, write as srv_write, banner as srv_banner, set_register as srv_set_register
-from ems_simulator.influx_writer import start as inf_start, write as inf_write, stop as inf_stop, read_last as inf_read_last, write_forecast as inf_write_forecast, write_mpc as inf_write_mpc
+from ems_simulator.influx_writer import start as inf_start, write as inf_write, stop as inf_stop, read_last as inf_read_last, write_forecast as inf_write_forecast, write_mpc as inf_write_mpc, write_anomalies as inf_write_anomalies
 from ems_simulator.forecasting import ForecastEngine
 from ems_simulator.mpc_scheduler import solve as mpc_solve
 from ems_simulator.battery import MODE_AUTO as _MODE_AUTO
 from ems_simulator.thermal import ThermalModel
 import ems_simulator.health as health
+from ems_simulator.anomaly import AnomalyDetector
 from ems_simulator.log_setup import setup as _setup_logging
 from ems_simulator.config_validator import validate as _validate_config
 
@@ -46,6 +47,7 @@ def main():
     _forecast = forecast_engine.predict_next_24h()
     thermal = ThermalModel()
     health.start()
+    anomaly_detector = AnomalyDetector()
 
     now_h = datetime.datetime.now().hour
     day_step = int(now_h * STEPS_PER_HOUR)
@@ -239,6 +241,8 @@ def main():
 
             balance = pv - load
 
+            _anom_flags = anomaly_detector.update(pv, load, soc, price, ghi, balance)
+
             if grid_status == GRID_NORMAL and balance < 0 and soc < 20:
                 shed_w = 0
                 if ev_eff > 0:
@@ -378,6 +382,9 @@ def main():
                 forecast_pv_kwh=_fc_summary.get("pv_day_kwh", 0.0),
                 forecast_load_kwh=_fc_summary.get("load_day_kwh", 0.0),
             )
+
+            if day_step % 6 == 0:  # write anomaly flags every 6 ticks (30 sim min)
+                inf_write_anomalies(_anom_flags)
 
             _anomaly_prev = anomaly
             time.sleep(TICK_S)
