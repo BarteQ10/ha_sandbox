@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Card, CardContent } from "@/components/ui/card"
 import { Slider } from "@/components/ui/slider"
@@ -15,6 +16,11 @@ const FEAT = {
   PREVIOUS_TRACK: 16, NEXT_TRACK: 32, PLAY: 16384,
 }
 const has = (features: number, flag: number) => (features & flag) === flag
+
+function resolvePicture(pic?: string): string | undefined {
+  if (!pic) return undefined
+  return /^https?:\/\//i.test(pic) ? pic : `${HA_URL}${pic}`
+}
 
 function fmtTime(sec: number): string {
   if (!sec || sec < 0) return "0:00"
@@ -39,10 +45,26 @@ export function MediaControl({ entityId }: { entityId: string }) {
   const muted = Boolean(a.is_volume_muted)
   const position = (a.media_position as number) ?? 0
   const duration = (a.media_duration as number) ?? 0
+  const updatedAt = a.media_position_updated_at as string | undefined
   const features = (a.supported_features as number) ?? 0
 
   const isPlaying = state === "playing"
   const isActive = state === "playing" || state === "paused" || state === "buffering"
+
+  // HA reports media_position only as a snapshot taken at media_position_updated_at;
+  // it does not tick. While playing, extrapolate from that timestamp and re-render
+  // once a second so the progress bar advances smoothly.
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    if (!isPlaying) return
+    const id = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [isPlaying])
+
+  const elapsed = isPlaying && updatedAt ? Math.max(0, (now - Date.parse(updatedAt)) / 1000) : 0
+  const livePosition = duration > 0
+    ? Math.min(duration, position + elapsed)
+    : position + elapsed
 
   const vol = useCommittedSlider(Math.round(volume * 100), (v) =>
     callService("media_player", "volume_set", { entity_id: entityId, volume_level: v / 100 }),
@@ -51,7 +73,7 @@ export function MediaControl({ entityId }: { entityId: string }) {
   const call = (service: string, data: Record<string, unknown> = {}) =>
     callService("media_player", service, { entity_id: entityId, ...data })
 
-  const progress = duration > 0 ? Math.min(100, (position / duration) * 100) : 0
+  const progress = duration > 0 ? Math.min(100, (livePosition / duration) * 100) : 0
 
   return (
     <Card className="overflow-hidden">
@@ -75,7 +97,7 @@ export function MediaControl({ entityId }: { entityId: string }) {
         <div className="flex gap-3">
           <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-muted/40">
             {pic
-              ? <img src={`${HA_URL}${pic}`} alt={title ?? name} className="h-full w-full object-cover" />
+              ? <img src={resolvePicture(pic)} alt={title ?? name} className="h-full w-full object-cover" />
               : <Music className="h-8 w-8 text-muted-foreground" />}
           </div>
           <div className="min-w-0 flex-1">
@@ -96,7 +118,7 @@ export function MediaControl({ entityId }: { entityId: string }) {
                   <div className="h-full rounded-full bg-primary" style={{ width: `${progress}%` }} />
                 </div>
                 <div className="mt-0.5 flex justify-between text-[10px] text-muted-foreground tabular-nums">
-                  <span>{fmtTime(position)}</span>
+                  <span>{fmtTime(livePosition)}</span>
                   <span>{fmtTime(duration)}</span>
                 </div>
               </div>
