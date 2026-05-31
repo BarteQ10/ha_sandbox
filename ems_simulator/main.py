@@ -16,6 +16,7 @@ from ems_simulator.forecasting import ForecastEngine
 from ems_simulator.mpc_scheduler import solve as mpc_solve
 from ems_simulator.battery import MODE_AUTO as _MODE_AUTO
 from ems_simulator.thermal import ThermalModel
+import ems_simulator.health as health
 from ems_simulator.log_setup import setup as _setup_logging
 from ems_simulator.config_validator import validate as _validate_config
 
@@ -44,6 +45,7 @@ def main():
     forecast_engine.fit_all()  # best-effort: may skip models if InfluxDB has no history yet
     _forecast = forecast_engine.predict_next_24h()
     thermal = ThermalModel()
+    health.start()
 
     now_h = datetime.datetime.now().hour
     day_step = int(now_h * STEPS_PER_HOUR)
@@ -348,10 +350,27 @@ def main():
                       kwh_throughput=round(_kwh_throughput, 2),
                       t_house=round(thermal.t_house, 2))
 
+            health.update(
+                tick=day_step,
+                pv_w=pv,
+                soc_pct=new_soc,
+                load_w=load,
+                price_gr=price,
+                balance_w=balance,
+                t_house=thermal.t_house,
+                battery_soh=aging_factor,
+                running_cost_pln=running_cost_pln,
+                influx_ok=not anomaly,
+                mpc_action=_mpc_action,
+                forecast_pv_kwh=_fc_summary.get("pv_day_kwh", 0.0),
+                forecast_load_kwh=_fc_summary.get("load_day_kwh", 0.0),
+            )
+
             _anomaly_prev = anomaly
             time.sleep(TICK_S)
 
     except KeyboardInterrupt:
+        health.stop()
         inf_stop()
         srv_stop()
         log.info("\n[EMS] Stopped")

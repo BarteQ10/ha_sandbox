@@ -31,7 +31,7 @@ Status: ✅ done · ⏳ in progress · — todo
 | 2.1 | **InfluxDB auto-reconnect** | `influx_writer.py` | S | 🔴 | ✅ |
 | 2.2 | **HTTP retry + backoff** | `weather.py`, `pricing.py` | S | 🟡 | ✅ |
 | 2.3 | **Grafana dashboards** | — | — | — | ❌ removed (not using Grafana) |
-| 2.4 | **Health / metrics endpoint** | new `ems_simulator/health.py` | M | 🟢 | — |
+| 2.4 | **Health / metrics endpoint** | new `ems_simulator/health.py` | M | 🟢 | ✅ |
 | 2.5 | **Graceful shutdown** | `main.py` | S | 🟡 | ✅ |
 | 2.6 | **Restore more state on restart** | `main.py`, `influx_writer.py` | M | 🟢 | ✅ |
 
