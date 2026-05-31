@@ -13,7 +13,27 @@
     "presence": "Presence",
     "backtest": "Backtest",
     "events": "Events",
-    "cameras": "Cameras"
+    "cameras": "Cameras",
+    "media": "Media"
+  },
+  "media": {
+    "title": "Media Players",
+    "empty": "No media players found",
+    "emptyHint": "Add a media_player.* entity in HA (Spotify, Cast, Sonos, Music Assistant…) — it appears here automatically.",
+    "note": "Auto-discovered from all media_player.* entities in Home Assistant.",
+    "nothingPlaying": "Nothing playing",
+    "simulated": "Simulated media player",
+    "play": "Play",
+    "pause": "Pause",
+    "previous": "Previous track",
+    "next": "Next track",
+    "mute": "Mute",
+    "unmute": "Unmute",
+    "state": {
+      "playing": "Playing",
+      "paused": "Paused",
+      "idle": "Idle"
+    }
   },
   "cameras": {
     "title": "Cameras",

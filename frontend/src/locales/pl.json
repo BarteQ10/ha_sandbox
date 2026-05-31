@@ -13,7 +13,27 @@
     "presence": "Obecność",
     "backtest": "Backtest",
     "events": "Zdarzenia",
-    "cameras": "Kamery"
+    "cameras": "Kamery",
+    "media": "Media"
+  },
+  "media": {
+    "title": "Odtwarzacze media",
+    "empty": "Nie znaleziono odtwarzaczy",
+    "emptyHint": "Dodaj encję media_player.* w HA (Spotify, Cast, Sonos, Music Assistant…) — pojawi się tu automatycznie.",
+    "note": "Auto-wykryte ze wszystkich encji media_player.* w Home Assistant.",
+    "nothingPlaying": "Nic nie gra",
+    "simulated": "Symulowany odtwarzacz",
+    "play": "Odtwórz",
+    "pause": "Pauza",
+    "previous": "Poprzedni utwór",
+    "next": "Następny utwór",
+    "mute": "Wycisz",
+    "unmute": "Wyłącz wyciszenie",
+    "state": {
+      "playing": "Odtwarza",
+      "paused": "Wstrzymany",
+      "idle": "Bezczynny"
+    }
   },
   "cameras": {
     "title": "Kamery",
