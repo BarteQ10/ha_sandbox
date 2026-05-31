@@ -15,7 +15,7 @@ def test_distribution_rate_wraps_hour():
 
 
 def test_fallback_price_in_band_range():
-    for lo_h, hi_h, lo_p, hi_p in PRICE_BANDS:
+    for lo_h, _hi_h, lo_p, hi_p in PRICE_BANDS:
         h = lo_h
         p = pricing.fallback_price(h)
         assert lo_p <= p <= hi_p

@@ -1,3 +1,4 @@
 # Development / CI dependencies (not needed to run the simulator)
 -r requirements.txt
 pytest>=8.0
+ruff>=0.6

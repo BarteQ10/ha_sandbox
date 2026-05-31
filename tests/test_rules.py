@@ -1,5 +1,5 @@
+from ems_simulator.presence import PRESENCE_AWAY, PRESENCE_HOME, PRESENCE_VACATION
 from ems_simulator.rules import RuleEngine
-from ems_simulator.presence import PRESENCE_HOME, PRESENCE_AWAY, PRESENCE_VACATION
 
 
 class _Appl:

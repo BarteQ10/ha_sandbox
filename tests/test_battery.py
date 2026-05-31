@@ -1,10 +1,19 @@
 import math
 
 from ems_simulator.battery import (
-    delta, clamp, soh, MODE_AUTO, MODE_FORCE_CHARGE, MODE_FORCE_DISCHARGE, FORCE_RATE_W,
+    FORCE_RATE_W,
+    MODE_AUTO,
+    MODE_FORCE_CHARGE,
+    MODE_FORCE_DISCHARGE,
+    clamp,
+    delta,
+    soh,
 )
 from ems_simulator.config import (
-    SOC_DELTA_DENOM, INVERTER_EFFICIENCY, BATTERY_KWH, BATTERY_CYCLE_LIFE,
+    BATTERY_CYCLE_LIFE,
+    BATTERY_KWH,
+    INVERTER_EFFICIENCY,
+    SOC_DELTA_DENOM,
 )
 
 

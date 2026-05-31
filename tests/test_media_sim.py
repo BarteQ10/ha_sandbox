@@ -1,6 +1,7 @@
 import random
-from ems_simulator.media_sim import MediaPlayerSim, _PLAYING_BRIGHTNESS
-from ems_simulator.presence import PRESENCE_HOME, PRESENCE_AWAY
+
+from ems_simulator.media_sim import _PLAYING_BRIGHTNESS, MediaPlayerSim
+from ems_simulator.presence import PRESENCE_AWAY, PRESENCE_HOME
 
 
 def test_starts_idle():

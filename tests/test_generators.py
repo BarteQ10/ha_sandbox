@@ -1,7 +1,8 @@
 import random
-from ems_simulator.generators import hp_cop, DeviceTimer, controllable_load, StandbyDevice
+
 from ems_simulator.config import EV_CHARGE_MAX_W, HP_COP_CURVE
-from ems_simulator.presence import PRESENCE_HOME, PRESENCE_AWAY
+from ems_simulator.generators import DeviceTimer, StandbyDevice, controllable_load, hp_cop
+from ems_simulator.presence import PRESENCE_AWAY, PRESENCE_HOME
 
 
 def test_hp_cop_none_and_clamps():

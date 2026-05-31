@@ -16,6 +16,8 @@ jobs:
           python-version: '3.12'
       - name: Install Python deps
         run: pip install -r requirements-dev.txt
+      - name: Lint Python (ruff)
+        run: ruff check ems_simulator/ rl/ tests/
       - name: Run backend tests
         run: pytest -q
 
@@ -30,6 +32,9 @@ jobs:
         working-directory: frontend
       - name: Type-check frontend
         run: npx tsc --noEmit
+        working-directory: frontend
+      - name: Run frontend tests (vitest)
+        run: npm run test
         working-directory: frontend
       - name: Build frontend
         run: npm run build

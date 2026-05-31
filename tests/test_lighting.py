@@ -1,5 +1,4 @@
-import pytest
-from ems_simulator.lighting import CircadianModel, CT_COOL_K, CT_WARM_K
+from ems_simulator.lighting import CT_COOL_K, CT_WARM_K, CircadianModel
 from ems_simulator.presence import PRESENCE_AWAY, PRESENCE_HOME, PRESENCE_VACATION
 
 

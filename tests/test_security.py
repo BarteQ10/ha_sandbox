@@ -1,6 +1,7 @@
 import random
+
+from ems_simulator.presence import PRESENCE_AWAY, PRESENCE_HOME, PRESENCE_VACATION
 from ems_simulator.security import MotionSimulator
-from ems_simulator.presence import PRESENCE_HOME, PRESENCE_AWAY, PRESENCE_VACATION
 
 
 def test_initial_state_no_motion():
