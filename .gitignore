@@ -23,6 +23,11 @@ config/secrets.yaml
 # Docker runtime data (auto-created by containers)
 influxdb/
 grafana/
+mosquitto/data/
+mosquitto/log/
+
+# RL agent Q-table (trained model — large binary)
+rl/qtable.npy
 
 # Generated ML forecast plots
 forecast.png
