@@ -542,85 +542,6 @@ input_number:
     initial: 55
     unit_of_measurement: "%"
     icon: mdi:water-percent
-
-input_boolean:
-  # ── EMS controls + smart sockets (merged here; were a duplicate input_boolean
-  #    key earlier in the file, which YAML silently dropped) ──
-  wirtualny_bojler:
-    name: "EMS: Wirtualny Bojler (Grzałka)"
-    icon: mdi:water-heater
-  wirtualna_pralka:
-    name: "EMS: Wirtualna Pralka"
-    icon: mdi:washing-machine
-  ems_peak_shaving_active:
-    name: "EMS: Aktywne Peak Shaving"
-    icon: mdi:flash-alert
-  ems_symuluj_awarie_api:
-    name: "EMS: Symuluj awarie API"
-    icon: mdi:alert-octagon
-  ems_storm_safeguard:
-    name: "EMS: Zabezpiecz przed burza"
-    icon: mdi:weather-lightning
-  ems_ev_override:
-    name: "EMS: EV Override (max)"
-    icon: mdi:car-electric
-  ems_v2g_mode:
-    name: "EMS: Tryb V2G (pojazd → sieć)"
-    icon: mdi:car-arrow-left
-  ems_notifications_enabled:
-    name: "EMS: Powiadomienia włączone"
-    icon: mdi:bell-ring
-    initial: on
-  wirtualne_gniazdo_tv:
-    name: "Gniazdo smart – TV"
-    icon: mdi:television
-  wirtualne_gniazdo_mikrofalowka:
-    name: "Gniazdo smart – Mikrofalówka"
-    icon: mdi:microwave
-  wirtualne_swiatlo_salon_glowne:
-    name: "Swiatlo glowne - Salon"
-    icon: mdi:lightbulb
-  wirtualne_swiatlo_salon_lampa:
-    name: "Lampa stojaca - Salon"
-    icon: mdi:floor-lamp
-  wirtualne_swiatlo_salon_led:
-    name: "LED pas - Salon"
-    icon: mdi:led-strip
-  wirtualne_swiatlo_kuchnia_glowne:
-    name: "Swiatlo glowne - Kuchnia"
-    icon: mdi:lightbulb
-  wirtualne_swiatlo_kuchnia_wyspa:
-    name: "Swiatlo nad wyspa - Kuchnia"
-    icon: mdi:lightbulb
-  wirtualne_swiatlo_kuchnia_led:
-    name: "LED pas - Kuchnia"
-    icon: mdi:led-strip
-  wirtualne_swiatlo_sypialnia_glowne:
-    name: "Swiatlo glowne - Sypialnia"
-    icon: mdi:lightbulb
-  wirtualne_swiatlo_sypialnia_lampka1:
-    name: "Lampka nocna 1 - Sypialnia"
-    icon: mdi:lamp
-  wirtualne_swiatlo_sypialnia_lampka2:
-    name: "Lampka nocna 2 - Sypialnia"
-    icon: mdi:lamp
-  wirtualne_swiatlo_sypialnia_kinkiet:
-    name: "Kinkiet - Sypialnia"
-    icon: mdi:wall-sconce
-  wirtualne_swiatlo_lazienka_glowne:
-    name: "Swiatlo glowne - Lazienka"
-    icon: mdi:lightbulb
-  wirtualne_swiatlo_lazienka_lustro:
-    name: "Lustro LED - Lazienka"
-    icon: mdi:mirror
-  wirtualne_swiatlo_ogrod_glowne:
-    name: "Swiatlo glowne - Ogrod"
-    icon: mdi:lightbulb-outline
-  wirtualne_swiatlo_ogrod_solarne:
-    name: "Lampy solarne - Ogrod"
-    icon: mdi:solar-power
-
-input_number:
   wirtualne_jasnosc_salon_lampa:
     name: "Jasnosc - Lampa stojaca Salon"
     min: 0
@@ -767,3 +688,79 @@ input_number:
     initial: 19.0
     unit_of_measurement: "°C"
     icon: mdi:thermostat
+input_boolean:
+  # ── EMS controls + smart sockets (merged here; were a duplicate input_boolean
+  #    key earlier in the file, which YAML silently dropped) ──
+  wirtualny_bojler:
+    name: "EMS: Wirtualny Bojler (Grzałka)"
+    icon: mdi:water-heater
+  wirtualna_pralka:
+    name: "EMS: Wirtualna Pralka"
+    icon: mdi:washing-machine
+  ems_peak_shaving_active:
+    name: "EMS: Aktywne Peak Shaving"
+    icon: mdi:flash-alert
+  ems_symuluj_awarie_api:
+    name: "EMS: Symuluj awarie API"
+    icon: mdi:alert-octagon
+  ems_storm_safeguard:
+    name: "EMS: Zabezpiecz przed burza"
+    icon: mdi:weather-lightning
+  ems_ev_override:
+    name: "EMS: EV Override (max)"
+    icon: mdi:car-electric
+  ems_v2g_mode:
+    name: "EMS: Tryb V2G (pojazd → sieć)"
+    icon: mdi:car-arrow-left
+  ems_notifications_enabled:
+    name: "EMS: Powiadomienia włączone"
+    icon: mdi:bell-ring
+    initial: on
+  wirtualne_gniazdo_tv:
+    name: "Gniazdo smart – TV"
+    icon: mdi:television
+  wirtualne_gniazdo_mikrofalowka:
+    name: "Gniazdo smart – Mikrofalówka"
+    icon: mdi:microwave
+  wirtualne_swiatlo_salon_glowne:
+    name: "Swiatlo glowne - Salon"
+    icon: mdi:lightbulb
+  wirtualne_swiatlo_salon_lampa:
+    name: "Lampa stojaca - Salon"
+    icon: mdi:floor-lamp
+  wirtualne_swiatlo_salon_led:
+    name: "LED pas - Salon"
+    icon: mdi:led-strip
+  wirtualne_swiatlo_kuchnia_glowne:
+    name: "Swiatlo glowne - Kuchnia"
+    icon: mdi:lightbulb
+  wirtualne_swiatlo_kuchnia_wyspa:
+    name: "Swiatlo nad wyspa - Kuchnia"
+    icon: mdi:lightbulb
+  wirtualne_swiatlo_kuchnia_led:
+    name: "LED pas - Kuchnia"
+    icon: mdi:led-strip
+  wirtualne_swiatlo_sypialnia_glowne:
+    name: "Swiatlo glowne - Sypialnia"
+    icon: mdi:lightbulb
+  wirtualne_swiatlo_sypialnia_lampka1:
+    name: "Lampka nocna 1 - Sypialnia"
+    icon: mdi:lamp
+  wirtualne_swiatlo_sypialnia_lampka2:
+    name: "Lampka nocna 2 - Sypialnia"
+    icon: mdi:lamp
+  wirtualne_swiatlo_sypialnia_kinkiet:
+    name: "Kinkiet - Sypialnia"
+    icon: mdi:wall-sconce
+  wirtualne_swiatlo_lazienka_glowne:
+    name: "Swiatlo glowne - Lazienka"
+    icon: mdi:lightbulb
+  wirtualne_swiatlo_lazienka_lustro:
+    name: "Lustro LED - Lazienka"
+    icon: mdi:mirror
+  wirtualne_swiatlo_ogrod_glowne:
+    name: "Swiatlo glowne - Ogrod"
+    icon: mdi:lightbulb-outline
+  wirtualne_swiatlo_ogrod_solarne:
+    name: "Lampy solarne - Ogrod"
+    icon: mdi:solar-power
