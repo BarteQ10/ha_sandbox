@@ -27,8 +27,16 @@ WEATHER_ML_URL = (
 )
 
 # PV system
-PV_PEAK_KW = 5.0
-INVERTER_MAX_W = 5000  # Max AC output of inverter (clipping)
+PV_PEAK_KW = 5.0        # total installed peak (sum of all strings)
+INVERTER_MAX_W = 5000   # Max AC output of inverter (clipping)
+
+# Multiple PV strings — each entry: (name, peak_kw, tilt_deg, azimuth_deg)
+# azimuth_deg: 0=North, 90=East, 180=South, 270=West
+# Set to None to use the legacy single-string model (PV_PEAK_KW, south-facing).
+PV_STRINGS = [
+    ("South",  3.0, 35, 180),  # 3 kW south-facing, 35° tilt
+    ("West",   2.0, 30, 270),  # 2 kW west-facing, 30° tilt — extends afternoon output
+]
 
 # PV soiling / snow (seasonal loss factor)
 SOILING_BASE_SUMMER = 0.96  # 4% loss in summer (dust)

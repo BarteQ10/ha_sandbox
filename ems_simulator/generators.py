@@ -12,7 +12,9 @@ from ems_simulator.config import (
     EV_DEPARTURE_HOUR,
     HP_COP_CURVE,
     INVERTER_MAX_W,
+    LAT,
     PV_PEAK_KW,
+    PV_STRINGS,
     SCHEDULED_APPLIANCES,
     SNOW_EVENT_CHANCE,
     SNOW_RECOVERY_TICKS,
@@ -86,20 +88,65 @@ class SoilingState:
         return self._factor
 
 
+def _poa_factor(hour, tilt_deg, azimuth_deg):
+    """Plane-of-array irradiance factor (0-1.5) for a tilted surface.
+
+    Uses basic solar geometry: declination + hour angle → cosine of incidence.
+    GHI is the horizontal reference; returns the ratio POA/GHI for the direct
+    (beam) component.  Diffuse / ground-reflected components are ignored.
+
+    Args:
+        hour:        fractional hour of day (0-23.99)
+        tilt_deg:    panel tilt from horizontal (0 = horizontal, 90 = vertical)
+        azimuth_deg: panel azimuth (0=North, 90=East, 180=South, 270=West)
+    """
+    doy = datetime.datetime.now().timetuple().tm_yday
+    declination = math.radians(-23.45 * math.cos(math.radians(360 / 365 * (doy + 10))))
+    hour_angle = math.radians(15 * (hour - 12))  # 0 at solar noon
+    lat = math.radians(LAT)
+    tilt = math.radians(tilt_deg)
+    # Convert to convention: azimuth relative to south, positive westward
+    az = math.radians(azimuth_deg - 180)
+
+    # Cosine of solar zenith angle (sun above horizon when > 0)
+    cos_z = math.sin(lat) * math.sin(declination) + math.cos(lat) * math.cos(declination) * math.cos(hour_angle)
+    if cos_z <= 0.01:
+        return 0.0
+
+    # Cosine of incidence angle on tilted surface
+    cos_i = (
+        math.sin(declination) * math.sin(lat) * math.cos(tilt)
+        - math.sin(declination) * math.cos(lat) * math.sin(tilt) * math.cos(az)
+        + math.cos(declination) * math.cos(lat) * math.cos(tilt) * math.cos(hour_angle)
+        + math.cos(declination) * math.sin(lat) * math.sin(tilt) * math.cos(az) * math.cos(hour_angle)
+        + math.cos(declination) * math.sin(tilt) * math.sin(az) * math.sin(hour_angle)
+    )
+    return min(max(cos_i, 0.0) / cos_z, 1.5)
+
+
 def pv_from_ghi(ghi, hour, soiling=None):
+    soiling_factor = soiling.factor if soiling is not None else 1.0
+
     if ghi is not None:
-        w = int(ghi * PV_PEAK_KW) + random.gauss(0, 50)
-        w = max(0, w)
+        if PV_STRINGS:
+            # Multi-string mode: sum POA-weighted output for each string
+            w = 0.0
+            for _name, peak_kw, tilt_deg, azimuth_deg in PV_STRINGS:
+                factor = _poa_factor(hour, tilt_deg, azimuth_deg)
+                w += ghi * factor * peak_kw * 1000  # W
+            w = w * soiling_factor + random.gauss(0, 50)
+        else:
+            w = ghi * PV_PEAK_KW * 1000 * soiling_factor + random.gauss(0, 50)
+        w = max(0.0, w)
     else:
         w = _pv_synthetic_fallback(hour)
+
     if w > INVERTER_MAX_W:
         clip_save = w - INVERTER_MAX_W
         w = INVERTER_MAX_W
         if random.random() < 0.005:
             log.info("[CLIP] Inverter clipped %dW (%d%%)", clip_save, int(clip_save / w * 100))
-    if soiling is not None:
-        w = int(w * soiling.factor)
-    return w
+    return int(w)
 
 def _pv_synthetic_fallback(hour):
     if hour < 5 or hour > 20:
