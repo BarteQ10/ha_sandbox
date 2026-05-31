@@ -10,10 +10,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Application code (runtime dirs and frontend are excluded via .dockerignore).
 COPY run.py .
+COPY backtest.py .
 COPY ems_simulator/ ./ems_simulator/
+COPY rl/ ./rl/
 
-# Modbus TCP server (MODBUS_PORT in ems_simulator/config.py)
-EXPOSE 5020
+# Modbus TCP server (5020) + health/metrics HTTP (8088, serves /backtest)
+EXPOSE 5020 8088
 
 # Flush stdout/stderr immediately so `docker logs` shows output in real time.
 ENV PYTHONUNBUFFERED=1
