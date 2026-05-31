@@ -36,7 +36,17 @@ class CircadianModel:
         self._color_temp = CT_WARM_K
         self._load_w = 0
 
-    def tick(self, hour: float, presence_mode: int) -> None:
+    def tick(
+        self,
+        hour: float,
+        presence_mode: int,
+        media_override: float | None = None,
+    ) -> None:
+        """Advance one tick.
+
+        media_override: if not None, brightness is set to this value (e.g. 25 % when
+        a media player is active), overriding the circadian curve.
+        """
         from ems_simulator.presence import PRESENCE_AWAY, PRESENCE_VACATION
 
         brightness, ct = _curve(hour)
@@ -44,14 +54,17 @@ class CircadianModel:
         if presence_mode == PRESENCE_AWAY:
             brightness = 0.0
         elif presence_mode == PRESENCE_VACATION:
-            # Deterministic-but-varying vacation presence simulation
-            slot = int(hour * 2)  # 30-min slots → stable within each slot
+            slot = int(hour * 2)
             if 18.0 <= hour < 23.0:
                 brightness = 25.0 + abs(hash(slot)) % 25
             elif hour >= 23.0 or hour < 1.0:
                 brightness = float(abs(hash(slot + 100)) % 10)
             else:
                 brightness = 0.0
+
+        # Media player dims the lights when actively playing
+        if media_override is not None and brightness > 0.0:
+            brightness = min(brightness, media_override)
 
         self._brightness = round(brightness, 1)
         self._color_temp = round(ct)

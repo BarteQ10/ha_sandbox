@@ -1,10 +1,12 @@
 import datetime
 import logging
+import os
 import random as _random
 import signal
 import time
 
 import ems_simulator.health as health
+import ems_simulator.notifications as notify
 from ems_simulator.anomaly import AnomalyDetector
 from ems_simulator.battery import MODE_AUTO, MODE_FORCE_CHARGE, MODE_FORCE_DISCHARGE
 from ems_simulator.battery import MODE_AUTO as _MODE_AUTO
@@ -42,12 +44,16 @@ from ems_simulator.influx_writer import write as inf_write
 from ems_simulator.influx_writer import write_anomalies as inf_write_anomalies
 from ems_simulator.influx_writer import write_forecast as inf_write_forecast
 from ems_simulator.influx_writer import write_lighting as inf_write_lighting
+from ems_simulator.influx_writer import write_media_state as inf_write_media
+from ems_simulator.influx_writer import write_motion as inf_write_motion
 from ems_simulator.influx_writer import write_mpc as inf_write_mpc
 from ems_simulator.influx_writer import write_presence as inf_write_presence
 from ems_simulator.influx_writer import write_rules as inf_write_rules
 from ems_simulator.influx_writer import write_standby as inf_write_standby
+from ems_simulator.influx_writer import write_standby_cuts as inf_write_standby_cuts
 from ems_simulator.lighting import CircadianModel
 from ems_simulator.log_setup import setup as _setup_logging
+from ems_simulator.media_sim import MediaPlayerSim
 from ems_simulator.mpc_scheduler import solve as mpc_solve
 from ems_simulator.presence import PresenceManager
 from ems_simulator.pricing import _price_cache as p_cache
@@ -58,6 +64,7 @@ from ems_simulator.pricing import get as p_get
 from ems_simulator.pricing import max_today as p_max_today
 from ems_simulator.pricing import needs_refresh as p_needs_refresh
 from ems_simulator.rules import RuleEngine
+from ems_simulator.security import MotionSimulator
 from ems_simulator.server import banner as srv_banner
 from ems_simulator.server import read as srv_read
 from ems_simulator.server import set_register as srv_set_register
@@ -100,6 +107,21 @@ def main():
     lighting = CircadianModel()
     rule_engine = RuleEngine()
     standby_devices = make_standby_devices()
+    media_player = MediaPlayerSim()
+    motion_sim = MotionSimulator()
+
+    # RL agent (optional — enable with EMS_RL_ENABLED=1)
+    _rl_enabled = os.environ.get("EMS_RL_ENABLED", "0") == "1"
+    _rl_agent = None
+    if _rl_enabled:
+        from rl.agent import QLearningAgent
+        _rl_agent = QLearningAgent()
+        log.info("[RL] Agent enabled (ε=%.3f)", _rl_agent.epsilon)
+    _rl_action = _MODE_AUTO
+    _rl_prev_cost = 0.0
+
+    if notify.enabled():
+        log.info("[NOTIFY] Notification bridge active")
 
     now_h = datetime.datetime.now().hour
     day_step = int(now_h * STEPS_PER_HOUR)
@@ -187,6 +209,9 @@ def main():
             day_step = (day_step + 1) % STEPS_PER_DAY
             if day_step == 0:
                 running_cost_pln = 0.0
+                _rl_prev_cost = 0.0
+                if _rl_enabled and _rl_agent is not None:
+                    _rl_agent.save()
                 if forecast_engine.needs_refit():
                     forecast_engine.fit_all()
             hour = day_step / STEPS_PER_HOUR
@@ -235,12 +260,18 @@ def main():
             load = int(base_load(hour, current_temp) * presence.load_multiplier())
             load += ctrl_load
 
-            # Circadian lighting: small additive load + telemetry
-            lighting.tick(hour, presence.mode)
+            # Media player: dims lights when playing
+            _media_state, _media_override = media_player.tick(hour, presence.mode)
+
+            # Circadian lighting (with optional media override) + additive load
+            lighting.tick(hour, presence.mode, _media_override)
             load += lighting.load_w
 
             # Standby devices: tracked for telemetry only (not added to simulation)
-            _standby_w = standby_load(standby_devices, hour)
+            _standby_w, _standby_cuts = standby_load(standby_devices, hour, presence.mode)
+
+            # Motion simulation
+            _motion = motion_sim.tick(hour, presence.mode)
 
             # RC thermal model: advance house temperature, log periodically
             t_house = thermal.tick(current_temp if ghi is not None else None, hp_thermal)
@@ -314,6 +345,16 @@ def main():
             _anom_flags = anomaly_detector.update(pv, load, soc, price, ghi, balance)
             _rule_events = rule_engine.evaluate(hour, presence.mode, appliances)
 
+            # Edge-triggered notifications (only sent when condition turns True)
+            notify.send_if_changed("blackout",   "BLACKOUT — island mode active.",   grid_status == GRID_BLACKOUT, severity="critical")
+            notify.send_if_changed("soc_critical", f"Battery critical: {int(soc)}%", soc <= 10,                   severity="critical")
+            notify.send_if_changed("window_away",  "Window open while nobody home!", "window_away" in rule_engine.active_keys, severity="warning")
+            notify.send_if_changed("laundry_done", "Laundry done — take out clothes.", "laundry_done" in rule_engine.active_keys, severity="info")
+            if _motion["indoor"]:
+                notify.send_if_changed("indoor_motion", "Indoor motion detected while away!", True, severity="warning")
+            else:
+                notify.send_if_changed("indoor_motion", "", False, severity="warning")
+
             if grid_status == GRID_NORMAL and balance < 0 and soc < 20:
                 shed_w = 0
                 if ev_eff > 0:
@@ -361,10 +402,21 @@ def main():
                     effective_price = price + p_dist_rate(hour)
                 running_cost_pln += -balance * effective_price * dt_h / (100.0 * 1000.0)
 
+            # RL agent: act + update
+            if _rl_enabled and _rl_agent is not None:
+                _rl_action_idx = _rl_agent.act(soc, hour, price, pv)
+                _rl_action = [MODE_AUTO, MODE_FORCE_CHARGE, MODE_FORCE_DISCHARGE][_rl_action_idx]
+                _tick_cost = running_cost_pln - _rl_prev_cost
+                _rl_agent.update(soc, hour, price, pv, _tick_cost, grid_status == GRID_BLACKOUT)
+                _rl_prev_cost = running_cost_pln
+
             actual_force = force
-            # Apply MPC recommendation when user has not set a manual override
-            if actual_force == MODE_AUTO and _mpc_action != MODE_AUTO:
-                actual_force = _mpc_action
+            # RL takes priority over MPC when RL is enabled and suggests an override
+            if actual_force == MODE_AUTO:
+                if _rl_action != MODE_AUTO:
+                    actual_force = _rl_action
+                elif _mpc_action != MODE_AUTO:
+                    actual_force = _mpc_action
             if storm_safe:
                 if actual_force != MODE_FORCE_CHARGE:
                     log.info("[STORM] Safeguard active — force charging to 100%")
@@ -459,15 +511,21 @@ def main():
             inf_write_presence(presence.mode, presence.label)
             inf_write_lighting(lighting.brightness, lighting.color_temp_k, lighting.load_w)
             inf_write_standby(_standby_w)
+            inf_write_media(_media_state, _media_override)
+            if _standby_cuts:
+                inf_write_standby_cuts(_standby_cuts)
 
-            if day_step % 6 == 0:  # write anomaly flags + rule events every 6 ticks (30 sim min)
+            if day_step % 6 == 0:  # write anomaly flags + rule events + motion every 6 ticks
                 inf_write_anomalies(_anom_flags)
                 inf_write_rules(rule_engine.active_keys)
+                inf_write_motion(_motion["outdoor"], _motion["indoor"])
 
             _anomaly_prev = anomaly
             time.sleep(TICK_S)
 
     except KeyboardInterrupt:
+        if _rl_enabled and _rl_agent is not None:
+            _rl_agent.save()
         health.stop()
         inf_stop()
         srv_stop()

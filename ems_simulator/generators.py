@@ -24,7 +24,9 @@ from ems_simulator.config import (
     SPIKE_CHANCE,
     SPIKE_MAX_TICKS,
     SPIKE_WATTS,
+    STANDBY_CUT_AFTER_TICKS,
     STANDBY_DEVICES,
+    STANDBY_RESTORE_AFTER_TICKS,
     STEPS_PER_HOUR,
     TICK_S,
     V2G_MIN_SOC_PCT,
@@ -324,7 +326,7 @@ def make_scheduled_appliances():
 
 
 class StandbyDevice:
-    """Single always-on device with standby and occasional active power states."""
+    """Always-on device with standby / active power states and smart-socket cut logic."""
 
     def __init__(
         self,
@@ -334,33 +336,89 @@ class StandbyDevice:
         active_start: float,
         active_end: float,
         p_active_per_hour: float,
+        cut_threshold_w: float = 0.0,
     ) -> None:
         self.name = name
         self.standby_w = standby_w
         self.active_w = active_w
         self.active_start = active_start
         self.active_end = active_end
+        self.cut_threshold_w = cut_threshold_w
         self._p_per_tick = p_active_per_hour / STEPS_PER_HOUR
-        self._active_ticks = 0
+        self._active_ticks   = 0
+        self._standby_ticks  = 0   # consecutive ticks at standby power
+        self._cut            = False
+        self._cut_remaining  = 0   # ticks until socket auto-restores
 
-    def tick(self, hour: float) -> float:
+    def tick(self, hour: float, presence_mode: int = 0) -> tuple[float, bool]:
+        """Advance one tick.  Returns (power_w, cut_just_triggered)."""
+        # Socket currently cut — count down to auto-restore
+        if self._cut:
+            self._cut_remaining -= 1
+            if self._cut_remaining <= 0:
+                self._cut = False
+                self._standby_ticks = 0
+                log.info("[STANDBY] %s socket restored", self.name)
+            return 0.0, False
+
+        # Active state
         if self._active_ticks > 0:
             self._active_ticks -= 1
-            return self.active_w
+            self._standby_ticks = 0
+            return self.active_w, False
+
+        # Check for active start
         in_window = self.active_start <= hour < self.active_end or self.active_end == 24.0
         if in_window and random.random() < self._p_per_tick:
             self._active_ticks = random.randint(1, 6)
-            return self.active_w
-        return self.standby_w
+            self._standby_ticks = 0
+            return self.active_w, False
+
+        # Standby
+        self._standby_ticks += 1
+
+        # Smart-socket cut: only when nobody is home and device eligible
+        away = presence_mode != 0   # 0 = PRESENCE_HOME
+        can_cut = (
+            self.cut_threshold_w > 0
+            and self.standby_w < self.cut_threshold_w
+            and away
+            and self._standby_ticks >= STANDBY_CUT_AFTER_TICKS
+        )
+        if can_cut:
+            self._cut = True
+            self._cut_remaining = STANDBY_RESTORE_AFTER_TICKS
+            self._standby_ticks = 0
+            log.info("[STANDBY] %s cut by smart socket (%.0fW × %d ticks, away)",
+                     self.name, self.standby_w, STANDBY_CUT_AFTER_TICKS)
+            return 0.0, True
+
+        return self.standby_w, False
+
+    @property
+    def is_cut(self) -> bool:
+        return self._cut
 
 
 def make_standby_devices() -> list[StandbyDevice]:
     return [StandbyDevice(*d) for d in STANDBY_DEVICES]
 
 
-def standby_load(devices: list[StandbyDevice], hour: float) -> int:
-    """Total power drawn by all standby devices (W). Informational — not added to simulation."""
-    return int(sum(d.tick(hour) for d in devices))
+def standby_load(
+    devices: list[StandbyDevice], hour: float, presence_mode: int = 0
+) -> tuple[int, set[str]]:
+    """Total standby power (W) and set of device names cut this tick.
+
+    Informational — not added to the main simulation load (already in base_load).
+    """
+    total = 0.0
+    cuts: set[str] = set()
+    for d in devices:
+        w, was_cut = d.tick(hour, presence_mode)
+        total += w
+        if was_cut:
+            cuts.add(d.name)
+    return int(total), cuts
 
 
 def controllable_load(boiler, hp, ev_limit, hp_cop_val=None):

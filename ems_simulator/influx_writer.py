@@ -270,6 +270,55 @@ def write_standby(total_w: int) -> None:
         log.warning("[INFLUX] write_standby failed: %s", e)
 
 
+def write_standby_cuts(cut_names: set) -> None:
+    """Write smart-socket cut events (called when a device is cut this tick)."""
+    if not cut_names or not _ensure_connection():
+        return
+    now = datetime.datetime.now(datetime.UTC)
+    try:
+        points = [
+            Point(f"sensor.ems_standby_cut_{name.lower()}").time(now).field("value", 1.0)
+            for name in cut_names
+        ]
+        _write.write(bucket=BUCKET, record=points)
+    except Exception as e:
+        log.warning("[INFLUX] write_standby_cuts failed: %s", e)
+
+
+def write_media_state(state: str, brightness_override: float | None) -> None:
+    """Write media player state sensor (called each tick)."""
+    if not _ensure_connection():
+        return
+    now = datetime.datetime.now(datetime.UTC)
+    state_int = {"idle": 0, "playing": 1, "paused": 2}.get(state, 0)
+    try:
+        points = [
+            Point("sensor.ems_media_state").time(now).field("value", float(state_int)),
+        ]
+        if brightness_override is not None:
+            points.append(
+                Point("sensor.ems_media_brightness_override").time(now).field("value", float(brightness_override))
+            )
+        _write.write(bucket=BUCKET, record=points)
+    except Exception as e:
+        log.warning("[INFLUX] write_media_state failed: %s", e)
+
+
+def write_motion(outdoor: bool, indoor: bool) -> None:
+    """Write motion sensor states (called every N ticks)."""
+    if not _ensure_connection():
+        return
+    now = datetime.datetime.now(datetime.UTC)
+    try:
+        points = [
+            Point("sensor.ems_motion_outdoor").time(now).field("value", 1.0 if outdoor else 0.0),
+            Point("sensor.ems_motion_indoor").time(now).field("value", 1.0 if indoor else 0.0),
+        ]
+        _write.write(bucket=BUCKET, record=points)
+    except Exception as e:
+        log.warning("[INFLUX] write_motion failed: %s", e)
+
+
 def write_rules(active_keys: set) -> None:
     """Write rule engine event flags (called every N ticks)."""
     from ems_simulator.rules import ALL_RULE_KEYS
