@@ -577,6 +577,8 @@ HA → Modbus TCP → Python Simulator
   - **Alerts**: actionable alert cards with snooze (15 min) / dismiss (1 h) buttons
   - **Events**: chronological event log from the simulator's `/events` endpoint — anomalies, rules, security (motion), energy (standby cuts), media, grid — with category filter, severity colour, relative time, live auto-refresh, and a date-range history mode (queries persisted events from InfluxDB)
   - **Cameras**: auto-discovered grid of all `camera.*` entities; each tile has a snapshot/stream toggle (snapshot polling ⇄ MJPEG live) and a fullscreen button. The garden room card also embeds its camera with a MOTION badge
+
+  The **Home** tab (rooms) has a **Media** sub-tab alongside the rooms:
   - **Media**: auto-discovered `media_player.*` entities (Spotify, Cast, Sonos, Music Assistant…) with now-playing (title/artist/album + album art), transport controls (play/pause/next/prev), volume slider + mute, and a progress bar. Controls are shown per the player's `supported_features`. Falls back to the simulator's media state when no real player exists
   - **Weather**: GHI + temperature forecast, PV forecast tomorrow
   - **Reports**: daily/weekly summary with CSV export

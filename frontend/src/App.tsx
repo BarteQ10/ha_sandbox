@@ -168,12 +168,17 @@ function AppContent() {
                     <TreePine className="h-4 w-4 shrink-0" />
                     <span>{t("rooms.gardenLabel")}</span>
                   </TabsTrigger>
+                  <TabsTrigger value="media" className="flex-1 gap-1">
+                    <Music className="h-4 w-4 shrink-0" />
+                    <span>{t("nav.media")}</span>
+                  </TabsTrigger>
                 </TabsList>
               </Tabs>
             </div>
             {roomTab === "day"    && <Rooms roomIds={["salon", "kuchnia"]} />}
             {roomTab === "night"  && <Rooms roomIds={["sypialnia", "lazienka"]} />}
             {roomTab === "garden" && <Rooms roomIds={["ogrod"]} />}
+            {roomTab === "media"  && <Media />}
           </div>
         )}
 
@@ -207,10 +212,6 @@ function AppContent() {
                     <Video className="h-4 w-4 shrink-0" />
                     <span className="hidden sm:inline">{t("nav.cameras")}</span>
                   </TabsTrigger>
-                  <TabsTrigger value="media" className="flex-1 shrink-0 gap-1">
-                    <Music className="h-4 w-4 shrink-0" />
-                    <span className="hidden sm:inline">{t("nav.media")}</span>
-                  </TabsTrigger>
                   <TabsTrigger value="weather" className="flex-1 shrink-0 gap-1">
                     <CloudSun className="h-4 w-4 shrink-0" />
                     <span className="hidden sm:inline">{t("nav.weather")}</span>
@@ -240,7 +241,6 @@ function AppContent() {
             {sysTab === "alerts"   && <Alerts />}
             {sysTab === "events"   && <EventLog />}
             {sysTab === "cameras"  && <Cameras />}
-            {sysTab === "media"    && <Media />}
             {sysTab === "weather"  && <Weather />}
             {sysTab === "reports"  && <Reports />}
             {sysTab === "backtest" && <Backtest />}
