@@ -226,6 +226,68 @@ def write_forecast(pv_day_kwh, load_day_kwh, price_avg, price_peak):
         log.warning("[INFLUX] write_forecast failed: %s", e)
 
 
+def write_presence(mode: int, label: str) -> None:
+    """Write presence mode sensor (called each tick)."""
+    if not _ensure_connection():
+        return
+    now = datetime.datetime.now(datetime.UTC)
+    try:
+        points = [
+            Point("sensor.ems_presence_mode").time(now).field("value", float(mode)),
+            Point("sensor.ems_presence_label").time(now).field("value", label),
+        ]
+        _write.write(bucket=BUCKET, record=points)
+    except Exception as e:
+        log.warning("[INFLUX] write_presence failed: %s", e)
+
+
+def write_lighting(brightness: float, color_temp_k: float, load_w: int) -> None:
+    """Write circadian lighting model sensors (called each tick)."""
+    if not _ensure_connection():
+        return
+    now = datetime.datetime.now(datetime.UTC)
+    try:
+        points = [
+            Point("sensor.ems_light_brightness").time(now).field("value", float(brightness)),
+            Point("sensor.ems_light_color_temp_k").time(now).field("value", float(color_temp_k)),
+            Point("sensor.ems_light_load_w").time(now).field("value", float(load_w)),
+        ]
+        _write.write(bucket=BUCKET, record=points)
+    except Exception as e:
+        log.warning("[INFLUX] write_lighting failed: %s", e)
+
+
+def write_standby(total_w: int) -> None:
+    """Write aggregated standby device load (informational, called each tick)."""
+    if not _ensure_connection():
+        return
+    now = datetime.datetime.now(datetime.UTC)
+    try:
+        _write.write(bucket=BUCKET, record=[
+            Point("sensor.ems_standby_load_w").time(now).field("value", float(total_w))
+        ])
+    except Exception as e:
+        log.warning("[INFLUX] write_standby failed: %s", e)
+
+
+def write_rules(active_keys: set) -> None:
+    """Write rule engine event flags (called every N ticks)."""
+    from ems_simulator.rules import ALL_RULE_KEYS
+    if not _ensure_connection():
+        return
+    now = datetime.datetime.now(datetime.UTC)
+    try:
+        points = [
+            Point(f"sensor.ems_rule_{key}").time(now).field(
+                "value", 1.0 if key in active_keys else 0.0
+            )
+            for key in ALL_RULE_KEYS
+        ]
+        _write.write(bucket=BUCKET, record=points)
+    except Exception as e:
+        log.warning("[INFLUX] write_rules failed: %s", e)
+
+
 def stop():
     global _client
     if _client:

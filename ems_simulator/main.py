@@ -31,7 +31,9 @@ from ems_simulator.generators import (
     controllable_load,
     hp_cop,
     make_scheduled_appliances,
+    make_standby_devices,
     pv_from_ghi,
+    standby_load,
 )
 from ems_simulator.influx_writer import read_last as inf_read_last
 from ems_simulator.influx_writer import start as inf_start
@@ -39,9 +41,15 @@ from ems_simulator.influx_writer import stop as inf_stop
 from ems_simulator.influx_writer import write as inf_write
 from ems_simulator.influx_writer import write_anomalies as inf_write_anomalies
 from ems_simulator.influx_writer import write_forecast as inf_write_forecast
+from ems_simulator.influx_writer import write_lighting as inf_write_lighting
 from ems_simulator.influx_writer import write_mpc as inf_write_mpc
+from ems_simulator.influx_writer import write_presence as inf_write_presence
+from ems_simulator.influx_writer import write_rules as inf_write_rules
+from ems_simulator.influx_writer import write_standby as inf_write_standby
+from ems_simulator.lighting import CircadianModel
 from ems_simulator.log_setup import setup as _setup_logging
 from ems_simulator.mpc_scheduler import solve as mpc_solve
+from ems_simulator.presence import PresenceManager
 from ems_simulator.pricing import _price_cache as p_cache
 from ems_simulator.pricing import distribution_rate as p_dist_rate
 from ems_simulator.pricing import fallback_price as p_fallback
@@ -49,6 +57,7 @@ from ems_simulator.pricing import fetch as p_fetch
 from ems_simulator.pricing import get as p_get
 from ems_simulator.pricing import max_today as p_max_today
 from ems_simulator.pricing import needs_refresh as p_needs_refresh
+from ems_simulator.rules import RuleEngine
 from ems_simulator.server import banner as srv_banner
 from ems_simulator.server import read as srv_read
 from ems_simulator.server import set_register as srv_set_register
@@ -87,6 +96,10 @@ def main():
     thermal = ThermalModel()
     health.start()
     anomaly_detector = AnomalyDetector()
+    presence = PresenceManager()
+    lighting = CircadianModel()
+    rule_engine = RuleEngine()
+    standby_devices = make_standby_devices()
 
     now_h = datetime.datetime.now().hour
     day_step = int(now_h * STEPS_PER_HOUR)
@@ -157,8 +170,10 @@ def main():
             grid_status  = regs[14] if len(regs) > 14 else 0
             anomaly      = regs[15] if len(regs) > 15 else 0
             storm_safe   = regs[16] if len(regs) > 16 else 0
-            ev_override  = regs[17] if len(regs) > 17 else 0
-            v2g_mode     = regs[18] if len(regs) > 18 else 0
+            ev_override   = regs[17] if len(regs) > 17 else 0
+            v2g_mode      = regs[18] if len(regs) > 18 else 0
+            presence_mode = regs[19] if len(regs) > 19 else 0
+            presence.update(presence_mode)
             boiler_eff = timer_boiler.constrain(boiler)
             hp_eff = timer_hp.constrain(hp)
             ev_eff = timer_ev.constrain(ev)
@@ -216,8 +231,16 @@ def main():
 
             cop = hp_cop(current_temp)
             ctrl_load, hp_thermal = controllable_load(boiler_eff, hp_eff, ev_eff, cop)
-            load = base_load(hour, current_temp)
+            # Apply presence multiplier: reduced occupancy → reduced base load
+            load = int(base_load(hour, current_temp) * presence.load_multiplier())
             load += ctrl_load
+
+            # Circadian lighting: small additive load + telemetry
+            lighting.tick(hour, presence.mode)
+            load += lighting.load_w
+
+            # Standby devices: tracked for telemetry only (not added to simulation)
+            _standby_w = standby_load(standby_devices, hour)
 
             # RC thermal model: advance house temperature, log periodically
             t_house = thermal.tick(current_temp if ghi is not None else None, hp_thermal)
@@ -289,6 +312,7 @@ def main():
             balance = pv + v2g_power - load
 
             _anom_flags = anomaly_detector.update(pv, load, soc, price, ghi, balance)
+            _rule_events = rule_engine.evaluate(hour, presence.mode, appliances)
 
             if grid_status == GRID_NORMAL and balance < 0 and soc < 20:
                 shed_w = 0
@@ -405,6 +429,7 @@ def main():
                 storm_safe,
                 ev_override,
                 v2g_mode,
+                presence_mode,
             ])
 
             inf_write(pv, round(new_soc), load, price, balance, current_temp, cloud, ghi,
@@ -431,8 +456,13 @@ def main():
                 forecast_load_kwh=_fc_summary.get("load_day_kwh", 0.0),
             )
 
-            if day_step % 6 == 0:  # write anomaly flags every 6 ticks (30 sim min)
+            inf_write_presence(presence.mode, presence.label)
+            inf_write_lighting(lighting.brightness, lighting.color_temp_k, lighting.load_w)
+            inf_write_standby(_standby_w)
+
+            if day_step % 6 == 0:  # write anomaly flags + rule events every 6 ticks (30 sim min)
                 inf_write_anomalies(_anom_flags)
+                inf_write_rules(rule_engine.active_keys)
 
             _anomaly_prev = anomaly
             time.sleep(TICK_S)

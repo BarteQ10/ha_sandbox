@@ -24,6 +24,8 @@ from ems_simulator.config import (
     SPIKE_CHANCE,
     SPIKE_MAX_TICKS,
     SPIKE_WATTS,
+    STANDBY_DEVICES,
+    STEPS_PER_HOUR,
     TICK_S,
     V2G_MIN_SOC_PCT,
     V2G_POWER_W,
@@ -319,6 +321,46 @@ class ScheduledAppliance:
 
 def make_scheduled_appliances():
     return [ScheduledAppliance(*a) for a in SCHEDULED_APPLIANCES]
+
+
+class StandbyDevice:
+    """Single always-on device with standby and occasional active power states."""
+
+    def __init__(
+        self,
+        name: str,
+        standby_w: float,
+        active_w: float,
+        active_start: float,
+        active_end: float,
+        p_active_per_hour: float,
+    ) -> None:
+        self.name = name
+        self.standby_w = standby_w
+        self.active_w = active_w
+        self.active_start = active_start
+        self.active_end = active_end
+        self._p_per_tick = p_active_per_hour / STEPS_PER_HOUR
+        self._active_ticks = 0
+
+    def tick(self, hour: float) -> float:
+        if self._active_ticks > 0:
+            self._active_ticks -= 1
+            return self.active_w
+        in_window = self.active_start <= hour < self.active_end or self.active_end == 24.0
+        if in_window and random.random() < self._p_per_tick:
+            self._active_ticks = random.randint(1, 6)
+            return self.active_w
+        return self.standby_w
+
+
+def make_standby_devices() -> list[StandbyDevice]:
+    return [StandbyDevice(*d) for d in STANDBY_DEVICES]
+
+
+def standby_load(devices: list[StandbyDevice], hour: float) -> int:
+    """Total power drawn by all standby devices (W). Informational — not added to simulation."""
+    return int(sum(d.tick(hour) for d in devices))
 
 
 def controllable_load(boiler, hp, ev_limit, hp_cop_val=None):

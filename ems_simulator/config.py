@@ -2,7 +2,7 @@
 # Modbus
 MODBUS_HOST = "0.0.0.0"
 MODBUS_PORT = 5020
-NUM_REGISTERS = 19
+NUM_REGISTERS = 20
 TICK_S = 5
 
 # Derived timing constants (60× simulated speed, TICK_S=5s → 5 simulated minutes per tick)
@@ -123,6 +123,16 @@ HOUSE_UA_W_PER_C = 80.0              # W/°C — total heat loss coefficient (we
 HOUSE_SETPOINT_C = 20.0              # thermostat target temperature
 HOUSE_DEAD_BAND_C = 0.5             # HP turns on at setpoint-deadband, off at setpoint+deadband
 HOUSE_INITIAL_TEMP_C = 20.0
+
+# Standby devices — (name, standby_w, active_w, active_start_h, active_end_h, p_active_per_hour)
+# Tracked for InfluxDB telemetry; NOT added to simulation load (already baked into base_load).
+STANDBY_DEVICES = [
+    ("TV",        5.0,  120.0, 18.0, 23.0, 0.70),  # evening viewing
+    ("PC",        8.0,  200.0,  9.0, 22.0, 0.35),  # workday + evening
+    ("Router",    8.0,    8.0,  0.0, 24.0, 1.00),  # always active
+    ("NAS",      15.0,   40.0,  0.0, 24.0, 0.20),  # occasional access
+    ("Microwave", 2.0, 1200.0,  7.0, 21.0, 0.03),  # brief cooking burst
+]
 
 # Price bands: (hour_start, hour_end, min_gr, max_gr)
 PRICE_BANDS = [
