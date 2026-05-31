@@ -5,6 +5,7 @@ import random as _random
 import signal
 import time
 
+import ems_simulator.events as events
 import ems_simulator.health as health
 import ems_simulator.notifications as notify
 from ems_simulator.anomaly import AnomalyDetector
@@ -181,6 +182,7 @@ def main():
     _anomaly_prev = 0
     _fc_summary = forecast_engine.summary(_forecast)
     _mpc_action = _MODE_AUTO  # MPC recommended action for current hour
+    _prev_media_state = "idle"  # for media-transition event logging
 
     try:
         while True:
@@ -274,6 +276,9 @@ def main():
 
             # Media player: dims lights when playing
             _media_state, _media_override = media_player.tick(hour, presence.mode)
+            if _media_state != _prev_media_state:
+                events.record("media", "info", f"Media player: {_media_state}")
+                _prev_media_state = _media_state
 
             # Circadian lighting (with optional media override) + additive load
             lighting.tick(hour, presence.mode, _media_override)
@@ -281,9 +286,16 @@ def main():
 
             # Standby devices: tracked for telemetry only (not added to simulation)
             _standby_w, _standby_cuts = standby_load(standby_devices, hour, presence.mode)
+            for _cut_name in _standby_cuts:
+                events.record("energy", "info", f"{_cut_name} socket cut by smart plug (standby, away)")
 
             # Motion simulation
             _motion = motion_sim.tick(hour, presence.mode)
+            events.record_edge("motion_indoor", "security", "warning",
+                               "Indoor motion detected while away", _motion["indoor"])
+            events.record_edge("motion_outdoor_away", "security", "info",
+                               "Outdoor motion detected (nobody home)",
+                               _motion["outdoor"] and presence.mode != 0)
 
             # RC thermal model: advance house temperature, log periodically
             t_house = thermal.tick(current_temp if ghi is not None else None, hp_thermal)
@@ -356,6 +368,29 @@ def main():
 
             _anom_flags = anomaly_detector.update(pv, load, soc, price, ghi, balance)
             _rule_events = rule_engine.evaluate(hour, presence.mode, appliances)
+
+            # ── Event log: anomalies, rules, grid (edge-triggered) ───────────────
+            _ANOM_MSG = {
+                "pv_underperform": "PV underperforming vs expected",
+                "load_spike": "Unusual load spike detected",
+                "price_spike": "Energy price spike detected",
+                "soc_drain": "Battery draining unusually fast",
+            }
+            for _sig, _active in _anom_flags.items():
+                events.record_edge(f"anom_{_sig}", "anomaly", "warning",
+                                   _ANOM_MSG.get(_sig, f"Anomaly: {_sig}"), bool(_active))
+            _RULE_MSG = {
+                "window_away": ("security", "warning", "Window open while nobody is home"),
+                "laundry_done": ("rule", "info", "Laundry finished — take out the clothes"),
+            }
+            for _key in ("window_away", "laundry_done"):
+                _cat, _sev, _msg = _RULE_MSG[_key]
+                events.record_edge(f"rule_{_key}", _cat, _sev, _msg,
+                                   _key in rule_engine.active_keys)
+            events.record_edge("grid_blackout", "grid", "critical",
+                               "Grid blackout — island mode active", grid_status == GRID_BLACKOUT)
+            events.record_edge("grid_instability", "grid", "warning",
+                               "Grid instability (fluctuations)", grid_status == GRID_INSTABILITY)
 
             # Edge-triggered notifications (only sent when condition turns True)
             notify.send_if_changed("blackout",   "BLACKOUT — island mode active.",   grid_status == GRID_BLACKOUT, severity="critical")

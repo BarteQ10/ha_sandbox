@@ -158,9 +158,29 @@ class _Handler(BaseHTTPRequestHandler):
                 log.warning("[HEALTH] /backtest failed: %s", e)
                 self._send_json(500, {"error": "backtest_failed", "detail": str(e)})
 
+        elif path == "/events":
+            import ems_simulator.events as events
+            q = parse_qs(parsed.query)
+            try:
+                limit = int(q.get("limit", ["100"])[0])
+            except (ValueError, TypeError):
+                limit = 100
+            category = q.get("category", [None])[0]
+            since = None
+            if "since" in q:
+                try:
+                    since = float(q["since"][0])
+                except (ValueError, TypeError):
+                    since = None
+            self._send_json(200, {
+                "events": events.snapshot(limit=limit, category=category, since=since),
+                "stats": events.stats(),
+                "categories": list(events.CATEGORIES),
+            })
+
         else:
             self._send_json(404, {"error": "not found",
-                                  "paths": ["/health", "/metrics", "/backtest?days=N"]})
+                                  "paths": ["/health", "/metrics", "/backtest?days=N", "/events"]})
 
 
 class _Server(threading.Thread):

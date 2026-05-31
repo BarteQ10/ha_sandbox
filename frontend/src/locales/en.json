@@ -11,7 +11,30 @@
     "settings": "Settings",
     "reports": "Reports",
     "presence": "Presence",
-    "backtest": "Backtest"
+    "backtest": "Backtest",
+    "events": "Events"
+  },
+  "events": {
+    "title": "Event Log",
+    "empty": "No events recorded yet.",
+    "error": "Could not reach the simulator event log (port 8088).",
+    "note": "Recent events held in the simulator (in-memory, cleared on restart).",
+    "refresh": "Refresh",
+    "pause": "Pause auto-refresh",
+    "resume": "Resume auto-refresh",
+    "justNow": "just now",
+    "minAgo": "{{n}} min ago",
+    "hourAgo": "{{n}} h ago",
+    "dayAgo": "{{n}} d ago",
+    "cat": {
+      "all": "All",
+      "anomaly": "Anomaly",
+      "rule": "Rule",
+      "security": "Security",
+      "energy": "Energy",
+      "media": "Media",
+      "grid": "Grid"
+    }
   },
   "backtest": {
     "title": "Strategy Backtesting",

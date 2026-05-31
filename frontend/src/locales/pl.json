@@ -11,7 +11,30 @@
     "settings": "Ustawienia",
     "reports": "Raporty",
     "presence": "Obecność",
-    "backtest": "Backtest"
+    "backtest": "Backtest",
+    "events": "Zdarzenia"
+  },
+  "events": {
+    "title": "Log zdarzeń",
+    "empty": "Brak zarejestrowanych zdarzeń.",
+    "error": "Nie można połączyć się z logiem zdarzeń symulatora (port 8088).",
+    "note": "Ostatnie zdarzenia trzymane w symulatorze (w pamięci, kasowane przy restarcie).",
+    "refresh": "Odśwież",
+    "pause": "Wstrzymaj auto-odświeżanie",
+    "resume": "Wznów auto-odświeżanie",
+    "justNow": "przed chwilą",
+    "minAgo": "{{n}} min temu",
+    "hourAgo": "{{n}} h temu",
+    "dayAgo": "{{n}} d temu",
+    "cat": {
+      "all": "Wszystkie",
+      "anomaly": "Anomalia",
+      "rule": "Reguła",
+      "security": "Bezpieczeństwo",
+      "energy": "Energia",
+      "media": "Media",
+      "grid": "Sieć"
+    }
   },
   "backtest": {
     "title": "Backtesting strategii",

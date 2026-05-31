@@ -575,6 +575,7 @@ HA → Modbus TCP → Python Simulator
   - **Controls**: inverter/HP/grid selects, boiler/PV/anomaly switches, **presence mode + V2G + smart socket**, storm/EV override, EV limit + degradation sliders
   - **Energy**: Riemann integrals, 24h price chart, daily financial balance
   - **Alerts**: actionable alert cards with snooze (15 min) / dismiss (1 h) buttons
+  - **Events**: chronological event log from the simulator's `/events` endpoint — anomalies, rules, security (motion), energy (standby cuts), media, grid — with category filter, severity colour, relative time, and auto-refresh
   - **Weather**: GHI + temperature forecast, PV forecast tomorrow
   - **Reports**: daily/weekly summary with CSV export
   - **Backtest**: on-demand 4-strategy comparison (baseline / auto / scheduled / MPC) over stored history via the simulator's `/backtest` endpoint — best strategy, savings vs baseline, per-strategy table, cumulative-cost chart
@@ -685,6 +686,7 @@ Lightweight HTTP server on port 8088 (daemon thread):
 - `GET /health` → `{"status": "ok"|"degraded", "uptime_s", "ticks", "influx_ok", ...}` (503 if no update in 30 s)
 - `GET /metrics` → full simulation snapshot: PV, SoC, load, price, t_house, SoH, presence, media, motion, standby, MPC/RL action, forecast summary
 - `GET /backtest?days=N` → runs `backtest.py` over the last N days of InfluxDB history and returns the 4-strategy comparison as JSON (used by the Backtest tab). Served on a threading HTTP server with CORS so the React app can call it cross-origin.
+- `GET /events?limit=N&category=X&since=ts` → chronological event log (anomalies, rules, security, energy/standby, media, grid) recorded in-memory by `events.py` (used by the Events tab).
 
 HA polls `/metrics` via a REST sensor (`sensor.ems_metrics_snapshot`, 15 s interval) to expose presence/media/motion as native HA sensors.
 
