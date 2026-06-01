@@ -6,10 +6,11 @@ import { Switch } from "@/components/ui/switch"
 import { Button } from "@/components/ui/button"
 import { useEntityNum, useEntityState, useHA } from "@/hooks/useHA"
 import { useToast } from "@/hooks/useToast"
+import { useAlarms } from "@/hooks/useAlarms"
 import {
   Settings2, Battery, Sun, Zap, MapPin, Clock,
   Bell, Webhook, Send, CheckCircle2, XCircle,
-  Home as HomeIcon, Shield,
+  Home as HomeIcon, Shield, Volume2, Play,
 } from "lucide-react"
 
 const LAT = import.meta.env.VITE_LAT ?? "52.23"
@@ -258,6 +259,51 @@ function NotificationsCard() {
   )
 }
 
+// ─── Sound alerts card ─────────────────────────────────────────────────────────
+
+function SoundAlertsCard() {
+  const { t } = useTranslation()
+  const { toast } = useToast()
+  const { soundEnabled, setSoundEnabled, criticalOnly, setCriticalOnly, test } = useAlarms()
+
+  return (
+    <Card>
+      <CardHeader className="pb-2 pt-4 px-4">
+        <div className="flex items-center gap-2">
+          <Volume2 className="h-4 w-4 text-muted-foreground" />
+          <p className="text-sm font-semibold">{t("alarms.soundTitle")}</p>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3 px-4 pb-4">
+        <div className="flex items-center justify-between">
+          <div className="min-w-0">
+            <p className="text-sm font-medium">{t("alarms.soundEnable")}</p>
+            <p className="text-xs text-muted-foreground">{t("alarms.soundEnableDesc")}</p>
+          </div>
+          <Switch checked={soundEnabled} onCheckedChange={setSoundEnabled} />
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div className="min-w-0">
+            <p className="text-sm font-medium">{t("alarms.criticalOnly")}</p>
+            <p className="text-xs text-muted-foreground">{t("alarms.criticalOnlyDesc")}</p>
+          </div>
+          <Switch checked={criticalOnly} disabled={!soundEnabled} onCheckedChange={setCriticalOnly} />
+        </div>
+
+        <Button
+          variant="outline"
+          className="w-full"
+          onClick={() => { test(); toast(t("alarms.testToast")) }}
+        >
+          <Play className="mr-2 h-4 w-4" />
+          {t("alarms.test")}
+        </Button>
+      </CardContent>
+    </Card>
+  )
+}
+
 // ─── Distribution tariff table ────────────────────────────────────────────────
 
 const TARIFF_ZONES = [
@@ -302,6 +348,9 @@ export function Settings() {
 
       {/* Notifications */}
       <NotificationsCard />
+
+      {/* Sound alerts */}
+      <SoundAlertsCard />
 
       {/* System configuration */}
       <Card>

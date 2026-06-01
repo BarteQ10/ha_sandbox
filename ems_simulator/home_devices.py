@@ -142,6 +142,16 @@ class HomeDevices:
         elif self.gate_position > self._gate_target:
             self.gate_position = max(self._gate_target, self.gate_position - _GATE_STEP)
 
+    def trigger_alarm(self, name: str, hold: int = 8) -> bool:
+        """Manually latch a safety sensor ON for `hold` ticks (test endpoint)."""
+        key = (name or "").strip().lower()
+        if key not in ("leak", "smoke", "co"):
+            return False
+        setattr(self, key, True)
+        self._safety_hold[key] = hold
+        log.warning("[DEVICES] %s alarm manually triggered (%d ticks)", key.upper(), hold)
+        return True
+
     # ── command handlers (called from the MQTT bridge) ────────────────────────
 
     def cmd_gate(self, payload: str) -> None:

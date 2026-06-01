@@ -695,6 +695,7 @@ Lightweight HTTP server on port 8088 (daemon thread):
 - `GET /metrics` → full simulation snapshot: PV, SoC, load, price, t_house, SoH, presence, media, motion, standby, MPC/RL action, forecast summary
 - `GET /backtest?days=N` → runs `backtest.py` over the last N days of InfluxDB history and returns the 4-strategy comparison as JSON (used by the Backtest tab). Served on a threading HTTP server with CORS so the React app can call it cross-origin.
 - `GET /events?limit=N&category=X&since=ts` → recent events from the in-memory buffer; `GET /events?from=ISO&to=ISO` queries persisted history from InfluxDB (measurement `ems_event`). Events are recorded by `events.py`, persisted via a registered sink, and the buffer is hydrated from InfluxDB on startup so the log survives restarts. Used by the Events tab (live feed + date-range history).
+- `GET /test-alarm?type=smoke|co|leak` → manually latches a `home_devices` safety sensor ON for ~8 ticks so the dashboard's sound-alert + banner flow can be demonstrated on demand. Used by the **Trigger test alarm** buttons in the Devices tab.
 
 HA polls `/metrics` via a REST sensor (`sensor.ems_metrics_snapshot`, 15 s interval) to expose presence/media/motion as native HA sensors.
 

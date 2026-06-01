@@ -114,6 +114,24 @@ def test_metrics_has_all_keys():
     }
 
 
+def test_trigger_alarm_latches_then_clears():
+    d = _dev()
+    assert d.trigger_alarm("smoke") is True
+    assert d.smoke is True
+    # stays on for the hold window, then clears
+    for _ in range(7):
+        d.tick(12.0, 0, 21.0)
+    assert d.smoke is True
+    d.tick(12.0, 0, 21.0)   # 8th tick → hold expires
+    assert d.smoke is False
+
+
+def test_trigger_alarm_rejects_unknown():
+    d = _dev()
+    assert d.trigger_alarm("explosion") is False
+    assert d.trigger_alarm("") is False
+
+
 def test_safety_sensors_default_off():
     d = _dev()
     m = d.metrics()

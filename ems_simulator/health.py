@@ -25,6 +25,15 @@ _metrics: dict = {}
 _started_at: float = time.monotonic()
 _lock = threading.Lock()
 
+# Optional callback to manually trigger a device safety alarm (smoke/co/leak),
+# wired from main() to HomeDevices.trigger_alarm. Used by the /test-alarm endpoint.
+_alarm_trigger = None
+
+
+def set_alarm_trigger(fn) -> None:
+    global _alarm_trigger
+    _alarm_trigger = fn
+
 
 def update(
     *,
@@ -187,9 +196,24 @@ class _Handler(BaseHTTPRequestHandler):
                 "mode": "history" if frm else "live",
             })
 
+        elif path == "/test-alarm":
+            q = parse_qs(parsed.query)
+            kind = q.get("type", [""])[0]
+            ok = False
+            if _alarm_trigger is not None:
+                try:
+                    ok = bool(_alarm_trigger(kind))
+                except Exception as e:
+                    log.warning("[HEALTH] /test-alarm failed: %s", e)
+            self._send_json(200 if ok else 400, {
+                "triggered": ok, "type": kind,
+                "valid": ["smoke", "co", "leak"],
+            })
+
         else:
             self._send_json(404, {"error": "not found",
-                                  "paths": ["/health", "/metrics", "/backtest?days=N", "/events"]})
+                                  "paths": ["/health", "/metrics", "/backtest?days=N",
+                                            "/events", "/test-alarm?type=smoke|co|leak"]})
 
 
 class _Server(threading.Thread):

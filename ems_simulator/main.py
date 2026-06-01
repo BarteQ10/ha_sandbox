@@ -125,6 +125,7 @@ def main():
     media_player = MediaPlayerSim()
     motion_sim = MotionSimulator()
     home_devices = HomeDevices()
+    health.set_alarm_trigger(home_devices.trigger_alarm)  # /test-alarm endpoint
 
     # RL agent (optional — enable with EMS_RL_ENABLED=1)
     _rl_enabled = os.environ.get("EMS_RL_ENABLED", "0") == "1"

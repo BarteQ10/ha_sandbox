@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button"
 import { HAProvider, useHA } from "@/hooks/useHA"
 import { ThemeProvider, useTheme } from "@/hooks/useTheme"
 import { ToastProvider } from "@/hooks/useToast"
+import { AlarmProvider } from "@/hooks/useAlarms"
+import { AlarmBanner } from "@/components/AlarmBanner"
 import { usePersistentState } from "@/hooks/usePersistentState"
 import { Rooms } from "@/components/Rooms"
 import { Flow } from "@/components/Flow"
@@ -156,6 +158,7 @@ function AppContent() {
       </header>
 
       <OfflineBanner />
+      <AlarmBanner />
 
       <main id="main-content" className="mx-auto max-w-7xl px-3 py-3 sm:px-4 sm:py-4">
         {tab === "rooms" && (
@@ -279,7 +282,9 @@ export default function App() {
     <ThemeProvider>
       <HAProvider>
         <ToastProvider>
-          <AppContent />
+          <AlarmProvider>
+            <AppContent />
+          </AlarmProvider>
         </ToastProvider>
       </HAProvider>
     </ThemeProvider>

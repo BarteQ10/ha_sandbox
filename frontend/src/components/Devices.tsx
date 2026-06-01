@@ -1,6 +1,9 @@
 import { useTranslation } from "react-i18next"
 import { Card, CardContent } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { useHA, useEntitiesByDomain } from "@/hooks/useHA"
+import { useToast } from "@/hooks/useToast"
+import { triggerAlarm, type AlarmKind } from "@/api/devices"
 import {
   CoverControl, LockControl, ClimateControl, BinaryChip, SensorTile, ENV_CLASSES,
 } from "@/components/DeviceControls"
@@ -19,6 +22,26 @@ function Section({ title, count, children }: {
         <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">{count}</span>
       </div>
       {children}
+    </div>
+  )
+}
+
+function TestAlarmsRow() {
+  const { t } = useTranslation()
+  const { toast } = useToast()
+  const fire = async (type: AlarmKind) => {
+    const ok = await triggerAlarm(type)
+    toast(ok ? t("devices.testTriggered") : t("devices.testFailed"), ok ? "success" : "error")
+  }
+  return (
+    <div className="space-y-2 rounded-lg border border-dashed p-3">
+      <h3 className="text-sm font-semibold">{t("devices.testAlarms")}</h3>
+      <div className="flex flex-wrap gap-2">
+        <Button variant="outline" size="sm" onClick={() => fire("smoke")}>{t("devices.testSmoke")}</Button>
+        <Button variant="outline" size="sm" onClick={() => fire("co")}>{t("devices.testCo")}</Button>
+        <Button variant="outline" size="sm" onClick={() => fire("leak")}>{t("devices.testLeak")}</Button>
+      </div>
+      <p className="text-[10px] text-muted-foreground">{t("devices.testHint")}</p>
     </div>
   )
 }
@@ -47,11 +70,14 @@ export function Devices() {
 
   if (total === 0) {
     return (
-      <Card>
-        <CardContent className="px-4 py-8 text-center text-sm text-muted-foreground">
-          {t("devices.empty")}
-        </CardContent>
-      </Card>
+      <div className="space-y-4">
+        <Card>
+          <CardContent className="px-4 py-8 text-center text-sm text-muted-foreground">
+            {t("devices.empty")}
+          </CardContent>
+        </Card>
+        <TestAlarmsRow />
+      </div>
     )
   }
 
@@ -76,6 +102,8 @@ export function Devices() {
           {envSensors.map((e) => <SensorTile key={e.entity_id} e={e} />)}
         </div>
       </Section>
+
+      <TestAlarmsRow />
 
       <p className="text-center text-[10px] text-muted-foreground">{t("devices.note")}</p>
     </div>
