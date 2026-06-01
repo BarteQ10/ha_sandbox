@@ -572,7 +572,7 @@ HA → Modbus TCP → Python Simulator
 - **Multi-light control**: individual light toggles with dimmer (1-100%) and color temperature (2700-6500K) or RGB (R/G/B 0-255) sliders, plus All-ON/OFF per room
 - **Thermostat setpoint**: +/- buttons in Salon, Kuchnia, Sypialnia for target temperature (16-30°C, step 0.5)
 - **Top-level navigation**: themed sections — **Dom** · **Energia** · **Monitoring** · **Analiza** · **Ustawienia** — each with its own sub-tabs (icon-only on mobile, icon+label on ≥ sm):
-  - **Dom** (Home): Wspolne / Prywatne / Ogrod room views + **Media** + **Urzadzenia**, with the KPI summary + cost-forecast sidebar
+  - **Dom** (Home): **Plan** (editable interactive floor plan — rooms glow when lit + show temperature, tap to toggle lights; device markers live + clickable. **Edit mode**: drag rooms/markers, resize rooms, add any placeable HA entity from a list, remove markers; layout persists in localStorage, reset to default) + Wspolne / Prywatne / Ogrod room views + **Media** + **Urzadzenia**, with the KPI summary + cost-forecast sidebar
   - **Energia**: Flow · Charts · Controls · Presence
   - **Monitoring**: Cameras · Events · Alerts
   - **Analiza**: Reports · Backtest · Weather

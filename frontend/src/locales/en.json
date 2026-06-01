@@ -18,7 +18,19 @@
     "media": "Media",
     "monitoring": "Monitoring",
     "analytics": "Analytics",
-    "charts": "Charts"
+    "charts": "Charts",
+    "floorplan": "Plan"
+  },
+  "floorplan": {
+    "toggleLights": "toggle lights",
+    "hint": "Tap a room to toggle its lights. Tap a marker (lock/gate/garage/vacuum) to operate it.",
+    "edit": "Edit",
+    "done": "Done",
+    "editHint": "Drag rooms and markers. The corner handle resizes a room. Add a device from the list, remove with ✕.",
+    "addDevice": "Add device",
+    "reset": "Reset",
+    "remove": "Remove",
+    "resize": "Resize"
   },
   "devices": {
     "controllable": "Controls",

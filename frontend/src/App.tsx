@@ -23,11 +23,12 @@ import { EventLog } from "@/components/EventLog"
 import { Cameras } from "@/components/Cameras"
 import { Devices } from "@/components/Devices"
 import { Media } from "@/components/Media"
+import { FloorPlan } from "@/components/FloorPlan"
 import { DashboardSummary } from "@/components/DashboardSummary"
 import { CostForecast } from "@/components/CostForecast"
 import {
   Home, Languages, Sun, Moon, Bolt, ToggleLeft, BarChart3, FileText,
-  Sofa, Bed, TreePine, WifiOff, Bell, CloudSun, SlidersHorizontal, Users, FlaskConical, ScrollText, Video, Music, Plug, Eye,
+  Sofa, Bed, TreePine, WifiOff, Bell, CloudSun, SlidersHorizontal, Users, FlaskConical, ScrollText, Video, Music, Plug, Eye, Map,
 } from "lucide-react"
 
 function ConnectionIndicator() {
@@ -218,6 +219,10 @@ function AppContent() {
               <div className="overflow-x-auto">
                 <Tabs value={roomTab} onValueChange={setRoomTab}>
                   <TabsList className="flex w-max min-w-full sm:w-full">
+                    <TabsTrigger value="plan" className="flex-1 gap-1">
+                      <Map className="h-4 w-4 shrink-0" />
+                      <span>{t("nav.floorplan")}</span>
+                    </TabsTrigger>
                     <TabsTrigger value="day" className="flex-1 gap-1">
                       <Sofa className="h-4 w-4 shrink-0" />
                       <span>{t("rooms.day")}</span>
@@ -241,6 +246,7 @@ function AppContent() {
                   </TabsList>
                 </Tabs>
               </div>
+              {roomTab === "plan"   && <FloorPlan />}
               {roomTab === "day"    && <Rooms roomIds={["salon", "kuchnia"]} />}
               {roomTab === "night"  && <Rooms roomIds={["sypialnia", "lazienka"]} />}
               {roomTab === "garden" && <Rooms roomIds={["ogrod"]} />}

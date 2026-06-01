@@ -18,7 +18,19 @@
     "media": "Media",
     "monitoring": "Monitoring",
     "analytics": "Analiza",
-    "charts": "Wykresy"
+    "charts": "Wykresy",
+    "floorplan": "Plan"
+  },
+  "floorplan": {
+    "toggleLights": "przełącz światła",
+    "hint": "Kliknij pokój, by przełączyć światła. Kliknij marker (zamek/brama/garaż/odkurzacz), by go obsłużyć.",
+    "edit": "Edytuj",
+    "done": "Gotowe",
+    "editHint": "Przeciągaj pokoje i markery. Uchwyt w rogu pokoju zmienia rozmiar. Dodaj urządzenie z listy, usuń ✕.",
+    "addDevice": "Dodaj urządzenie",
+    "reset": "Reset",
+    "remove": "Usuń",
+    "resize": "Zmień rozmiar"
   },
   "devices": {
     "controllable": "Sterowanie",
