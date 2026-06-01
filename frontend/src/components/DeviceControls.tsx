@@ -2,12 +2,13 @@ import { useTranslation } from "react-i18next"
 import { Card, CardContent } from "@/components/ui/card"
 import { Slider } from "@/components/ui/slider"
 import { Button } from "@/components/ui/button"
+import { Switch } from "@/components/ui/switch"
 import { useEntity, useHA } from "@/hooks/useHA"
 import { useCommittedSlider } from "@/hooks/useCommittedSlider"
 import {
   Lock, Unlock, Thermometer, Droplets, Flame, Waves, DoorOpen, Wind,
   Activity, AlertTriangle, ArrowUp, ArrowDown, Square, Plus, Minus, Power,
-  DoorClosed, AppWindow,
+  DoorClosed, AppWindow, Fan, Bot, Play, Pause, RotateCcw, Battery, Cloud, Gauge,
 } from "lucide-react"
 import type { HassEntity } from "home-assistant-js-websocket"
 
@@ -162,6 +163,84 @@ export function ClimateControl({ entityId }: { entityId: string }) {
   )
 }
 
+// ─── fan ──────────────────────────────────────────────────────────────────────
+
+export function FanControl({ entityId }: { entityId: string }) {
+  const { callService } = useHA()
+  const e = useEntity(entityId)
+  const on = e?.state === "on"
+  const name = (e?.attributes?.friendly_name as string) ?? entityId
+  const pct = (e?.attributes?.percentage as number) ?? 0
+
+  const slider = useCommittedSlider(pct, (v) =>
+    callService("fan", "set_percentage", { entity_id: entityId, percentage: v }),
+  )
+
+  return (
+    <Card>
+      <CardContent className="space-y-3 p-3 sm:p-4">
+        <div className="flex items-center gap-2">
+          <Fan className={`h-4 w-4 ${on ? "text-sky-500" : "text-muted-foreground"}`} />
+          <span title={name} className="truncate text-sm font-medium">{displayName(name)}</span>
+          <Switch
+            className="ml-auto"
+            checked={on}
+            onCheckedChange={() => callService("fan", on ? "turn_off" : "turn_on", { entity_id: entityId })}
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <Slider min={0} max={100} step={1} className="flex-1" {...slider.sliderProps} />
+          <span className="w-9 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
+            {slider.display}%
+          </span>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+// ─── robot vacuum ─────────────────────────────────────────────────────────────
+
+const VAC_STATES = new Set(["cleaning", "docked", "paused", "idle", "returning", "error"])
+
+export function VacuumControl({ entityId }: { entityId: string }) {
+  const { t } = useTranslation()
+  const { callService } = useHA()
+  const e = useEntity(entityId)
+  const state = e?.state ?? "unknown"
+  const name = (e?.attributes?.friendly_name as string) ?? entityId
+  const batt = e?.attributes?.battery_level as number | undefined
+  const cleaning = state === "cleaning"
+  const cmd = (service: string) => callService("vacuum", service, { entity_id: entityId })
+  const label = VAC_STATES.has(state) ? t(`devices.vac.${state}`) : state
+
+  return (
+    <Card>
+      <CardContent className="space-y-3 p-3 sm:p-4">
+        <div className="flex items-center gap-2">
+          <Bot className={`h-4 w-4 ${cleaning ? "text-green-500" : "text-muted-foreground"}`} />
+          <span title={name} className="truncate text-sm font-medium">{displayName(name)}</span>
+          <span className="ml-auto flex items-center gap-1 text-xs text-muted-foreground">
+            {batt !== undefined && (<><Battery className="h-3.5 w-3.5" />{Math.round(batt)}%</>)}
+          </span>
+        </div>
+        <p className="text-xs text-muted-foreground">{label}</p>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" className="flex-1" onClick={() => cmd("start")}>
+            <Play className="mr-1 h-4 w-4" />{t("devices.vacStart")}
+          </Button>
+          <Button variant="outline" size="sm" className="flex-1" onClick={() => cmd("pause")}>
+            <Pause className="mr-1 h-4 w-4" />{t("devices.vacPause")}
+          </Button>
+          <Button variant="outline" size="sm" className="flex-1" onClick={() => cmd("return_to_base")}>
+            <RotateCcw className="mr-1 h-4 w-4" />{t("devices.vacReturn")}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 // ─── binary sensor status chip ────────────────────────────────────────────────
 
 const PROBLEM_CLASSES = new Set(["smoke", "carbon_monoxide", "gas", "moisture"])
@@ -197,10 +276,13 @@ export function BinaryChip({ e }: { e: HassEntity }) {
 
 // ─── environment sensor tile (humidity / meters) ──────────────────────────────
 
-export const ENV_CLASSES = new Set(["humidity", "water", "gas"])
+export const ENV_CLASSES = new Set([
+  "humidity", "water", "gas", "carbon_dioxide", "pm25", "aqi",
+])
 
 const SENSOR_ICON: Record<string, React.ElementType> = {
   humidity: Droplets, water: Waves, gas: Flame, temperature: Thermometer,
+  carbon_dioxide: Wind, pm25: Cloud, aqi: Gauge,
 }
 
 export function SensorTile({ e }: { e: HassEntity }) {

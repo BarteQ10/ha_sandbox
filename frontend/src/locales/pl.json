@@ -37,7 +37,18 @@
     "tempUp": "Zwiększ temperaturę",
     "tempDown": "Zmniejsz temperaturę",
     "heatOn": "Grzanie włączone",
-    "heatOff": "Grzanie wyłączone"
+    "heatOff": "Grzanie wyłączone",
+    "vacStart": "Start",
+    "vacPause": "Pauza",
+    "vacReturn": "Do doku",
+    "vac": {
+      "cleaning": "Sprzątanie",
+      "docked": "Zadokowany",
+      "paused": "Wstrzymany",
+      "idle": "Bezczynny",
+      "returning": "Powrót do doku",
+      "error": "Błąd"
+    }
   },
   "alarms": {
     "soundTitle": "Alerty dźwiękowe",

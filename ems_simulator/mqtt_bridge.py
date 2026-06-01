@@ -64,7 +64,7 @@ _SENSORS = [
     ("gas_m3",          "Gas Meter",            "m³",      "gas",         "total_increasing", "gas_m3"),
     ("co2_ppm",         "CO2",                  "ppm",     "carbon_dioxide", "measurement",   "co2_ppm"),
     ("pm25",            "PM2.5",                "µg/m³",   "pm25",        "measurement",      "pm25"),
-    ("voc_index",       "VOC Index",            None,      None,          "measurement",      "voc_index"),
+    ("voc_index",       "VOC Index",            None,      "aqi",         "measurement",      "voc_index"),
     ("vacuum_battery",  "Vacuum Battery",       "%",       "battery",     "measurement",      "vacuum_battery"),
 ]
 

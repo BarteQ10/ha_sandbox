@@ -37,7 +37,18 @@
     "tempUp": "Increase temperature",
     "tempDown": "Decrease temperature",
     "heatOn": "Heating on",
-    "heatOff": "Heating off"
+    "heatOff": "Heating off",
+    "vacStart": "Start",
+    "vacPause": "Pause",
+    "vacReturn": "Dock",
+    "vac": {
+      "cleaning": "Cleaning",
+      "docked": "Docked",
+      "paused": "Paused",
+      "idle": "Idle",
+      "returning": "Returning",
+      "error": "Error"
+    }
   },
   "alarms": {
     "soundTitle": "Sound alerts",

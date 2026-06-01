@@ -2,7 +2,8 @@ import { useTranslation } from "react-i18next"
 import { Card, CardContent } from "@/components/ui/card"
 import { useHA, useEntitiesByDomain } from "@/hooks/useHA"
 import {
-  CoverControl, LockControl, ClimateControl, BinaryChip, SensorTile, ENV_CLASSES,
+  CoverControl, LockControl, ClimateControl, FanControl, VacuumControl,
+  BinaryChip, SensorTile, ENV_CLASSES,
 } from "@/components/DeviceControls"
 import { ROOM_DEVICE_IDS } from "@/components/Rooms"
 
@@ -34,6 +35,8 @@ export function Devices() {
   const covers   = useEntitiesByDomain("cover").filter(houseWide)
   const locks    = useEntitiesByDomain("lock").filter(houseWide)
   const climates = useEntitiesByDomain("climate").filter(houseWide)
+  const fans     = useEntitiesByDomain("fan").filter(houseWide)
+  const vacuums  = useEntitiesByDomain("vacuum").filter(houseWide)
 
   const binaries = Object.values(entities)
     .filter((e) => e.entity_id.startsWith("binary_sensor.") && houseWide(e.entity_id))
@@ -43,7 +46,8 @@ export function Devices() {
       ENV_CLASSES.has((e.attributes.device_class as string) ?? "") && houseWide(e.entity_id))
     .sort((a, b) => a.entity_id.localeCompare(b.entity_id))
 
-  const total = covers.length + locks.length + climates.length + binaries.length + envSensors.length
+  const controllable = covers.length + climates.length + locks.length + fans.length + vacuums.length
+  const total = controllable + binaries.length + envSensors.length
 
   if (total === 0) {
     return (
@@ -57,10 +61,12 @@ export function Devices() {
 
   return (
     <div className="space-y-4">
-      <Section title={t("devices.controllable")} count={covers.length + locks.length + climates.length}>
+      <Section title={t("devices.controllable")} count={controllable}>
         <div className="grid gap-3 lg:grid-cols-2">
           {covers.map((id) => <CoverControl key={id} entityId={id} />)}
           {climates.map((id) => <ClimateControl key={id} entityId={id} />)}
+          {vacuums.map((id) => <VacuumControl key={id} entityId={id} />)}
+          {fans.map((id) => <FanControl key={id} entityId={id} />)}
           {locks.map((id) => <LockControl key={id} entityId={id} />)}
         </div>
       </Section>
