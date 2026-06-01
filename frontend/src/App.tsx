@@ -208,13 +208,13 @@ function AppContent() {
       <main id="main-content" className="mx-auto max-w-7xl px-3 py-3 sm:px-4 sm:py-4">
         {tab === "rooms" && (
           <div className="grid gap-3 sm:gap-4 lg:grid-cols-[16rem_1fr] lg:items-start">
-            {/* KPI summary — left sidebar on desktop, full-width strip on mobile */}
-            <div className="space-y-3 sm:space-y-4 lg:sticky lg:top-[5.5rem]">
+            {/* KPI summary — left sidebar on desktop; below the room nav on mobile/tablet */}
+            <div className="order-2 space-y-3 sm:space-y-4 lg:order-1 lg:sticky lg:top-[5.5rem]">
               <DashboardSummary variant="side" onNavigate={goTo} />
               <CostForecast />
             </div>
-            {/* Rooms column */}
-            <div className="space-y-3 sm:space-y-4">
+            {/* Rooms column — first on mobile/tablet so the sub-nav stays at the top */}
+            <div className="order-1 space-y-3 sm:space-y-4 lg:order-2">
               {/* Room sub-tabs — scrollable on mobile, icon+text on larger screens */}
               <div className="overflow-x-auto">
                 <Tabs value={roomTab} onValueChange={setRoomTab}>
