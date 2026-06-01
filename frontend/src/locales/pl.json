@@ -18,28 +18,7 @@
     "media": "Media",
     "monitoring": "Monitoring",
     "analytics": "Analiza",
-    "charts": "Wykresy",
-    "scenes": "Sceny"
-  },
-  "scenes": {
-    "title": "Sceny — szybkie akcje",
-    "note": "Jedno kliknięcie ustawia wiele urządzeń naraz.",
-    "activated": "Aktywowano „{{name}}\" ({{count}} akcji)",
-    "morning": "Poranek",
-    "morningDesc": "Rolety w górę, grzanie 21°, główne światła, w domu",
-    "movie": "Kino",
-    "movieDesc": "Przyciemnione światło, rolety w dół w salonie",
-    "night": "Dobranoc",
-    "nightDesc": "Wszystkie światła gasną, rolety w dół, 18°, zamek",
-    "away": "Wyjście z domu",
-    "awayDesc": "Światła gasną, tryb poza domem, zamek, brama",
-    "custom": "Twoje sceny",
-    "newName": "Nazwa sceny…",
-    "save": "Zapisz obecny stan",
-    "saved": "Zapisano „{{name}}\" ({{count}} stanów)",
-    "deleted": "Usunięto scenę",
-    "delete": "Usuń",
-    "saveHint": "Ustaw dom jak chcesz (światła, rolety, TRV, zamek…), nazwij i zapisz — odtworzysz to jednym kliknięciem."
+    "charts": "Wykresy"
   },
   "devices": {
     "controllable": "Sterowanie",

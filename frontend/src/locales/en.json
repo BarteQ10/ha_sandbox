@@ -18,28 +18,7 @@
     "media": "Media",
     "monitoring": "Monitoring",
     "analytics": "Analytics",
-    "charts": "Charts",
-    "scenes": "Scenes"
-  },
-  "scenes": {
-    "title": "Scenes — quick actions",
-    "note": "One click sets several devices at once.",
-    "activated": "Activated \"{{name}}\" ({{count}} actions)",
-    "morning": "Morning",
-    "morningDesc": "Blinds up, heat 21°, main lights, home",
-    "movie": "Movie",
-    "movieDesc": "Dimmed light, living-room blinds down",
-    "night": "Goodnight",
-    "nightDesc": "All lights off, blinds down, 18°, lock",
-    "away": "Leaving",
-    "awayDesc": "Lights off, away mode, lock, gate",
-    "custom": "Your scenes",
-    "newName": "Scene name…",
-    "save": "Save current state",
-    "saved": "Saved \"{{name}}\" ({{count}} states)",
-    "deleted": "Scene deleted",
-    "delete": "Delete",
-    "saveHint": "Set the house up (lights, blinds, TRV, lock…), name it and save — restore it in one tap."
+    "charts": "Charts"
   },
   "devices": {
     "controllable": "Controls",
