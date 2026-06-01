@@ -18,7 +18,21 @@
     "media": "Media",
     "monitoring": "Monitoring",
     "analytics": "Analytics",
-    "charts": "Charts"
+    "charts": "Charts",
+    "scenes": "Scenes"
+  },
+  "scenes": {
+    "title": "Scenes — quick actions",
+    "note": "One click sets several devices at once.",
+    "activated": "Activated \"{{name}}\" ({{count}} actions)",
+    "morning": "Morning",
+    "morningDesc": "Blinds up, heat 21°, main lights, home",
+    "movie": "Movie",
+    "movieDesc": "Dimmed light, living-room blinds down",
+    "night": "Goodnight",
+    "nightDesc": "All lights off, blinds down, 18°, lock",
+    "away": "Leaving",
+    "awayDesc": "Lights off, away mode, lock, gate"
   },
   "devices": {
     "controllable": "Controls",

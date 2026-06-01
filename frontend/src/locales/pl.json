@@ -18,7 +18,21 @@
     "media": "Media",
     "monitoring": "Monitoring",
     "analytics": "Analiza",
-    "charts": "Wykresy"
+    "charts": "Wykresy",
+    "scenes": "Sceny"
+  },
+  "scenes": {
+    "title": "Sceny — szybkie akcje",
+    "note": "Jedno kliknięcie ustawia wiele urządzeń naraz.",
+    "activated": "Aktywowano „{{name}}\" ({{count}} akcji)",
+    "morning": "Poranek",
+    "morningDesc": "Rolety w górę, grzanie 21°, główne światła, w domu",
+    "movie": "Kino",
+    "movieDesc": "Przyciemnione światło, rolety w dół w salonie",
+    "night": "Dobranoc",
+    "nightDesc": "Wszystkie światła gasną, rolety w dół, 18°, zamek",
+    "away": "Wyjście z domu",
+    "awayDesc": "Światła gasną, tryb poza domem, zamek, brama"
   },
   "devices": {
     "controllable": "Sterowanie",
