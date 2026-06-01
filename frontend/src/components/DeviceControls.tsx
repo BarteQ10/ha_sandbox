@@ -205,11 +205,19 @@ const VAC_STATES = new Set(["cleaning", "docked", "paused", "idle", "returning",
 
 export function VacuumControl({ entityId }: { entityId: string }) {
   const { t } = useTranslation()
-  const { callService } = useHA()
+  const { entities, callService } = useHA()
   const e = useEntity(entityId)
   const state = e?.state ?? "unknown"
   const name = (e?.attributes?.friendly_name as string) ?? entityId
-  const batt = e?.attributes?.battery_level as number | undefined
+  // Prefer the vacuum's own battery_level; fall back to a related battery sensor
+  // (MQTT state-schema vacuums don't always expose battery_level as an attribute).
+  const battAttr = e?.attributes?.battery_level as number | undefined
+  const battSensor = Object.values(entities).find((s) =>
+    s.entity_id.startsWith("sensor.") &&
+    s.attributes.device_class === "battery" &&
+    s.entity_id.includes("vacuum"))
+  const battRaw = battAttr ?? (battSensor ? Number(battSensor.state) : undefined)
+  const batt = battRaw !== undefined && !Number.isNaN(battRaw) ? battRaw : undefined
   const cleaning = state === "cleaning"
   const cmd = (service: string) => callService("vacuum", service, { entity_id: entityId })
   const label = VAC_STATES.has(state) ? t(`devices.vac.${state}`) : state
