@@ -278,13 +278,6 @@ export function Weather() {
                   color: "var(--popover-foreground)",
                   fontSize: 12,
                 }}
-                labelFormatter={(v: number) => `${fmtHour(v)}`}
-                formatter={(value: number, name: string) => {
-                  if (name === "ghi")   return [`${Math.round(value)} W/m²`, "GHI"]
-                  if (name === "temp")  return [`${value.toFixed(1)} °C`, t("weather.temp")]
-                  if (name === "cloud") return [`${Math.round(value)} %`, t("weather.cloud")]
-                  return [value, name]
-                }}
                 content={({ active, payload, label }) => {
                   if (!active || !payload?.length) return null
                   const h = chartData.find((x) => x.ts === label)

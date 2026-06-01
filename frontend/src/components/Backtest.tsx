@@ -45,8 +45,8 @@ function CumulativeChart({ result }: { result: BacktestResult }) {
         />
         <Tooltip
           contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
-          labelFormatter={(v: string) => new Date(v).toLocaleString()}
-          formatter={(val: number, name: string) => [`${val.toFixed(2)} zł`, name]}
+          labelFormatter={(v) => new Date(String(v)).toLocaleString()}
+          formatter={(val, name) => [`${Number(val).toFixed(2)} zł`, name as string]}
         />
         <Legend wrapperStyle={{ fontSize: 11 }} />
         {result.strategies.map((s, si) => (

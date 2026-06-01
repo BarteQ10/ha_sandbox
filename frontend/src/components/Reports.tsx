@@ -121,7 +121,7 @@ export function Reports() {
                 <YAxis tick={{ fill: "var(--muted-foreground)", fontSize: 11 }} axisLine={false} tickLine={false} unit=" kWh" width={52} />
                 <Tooltip
                   contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
-                  formatter={(v: number) => [`${v.toFixed(2)} kWh`, t("reports.pv")]}
+                  formatter={(v) => [`${Number(v).toFixed(2)} kWh`, t("reports.pv")]}
                 />
                 <ReferenceLine y={0} stroke="var(--border)" />
                 <Bar dataKey="pvKwh" fill="#4ade80" radius={[3, 3, 0, 0]} name={t("reports.pv")} />

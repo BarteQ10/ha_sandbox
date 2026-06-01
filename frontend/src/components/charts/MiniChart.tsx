@@ -80,7 +80,7 @@ export function MiniChart({
             borderRadius: 8,
             color: "var(--popover-foreground)",
           }}
-          labelFormatter={(v: number) => new Date(v).toLocaleTimeString()}
+          labelFormatter={(v) => new Date(Number(v)).toLocaleTimeString()}
         />
         <Line type="monotone" dataKey="value" stroke={color} strokeWidth={2} dot={false} />
       </LineChart>

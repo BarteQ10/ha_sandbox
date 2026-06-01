@@ -117,8 +117,8 @@ function DecisionChart({ rlEnabled }: { rlEnabled: boolean }) {
         />
         <Tooltip
           contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
-          labelFormatter={(v: number) => new Date(v).toLocaleTimeString()}
-          formatter={(v: number, name: string) => [actionLabel(v, t), name]}
+          labelFormatter={(v) => new Date(Number(v)).toLocaleTimeString()}
+          formatter={(v, name) => [actionLabel(Number(v), t), name as string]}
         />
         <Legend wrapperStyle={{ fontSize: 11 }} />
         <Line type="stepAfter" dataKey="mpc" name="MPC" stroke="#22d3ee" strokeWidth={2} dot={false} />
