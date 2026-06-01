@@ -111,7 +111,13 @@ function SubNav({ value, onChange, items }: {
       <Tabs value={value} onValueChange={onChange}>
         <TabsList className="flex w-max min-w-full sm:w-full">
           {items.map(({ value: v, icon: Icon, label }) => (
-            <TabsTrigger key={v} value={v} className="flex-1 shrink-0 gap-1">
+            <TabsTrigger
+              key={v}
+              value={v}
+              className="flex-1 shrink-0 gap-1"
+              title={label}
+              aria-label={label}
+            >
               <Icon className="h-4 w-4 shrink-0" />
               <span className="hidden sm:inline">{label}</span>
             </TabsTrigger>
@@ -170,23 +176,23 @@ function AppContent() {
           {/* Main nav — themed sections, full width, flush with header bottom */}
           <Tabs value={tab} onValueChange={setTab}>
             <TabsList className="w-full rounded-none border-0 bg-transparent p-0 h-9">
-              <TabsTrigger value="rooms" className={topTabClass}>
+              <TabsTrigger value="rooms" className={topTabClass} title={t("nav.rooms")} aria-label={t("nav.rooms")}>
                 <Home className="h-4 w-4 shrink-0" aria-hidden="true" />
                 <span className="hidden sm:inline">{t("nav.rooms")}</span>
               </TabsTrigger>
-              <TabsTrigger value="energy" className={topTabClass}>
+              <TabsTrigger value="energy" className={topTabClass} title={t("nav.energy")} aria-label={t("nav.energy")}>
                 <Bolt className="h-4 w-4 shrink-0" aria-hidden="true" />
                 <span className="hidden sm:inline">{t("nav.energy")}</span>
               </TabsTrigger>
-              <TabsTrigger value="monitoring" className={topTabClass}>
+              <TabsTrigger value="monitoring" className={topTabClass} title={t("nav.monitoring")} aria-label={t("nav.monitoring")}>
                 <Eye className="h-4 w-4 shrink-0" aria-hidden="true" />
                 <span className="hidden sm:inline">{t("nav.monitoring")}</span>
               </TabsTrigger>
-              <TabsTrigger value="analytics" className={topTabClass}>
+              <TabsTrigger value="analytics" className={topTabClass} title={t("nav.analytics")} aria-label={t("nav.analytics")}>
                 <BarChart3 className="h-4 w-4 shrink-0" aria-hidden="true" />
                 <span className="hidden sm:inline">{t("nav.analytics")}</span>
               </TabsTrigger>
-              <TabsTrigger value="settings" className={topTabClass}>
+              <TabsTrigger value="settings" className={topTabClass} title={t("nav.settings")} aria-label={t("nav.settings")}>
                 <SlidersHorizontal className="h-4 w-4 shrink-0" aria-hidden="true" />
                 <span className="hidden sm:inline">{t("nav.settings")}</span>
               </TabsTrigger>
