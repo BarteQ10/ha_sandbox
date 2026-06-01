@@ -34,14 +34,7 @@
     "tempUp": "Zwiększ temperaturę",
     "tempDown": "Zmniejsz temperaturę",
     "heatOn": "Grzanie włączone",
-    "heatOff": "Grzanie wyłączone",
-    "testAlarms": "Wyzwól test alarmu",
-    "testSmoke": "Dym",
-    "testCo": "Czad (CO)",
-    "testLeak": "Zalanie",
-    "testTriggered": "Wyzwolono — alarm pojawi się za chwilę",
-    "testFailed": "Nie udało się (sprawdź symulator na :8088)",
-    "testHint": "Czujnik włączy się na ~30 s i wywoła banner + dźwięk (jeśli dźwięk jest włączony)."
+    "heatOff": "Grzanie wyłączone"
   },
   "alarms": {
     "soundTitle": "Alerty dźwiękowe",

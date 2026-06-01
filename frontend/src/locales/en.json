@@ -34,14 +34,7 @@
     "tempUp": "Increase temperature",
     "tempDown": "Decrease temperature",
     "heatOn": "Heating on",
-    "heatOff": "Heating off",
-    "testAlarms": "Trigger test alarm",
-    "testSmoke": "Smoke",
-    "testCo": "CO",
-    "testLeak": "Leak",
-    "testTriggered": "Triggered — alarm appears shortly",
-    "testFailed": "Failed (check the simulator on :8088)",
-    "testHint": "The sensor turns on for ~30s and raises the banner + sound (if sound is enabled)."
+    "heatOff": "Heating off"
   },
   "alarms": {
     "soundTitle": "Sound alerts",

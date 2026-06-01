@@ -6,6 +6,9 @@ import { useToast } from "@/hooks/useToast"
 import { deriveAlarms, type Alarm } from "@/lib/alarms"
 import { playAlarm, unlockAudio } from "@/lib/sound"
 
+// How often an active, unacknowledged critical alarm re-sounds.
+const REPEAT_MS = 8000
+
 interface AlarmCtx {
   soundEnabled: boolean
   setSoundEnabled: (b: boolean) => void
@@ -63,6 +66,15 @@ export function AlarmProvider({ children }: { children: React.ReactNode }) {
     prevRef.current = current
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sig])
+
+  // While a critical alarm stays active and unacknowledged, re-sound it every
+  // REPEAT_MS — unless the user muted sound or dismissed the banner.
+  const hasCritical = activeCritical.length > 0
+  useEffect(() => {
+    if (!hasCritical || dismissed || !soundEnabled) return
+    const id = setInterval(() => playAlarm("critical"), REPEAT_MS)
+    return () => clearInterval(id)
+  }, [hasCritical, dismissed, soundEnabled])
 
   // Unlock the AudioContext on the first user gesture (browser autoplay policy).
   useEffect(() => {
