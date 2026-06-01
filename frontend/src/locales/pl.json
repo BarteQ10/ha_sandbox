@@ -14,7 +14,27 @@
     "backtest": "Backtest",
     "events": "Zdarzenia",
     "cameras": "Kamery",
+    "devices": "Urządzenia",
     "media": "Media"
+  },
+  "devices": {
+    "controllable": "Sterowanie",
+    "contacts": "Kontaktrony i bezpieczeństwo",
+    "environment": "Liczniki i środowisko",
+    "empty": "Brak urządzeń. Dodaj encje cover.* / lock.* / climate.* / binary_sensor.* w HA — pojawią się tu automatycznie.",
+    "note": "Auto-wykryte z encji cover / lock / climate / binary_sensor / sensor w Home Assistant.",
+    "open": "Otwórz",
+    "close": "Zamknij",
+    "stop": "Stop",
+    "lock": "Zablokuj",
+    "unlock": "Odblokuj",
+    "locked": "Zablokowany",
+    "unlocked": "Odblokowany",
+    "target": "zadana",
+    "tempUp": "Zwiększ temperaturę",
+    "tempDown": "Zmniejsz temperaturę",
+    "heatOn": "Grzanie włączone",
+    "heatOff": "Grzanie wyłączone"
   },
   "media": {
     "title": "Odtwarzacze media",

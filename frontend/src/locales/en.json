@@ -14,7 +14,27 @@
     "backtest": "Backtest",
     "events": "Events",
     "cameras": "Cameras",
+    "devices": "Devices",
     "media": "Media"
+  },
+  "devices": {
+    "controllable": "Controls",
+    "contacts": "Contacts & safety",
+    "environment": "Meters & environment",
+    "empty": "No devices. Add cover.* / lock.* / climate.* / binary_sensor.* entities in HA — they appear here automatically.",
+    "note": "Auto-discovered from cover / lock / climate / binary_sensor / sensor entities in Home Assistant.",
+    "open": "Open",
+    "close": "Close",
+    "stop": "Stop",
+    "lock": "Lock",
+    "unlock": "Unlock",
+    "locked": "Locked",
+    "unlocked": "Unlocked",
+    "target": "target",
+    "tempUp": "Increase temperature",
+    "tempDown": "Decrease temperature",
+    "heatOn": "Heating on",
+    "heatOff": "Heating off"
   },
   "media": {
     "title": "Media Players",
