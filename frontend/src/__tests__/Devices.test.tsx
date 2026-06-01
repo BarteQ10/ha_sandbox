@@ -77,6 +77,24 @@ describe("Devices", () => {
     expect(screen.getByText("Window")).toBeInTheDocument()
   })
 
+  it("excludes room-assigned devices (rendered inside their room instead)", async () => {
+    mockEntities.mockReturnValue({
+      // living window is assigned to the Salon room → must NOT appear here
+      "binary_sensor.ems_simulator_living_window": entity(
+        "binary_sensor.ems_simulator_living_window", "off",
+        { friendly_name: "Living Window", device_class: "window" },
+      ),
+      // a house-wide contact → should appear
+      "binary_sensor.ems_simulator_smoke_detector": entity(
+        "binary_sensor.ems_simulator_smoke_detector", "off",
+        { friendly_name: "Smoke", device_class: "smoke" },
+      ),
+    })
+    await renderDevices()
+    expect(screen.getByText("Smoke")).toBeInTheDocument()
+    expect(screen.queryByText("Living Window")).not.toBeInTheDocument()
+  })
+
   it("filters environment sensors by device_class", async () => {
     mockEntities.mockReturnValue({
       "sensor.humidity": entity("sensor.humidity", "45", {

@@ -7,6 +7,9 @@ import { useEntityState, useEntityNum, useHA } from "@/hooks/useHA"
 import { useCommittedSlider } from "@/hooks/useCommittedSlider"
 import { CameraView } from "@/components/CameraView"
 import {
+  CoverControl, LockControl, ClimateControl, BinaryChip,
+} from "@/components/DeviceControls"
+import {
   Sofa, CookingPot, Bed, Bath, TreePine,
   Lightbulb, Thermometer, Droplets, Blinds,
 } from "lucide-react"
@@ -53,6 +56,11 @@ interface RoomConfig {
   setpointEntity?: string
   cameraEntity?: string      // HA camera.* entity (optional)
   motionEntity?: string      // binary_sensor.* for a MOTION badge (optional)
+  // Auxiliary MQTT smart devices assigned to this room (rendered as cards/chips).
+  climateEntity?: string     // climate.* (TRV / thermostat)
+  lockEntity?: string        // lock.*
+  coverEntity?: string       // cover.* (gate / blind motor)
+  contactEntities?: string[] // binary_sensor.* shown as status chips
 }
 
 const rooms: RoomConfig[] = [
@@ -82,6 +90,8 @@ const rooms: RoomConfig[] = [
       },
     ],
     shutterEntity: "input_number.wirtualne_rolety_salon",
+    climateEntity: "climate.ems_simulator_living_room_trv",
+    contactEntities: ["binary_sensor.ems_simulator_living_window"],
   },
   {
     id: "kuchnia",
@@ -108,6 +118,7 @@ const rooms: RoomConfig[] = [
       },
     ],
     shutterEntity: "input_number.wirtualne_rolety_kuchnia",
+    contactEntities: ["binary_sensor.ems_simulator_kitchen_leak"],
   },
   {
     id: "sypialnia",
@@ -170,6 +181,15 @@ const rooms: RoomConfig[] = [
     motionEntity: "binary_sensor.ems_czujnik_ruchu_zewnetrzny",
   },
 ]
+
+// Entity IDs of all room-assigned smart devices. The house-wide Devices tab
+// imports this to avoid showing the same device in two places.
+export const ROOM_DEVICE_IDS = new Set<string>(
+  rooms.flatMap((r) =>
+    [r.climateEntity, r.lockEntity, r.coverEntity, ...(r.contactEntities ?? [])]
+      .filter((x): x is string => Boolean(x)),
+  ),
+)
 
 function LightControl({ light, color }: { light: LightConfig; color: string }) {
   const { t } = useTranslation()
@@ -438,6 +458,22 @@ function RoomCard({ room }: { room: RoomConfig }) {
               </Button>
               <Slider min={0} max={100} step={1} className="flex-1" {...shutter.sliderProps} />
             </div>
+          </div>
+        )}
+
+        {/* Auxiliary smart devices assigned to this room */}
+        {(room.contactEntities?.length || room.climateEntity || room.lockEntity || room.coverEntity) && (
+          <div className="space-y-2 border-t pt-2">
+            {room.contactEntities && room.contactEntities.length > 0 && (
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {room.contactEntities.map((id) =>
+                  entities[id] ? <BinaryChip key={id} e={entities[id]} /> : null,
+                )}
+              </div>
+            )}
+            {room.coverEntity && <CoverControl entityId={room.coverEntity} />}
+            {room.climateEntity && <ClimateControl entityId={room.climateEntity} />}
+            {room.lockEntity && <LockControl entityId={room.lockEntity} />}
           </div>
         )}
       </CardContent>
