@@ -15,7 +15,10 @@
     "events": "Events",
     "cameras": "Cameras",
     "devices": "Devices",
-    "media": "Media"
+    "media": "Media",
+    "monitoring": "Monitoring",
+    "analytics": "Analytics",
+    "charts": "Charts"
   },
   "devices": {
     "controllable": "Controls",

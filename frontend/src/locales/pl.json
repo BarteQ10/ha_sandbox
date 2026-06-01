@@ -15,7 +15,10 @@
     "events": "Zdarzenia",
     "cameras": "Kamery",
     "devices": "Urządzenia",
-    "media": "Media"
+    "media": "Media",
+    "monitoring": "Monitoring",
+    "analytics": "Analiza",
+    "charts": "Wykresy"
   },
   "devices": {
     "controllable": "Sterowanie",

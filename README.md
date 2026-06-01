@@ -571,8 +571,12 @@ HA → Modbus TCP → Python Simulator
 - **Smart Home dashboard**: room cards (Salon, Kuchnia, Sypialnia, Lazienka, Ogrod) with temperature, humidity, blinds, and multi-light controls per room
 - **Multi-light control**: individual light toggles with dimmer (1-100%) and color temperature (2700-6500K) or RGB (R/G/B 0-255) sliders, plus All-ON/OFF per room
 - **Thermostat setpoint**: +/- buttons in Salon, Kuchnia, Sypialnia for target temperature (16-30°C, step 0.5)
-- **Room sub-views**: Wspolne / Prywatne / Ogrod tabs
-- **System view**: 7 sub-tabs — Flow, Controls, Energy, Alerts, Weather, Reports, Presence, Settings
+- **Top-level navigation**: themed sections — **Dom** · **Energia** · **Monitoring** · **Analiza** · **Ustawienia** — each with its own sub-tabs (icon-only on mobile, icon+label on ≥ sm):
+  - **Dom** (Home): Wspolne / Prywatne / Ogrod room views + **Media** + **Urzadzenia**, with the KPI summary + cost-forecast sidebar
+  - **Energia**: Flow · Charts · Controls · Presence
+  - **Monitoring**: Cameras · Events · Alerts
+  - **Analiza**: Reports · Backtest · Weather
+  - **Ustawienia**: thresholds, notifications, sound alerts, system config, tariff zones
   - **Flow**: animated SVG energy-flow diagram + gauges + 12h history
   - **Controls**: inverter/HP/grid selects, boiler/PV/anomaly switches, **presence mode + V2G + smart socket**, storm/EV override, EV limit + degradation sliders
   - **Energy**: Riemann integrals, 24h price chart, daily financial balance

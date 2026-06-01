@@ -27,7 +27,7 @@ import { DashboardSummary } from "@/components/DashboardSummary"
 import { CostForecast } from "@/components/CostForecast"
 import {
   Home, Languages, Sun, Moon, Bolt, ToggleLeft, BarChart3, FileText,
-  Sofa, Bed, TreePine, WifiOff, Bell, CloudSun, SlidersHorizontal, Users, FlaskConical, ScrollText, Video, Music, Plug,
+  Sofa, Bed, TreePine, WifiOff, Bell, CloudSun, SlidersHorizontal, Users, FlaskConical, ScrollText, Video, Music, Plug, Eye,
 } from "lucide-react"
 
 function ConnectionIndicator() {
@@ -100,17 +100,49 @@ function ThemeToggle() {
   )
 }
 
+// Reusable scrollable sub-tab bar (icon always, label on >= sm).
+function SubNav({ value, onChange, items }: {
+  value: string
+  onChange: (v: string) => void
+  items: { value: string; icon: React.ElementType; label: string }[]
+}) {
+  return (
+    <div className="overflow-x-auto">
+      <Tabs value={value} onValueChange={onChange}>
+        <TabsList className="flex w-max min-w-full sm:w-full">
+          {items.map(({ value: v, icon: Icon, label }) => (
+            <TabsTrigger key={v} value={v} className="flex-1 shrink-0 gap-1">
+              <Icon className="h-4 w-4 shrink-0" />
+              <span className="hidden sm:inline">{label}</span>
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
+    </div>
+  )
+}
+
 function AppContent() {
   const [tab, setTab] = usePersistentState("ems.tab", "rooms")
   const [roomTab, setRoomTab] = usePersistentState("ems.roomTab", "day")
-  const [sysTab, setSysTab] = usePersistentState("ems.sysTab", "flow")
+  const [energyTab, setEnergyTab] = usePersistentState("ems.energyTab", "flow")
+  const [monitorTab, setMonitorTab] = usePersistentState("ems.monitorTab", "cameras")
+  const [analyticsTab, setAnalyticsTab] = usePersistentState("ems.analyticsTab", "reports")
   const { t } = useTranslation()
 
-  // Jump from a home KPI tile straight to the relevant System sub-tab.
-  const goToSystem = (target: string) => {
-    setSysTab(target)
-    setTab("system")
+  // Jump from a home KPI tile straight to the right section + sub-tab.
+  const goTo = (target: string) => {
+    if (["flow", "energy", "controls", "presence"].includes(target)) {
+      setEnergyTab(target); setTab("energy")
+    } else if (["cameras", "events", "alerts"].includes(target)) {
+      setMonitorTab(target); setTab("monitoring")
+    } else if (["reports", "backtest", "weather"].includes(target)) {
+      setAnalyticsTab(target); setTab("analytics")
+    }
   }
+
+  const topTabClass =
+    "flex-1 gap-1.5 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none text-xs sm:text-sm"
 
   return (
     <div className="min-h-screen bg-transparent text-foreground">
@@ -135,22 +167,28 @@ function AppContent() {
               <ConnectionIndicator />
             </div>
           </div>
-          {/* Main nav — full width, flush with header bottom */}
+          {/* Main nav — themed sections, full width, flush with header bottom */}
           <Tabs value={tab} onValueChange={setTab}>
             <TabsList className="w-full rounded-none border-0 bg-transparent p-0 h-9">
-              <TabsTrigger
-                value="rooms"
-                className="flex-1 gap-1.5 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none text-xs sm:text-sm"
-              >
+              <TabsTrigger value="rooms" className={topTabClass}>
                 <Home className="h-4 w-4 shrink-0" aria-hidden="true" />
-                {t("nav.rooms")}
+                <span className="hidden sm:inline">{t("nav.rooms")}</span>
               </TabsTrigger>
-              <TabsTrigger
-                value="system"
-                className="flex-1 gap-1.5 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none text-xs sm:text-sm"
-              >
+              <TabsTrigger value="energy" className={topTabClass}>
                 <Bolt className="h-4 w-4 shrink-0" aria-hidden="true" />
-                {t("nav.system")}
+                <span className="hidden sm:inline">{t("nav.energy")}</span>
+              </TabsTrigger>
+              <TabsTrigger value="monitoring" className={topTabClass}>
+                <Eye className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span className="hidden sm:inline">{t("nav.monitoring")}</span>
+              </TabsTrigger>
+              <TabsTrigger value="analytics" className={topTabClass}>
+                <BarChart3 className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span className="hidden sm:inline">{t("nav.analytics")}</span>
+              </TabsTrigger>
+              <TabsTrigger value="settings" className={topTabClass}>
+                <SlidersHorizontal className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span className="hidden sm:inline">{t("nav.settings")}</span>
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -165,7 +203,7 @@ function AppContent() {
           <div className="grid gap-3 sm:gap-4 lg:grid-cols-[16rem_1fr] lg:items-start">
             {/* KPI summary — left sidebar on desktop, full-width strip on mobile */}
             <div className="space-y-3 sm:space-y-4 lg:sticky lg:top-[5.5rem]">
-              <DashboardSummary variant="side" onNavigate={goToSystem} />
+              <DashboardSummary variant="side" onNavigate={goTo} />
               <CostForecast />
             </div>
             {/* Rooms column */}
@@ -206,70 +244,50 @@ function AppContent() {
           </div>
         )}
 
-        {tab === "system" && (
+        {tab === "energy" && (
           <div className="space-y-3 sm:space-y-4">
-            {/* System sub-tabs — scrollable; text hidden on mobile to avoid overflow */}
-            <div className="overflow-x-auto">
-              <Tabs value={sysTab} onValueChange={setSysTab}>
-                <TabsList className="flex w-max min-w-full sm:w-full">
-                  <TabsTrigger value="flow" className="flex-1 shrink-0 gap-1">
-                    <Bolt className="h-4 w-4 shrink-0" />
-                    <span className="hidden sm:inline">{t("nav.flow")}</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="controls" className="flex-1 shrink-0 gap-1">
-                    <ToggleLeft className="h-4 w-4 shrink-0" />
-                    <span className="hidden sm:inline">{t("nav.controls")}</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="energy" className="flex-1 shrink-0 gap-1">
-                    <BarChart3 className="h-4 w-4 shrink-0" />
-                    <span className="hidden sm:inline">{t("nav.energy")}</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="alerts" className="flex-1 shrink-0 gap-1">
-                    <Bell className="h-4 w-4 shrink-0" />
-                    <span className="hidden sm:inline">{t("nav.alerts")}</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="events" className="flex-1 shrink-0 gap-1">
-                    <ScrollText className="h-4 w-4 shrink-0" />
-                    <span className="hidden sm:inline">{t("nav.events")}</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="cameras" className="flex-1 shrink-0 gap-1">
-                    <Video className="h-4 w-4 shrink-0" />
-                    <span className="hidden sm:inline">{t("nav.cameras")}</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="weather" className="flex-1 shrink-0 gap-1">
-                    <CloudSun className="h-4 w-4 shrink-0" />
-                    <span className="hidden sm:inline">{t("nav.weather")}</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="reports" className="flex-1 shrink-0 gap-1">
-                    <FileText className="h-4 w-4 shrink-0" />
-                    <span className="hidden sm:inline">{t("nav.reports")}</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="backtest" className="flex-1 shrink-0 gap-1">
-                    <FlaskConical className="h-4 w-4 shrink-0" />
-                    <span className="hidden sm:inline">{t("nav.backtest")}</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="presence" className="flex-1 shrink-0 gap-1">
-                    <Users className="h-4 w-4 shrink-0" />
-                    <span className="hidden sm:inline">{t("nav.presence")}</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="settings" className="flex-1 shrink-0 gap-1">
-                    <SlidersHorizontal className="h-4 w-4 shrink-0" />
-                    <span className="hidden sm:inline">{t("nav.settings")}</span>
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
-            </div>
-            {sysTab === "flow"     && <Flow />}
-            {sysTab === "controls" && <Controls />}
-            {sysTab === "energy"   && <Energy />}
-            {sysTab === "alerts"   && <Alerts />}
-            {sysTab === "events"   && <EventLog />}
-            {sysTab === "cameras"  && <Cameras />}
-            {sysTab === "weather"  && <Weather />}
-            {sysTab === "reports"  && <Reports />}
-            {sysTab === "backtest" && <Backtest />}
-            {sysTab === "presence" && <Presence />}
-            {sysTab === "settings" && <Settings />}
+            <SubNav value={energyTab} onChange={setEnergyTab} items={[
+              { value: "flow",     icon: Bolt,       label: t("nav.flow") },
+              { value: "energy",   icon: BarChart3,  label: t("nav.charts") },
+              { value: "controls", icon: ToggleLeft, label: t("nav.controls") },
+              { value: "presence", icon: Users,      label: t("nav.presence") },
+            ]} />
+            {energyTab === "flow"     && <Flow />}
+            {energyTab === "energy"   && <Energy />}
+            {energyTab === "controls" && <Controls />}
+            {energyTab === "presence" && <Presence />}
+          </div>
+        )}
+
+        {tab === "monitoring" && (
+          <div className="space-y-3 sm:space-y-4">
+            <SubNav value={monitorTab} onChange={setMonitorTab} items={[
+              { value: "cameras", icon: Video,      label: t("nav.cameras") },
+              { value: "events",  icon: ScrollText, label: t("nav.events") },
+              { value: "alerts",  icon: Bell,       label: t("nav.alerts") },
+            ]} />
+            {monitorTab === "cameras" && <Cameras />}
+            {monitorTab === "events"  && <EventLog />}
+            {monitorTab === "alerts"  && <Alerts />}
+          </div>
+        )}
+
+        {tab === "analytics" && (
+          <div className="space-y-3 sm:space-y-4">
+            <SubNav value={analyticsTab} onChange={setAnalyticsTab} items={[
+              { value: "reports",  icon: FileText,     label: t("nav.reports") },
+              { value: "backtest", icon: FlaskConical, label: t("nav.backtest") },
+              { value: "weather",  icon: CloudSun,     label: t("nav.weather") },
+            ]} />
+            {analyticsTab === "reports"  && <Reports />}
+            {analyticsTab === "backtest" && <Backtest />}
+            {analyticsTab === "weather"  && <Weather />}
+          </div>
+        )}
+
+        {tab === "settings" && (
+          <div className="space-y-3 sm:space-y-4">
+            <Settings />
           </div>
         )}
       </main>
