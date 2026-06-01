@@ -76,7 +76,7 @@ ems_simulator/
 ├── media_sim.py           # Simulated media player (dims lights when playing)
 ├── rules.py               # Presence-aware rule engine (window_away, laundry_done)
 ├── security.py            # Motion event simulation (indoor/outdoor PIR)
-├── home_devices.py        # Aux smart devices: temp/humidity, meters, contacts, gate, lock, TRV
+├── home_devices.py        # Aux smart devices: sensors (temp/humidity/air-quality/meters), contacts, doorbell, gate/garage, lock, TRV, vacuum, irrigation, fan
 ├── notifications.py       # Webhook + Telegram alert bridge (edge-triggered)
 ├── mqtt_bridge.py         # MQTT autodiscovery → HA entities
 ├── health.py              # Health / metrics HTTP endpoint (port 8088)
@@ -684,8 +684,8 @@ Rolling Z-score detector over 72-tick windows (6 simulated hours). Flags `pv_und
 
 Publishes the simulator as a single HA device via the MQTT discovery protocol (requires `paho-mqtt` + a running broker — Mosquitto is in `docker-compose.yml`).
 
-- **Entities**: 15 sensors, 7 binary sensors, 1 switch (V2G), 1 select (presence), 1 cover, 1 lock, 1 climate
-- **Auxiliary devices** (`home_devices.py`): temperature/humidity, water + gas meters (`total_increasing`), window/door contacts, leak/smoke/CO safety sensors, plus controllable **gate** (cover), **entrance lock** (lock) and **living-room TRV** (climate). These are MQTT-only virtual devices — they don't touch the EMS core or Modbus.
+- **Entities**: 19 sensors, 9 binary sensors, 2 switches (V2G, irrigation), 1 select (presence), 2 covers (gate, garage), 1 lock, 1 climate, 1 fan, 1 vacuum
+- **Auxiliary devices** (`home_devices.py`): temperature/humidity, water + gas meters (`total_increasing`), air-quality (CO₂/PM2.5/VOC) + alert, window/door contacts, leak/smoke/CO safety sensors, video doorbell, plus controllable **gate** + **garage door** (covers), **entrance lock** (lock), **living-room TRV** (climate), **robot vacuum** (vacuum: start/stop/pause/return + battery), **garden irrigation** (switch, auto morning run, skips rain) and a **living-room fan** (fan: on/off + speed %). These are MQTT-only virtual devices — they don't touch the EMS core or Modbus.
 - **Control loop**: writable EMS entities (switch/select) write back to Modbus; auxiliary device commands (gate/lock/climate) route to a `command_fn` callback into `HomeDevices`.
 - **State push**: every ~10 s from the main loop
 - **Setup in HA**: Settings → Devices & Services → Add Integration → MQTT, host `mosquitto`, port `1883`, no auth (broker uses `allow_anonymous`)

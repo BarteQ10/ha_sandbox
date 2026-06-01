@@ -152,6 +152,18 @@ def main():
             home_devices.cmd_climate_temp(float(payload))
         elif kind == "climate_mode":
             home_devices.cmd_climate_mode(payload)
+        elif kind == "garage":
+            home_devices.cmd_garage(payload)
+        elif kind == "garage_position":
+            home_devices.cmd_garage_position(float(payload))
+        elif kind == "vacuum":
+            home_devices.cmd_vacuum(payload)
+        elif kind == "irrigation":
+            home_devices.cmd_irrigation(payload)
+        elif kind == "fan":
+            home_devices.cmd_fan(payload)
+        elif kind == "fan_pct":
+            home_devices.cmd_fan_percentage(float(payload))
 
     mqtt_bridge = MQTTBridge(write_register_fn=srv_set_register, command_fn=_device_command)
     if mqtt_enabled():

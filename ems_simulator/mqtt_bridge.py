@@ -62,6 +62,10 @@ _SENSORS = [
     ("humidity_pct",    "Humidity",             "%",       "humidity",    "measurement",      "humidity_pct"),
     ("water_m3",        "Water Meter",          "m³",      "water",       "total_increasing", "water_m3"),
     ("gas_m3",          "Gas Meter",            "m³",      "gas",         "total_increasing", "gas_m3"),
+    ("co2_ppm",         "CO2",                  "ppm",     "carbon_dioxide", "measurement",   "co2_ppm"),
+    ("pm25",            "PM2.5",                "µg/m³",   "pm25",        "measurement",      "pm25"),
+    ("voc_index",       "VOC Index",            None,      None,          "measurement",      "voc_index"),
+    ("vacuum_battery",  "Vacuum Battery",       "%",       "battery",     "measurement",      "vacuum_battery"),
 ]
 
 # (object_id, friendly_name, device_class, metrics_key)
@@ -74,6 +78,8 @@ _BINARY_SENSORS = [
     ("leak_kitchen",   "Kitchen Leak",   "moisture",        "leak_kitchen"),
     ("smoke",          "Smoke Detector", "smoke",           "smoke"),
     ("co",             "CO Detector",    "carbon_monoxide", "co"),
+    ("air_quality",    "Air Quality Alert", "problem",      "air_quality_alert"),
+    ("doorbell",       "Doorbell",       "occupancy",       "doorbell"),
 ]
 
 # (object_id, friendly_name, icon, modbus_reg)
@@ -95,9 +101,10 @@ _SELECTS = [
 
 
 # Controllable auxiliary devices — commands route to a callback, not Modbus.
-# (object_id, friendly_name, position_metrics_key)
+# (object_id, friendly_name, position_metrics_key, cmd_kind, pos_cmd_kind)
 _COVERS = [
-    ("gate", "Driveway Gate", "gate_position"),
+    ("gate",   "Driveway Gate", "gate_position",   "gate",   "gate_position"),
+    ("garage", "Garage Door",   "garage_position", "garage", "garage_position"),
 ]
 # (object_id, friendly_name, state_metrics_key)  → "LOCKED" / "UNLOCKED"
 _LOCKS = [
@@ -106,6 +113,18 @@ _LOCKS = [
 # (object_id, friendly_name, current_key, target_key, mode_key, min_t, max_t)
 _CLIMATES = [
     ("trv_living", "Living Room TRV", "trv_current", "trv_target", "trv_mode", 7, 30),
+]
+# Aux switches (controllable, command → callback). (object_id, name, icon, state_key, cmd_kind)
+_AUX_SWITCHES = [
+    ("irrigation", "Garden Irrigation", "mdi:sprinkler", "irrigation", "irrigation"),
+]
+# Fans. (object_id, friendly_name, state_key, pct_key)
+_FANS = [
+    ("fan_living", "Living Room Fan", "fan_state", "fan_pct"),
+]
+# Vacuums. (object_id, friendly_name, state_key, battery_key)
+_VACUUMS = [
+    ("vacuum", "Robot Vacuum", "vacuum_state", "vacuum_battery"),
 ]
 
 
@@ -212,12 +231,12 @@ class MQTTBridge:
                     log.info("[MQTT] select %s → %r (reg %d)", obj_id, payload, reg)
                 return
         # ── auxiliary controllable devices (route to command callback) ──────────
-        for obj_id, *_ in _COVERS:
+        for obj_id, _name, _pos, cmd_kind, pos_kind in _COVERS:
             if topic == _cmd_topic("cover", obj_id):
-                self._command_fn("gate", obj_id, payload)
+                self._command_fn(cmd_kind, obj_id, payload)
                 return
             if topic == _sub_topic("cover", obj_id, "set_position"):
-                self._command_fn("gate_position", obj_id, payload)
+                self._command_fn(pos_kind, obj_id, payload)
                 return
         for obj_id, *_ in _LOCKS:
             if topic == _cmd_topic("lock", obj_id):
@@ -229,6 +248,21 @@ class MQTTBridge:
                 return
             if topic == _sub_topic("climate", obj_id, "mode/set"):
                 self._command_fn("climate_mode", obj_id, payload)
+                return
+        for obj_id, _name, _icon, _state, cmd_kind in _AUX_SWITCHES:
+            if topic == _cmd_topic("switch", obj_id):
+                self._command_fn(cmd_kind, obj_id, payload)
+                return
+        for obj_id, *_ in _FANS:
+            if topic == _cmd_topic("fan", obj_id):
+                self._command_fn("fan", obj_id, payload)
+                return
+            if topic == _sub_topic("fan", obj_id, "pct/set"):
+                self._command_fn("fan_pct", obj_id, payload)
+                return
+        for obj_id, *_ in _VACUUMS:
+            if topic == _cmd_topic("vacuum", obj_id):
+                self._command_fn("vacuum", obj_id, payload)
                 return
 
     # ── autodiscovery ─────────────────────────────────────────────────────────
@@ -283,7 +317,7 @@ class MQTTBridge:
             }
             client.publish(_disc_topic("select", obj_id), json.dumps(cfg), retain=True)
 
-        for obj_id, name, _ in _COVERS:
+        for obj_id, name, _pos, _ck, _pk in _COVERS:
             cfg = {
                 "name": name,
                 "unique_id": f"{_DEVICE_ID}_{obj_id}",
@@ -292,7 +326,7 @@ class MQTTBridge:
                 "set_position_topic": _sub_topic("cover", obj_id, "set_position"),
                 "payload_open": "OPEN", "payload_close": "CLOSE", "payload_stop": "STOP",
                 "position_open": 100, "position_closed": 0,
-                "device_class": "gate",
+                "device_class": "garage" if obj_id == "garage" else "gate",
                 "device": _DEVICE,
             }
             client.publish(_disc_topic("cover", obj_id), json.dumps(cfg), retain=True)
@@ -325,11 +359,47 @@ class MQTTBridge:
             }
             client.publish(_disc_topic("climate", obj_id), json.dumps(cfg), retain=True)
 
+        for obj_id, name, icon, _state, _ck in _AUX_SWITCHES:
+            cfg = {
+                "name": name,
+                "unique_id": f"{_DEVICE_ID}_{obj_id}",
+                "state_topic":   _state_topic("switch", obj_id),
+                "command_topic": _cmd_topic("switch", obj_id),
+                "icon": icon,
+                "device": _DEVICE,
+            }
+            client.publish(_disc_topic("switch", obj_id), json.dumps(cfg), retain=True)
+
+        for obj_id, name, _state, _pct in _FANS:
+            cfg = {
+                "name": name,
+                "unique_id": f"{_DEVICE_ID}_{obj_id}",
+                "state_topic":   _state_topic("fan", obj_id),
+                "command_topic": _cmd_topic("fan", obj_id),
+                "percentage_state_topic":   _sub_topic("fan", obj_id, "pct"),
+                "percentage_command_topic": _sub_topic("fan", obj_id, "pct/set"),
+                "device": _DEVICE,
+            }
+            client.publish(_disc_topic("fan", obj_id), json.dumps(cfg), retain=True)
+
+        for obj_id, name, _state, _batt in _VACUUMS:
+            cfg = {
+                "name": name,
+                "unique_id": f"{_DEVICE_ID}_{obj_id}",
+                "schema": "state",
+                "command_topic": _cmd_topic("vacuum", obj_id),
+                "state_topic":   _state_topic("vacuum", obj_id),
+                "supported_features": ["start", "stop", "pause", "return_home", "status"],
+                "device": _DEVICE,
+            }
+            client.publish(_disc_topic("vacuum", obj_id), json.dumps(cfg), retain=True)
+
         log.info(
             "[MQTT] Autodiscovery published (%d sensors, %d binary, %d switches, "
-            "%d selects, %d covers, %d locks, %d climates)",
-            len(_SENSORS), len(_BINARY_SENSORS), len(_SWITCHES), len(_SELECTS),
-            len(_COVERS), len(_LOCKS), len(_CLIMATES),
+            "%d selects, %d covers, %d locks, %d climates, %d fans, %d vacuums)",
+            len(_SENSORS), len(_BINARY_SENSORS), len(_SWITCHES) + len(_AUX_SWITCHES),
+            len(_SELECTS), len(_COVERS), len(_LOCKS), len(_CLIMATES),
+            len(_FANS), len(_VACUUMS),
         )
 
     def _subscribe_commands(self, client) -> None:
@@ -345,6 +415,13 @@ class MQTTBridge:
         for obj_id, *_ in _CLIMATES:
             client.subscribe(_sub_topic("climate", obj_id, "temp/set"))
             client.subscribe(_sub_topic("climate", obj_id, "mode/set"))
+        for obj_id, *_ in _AUX_SWITCHES:
+            client.subscribe(_cmd_topic("switch", obj_id))
+        for obj_id, *_ in _FANS:
+            client.subscribe(_cmd_topic("fan", obj_id))
+            client.subscribe(_sub_topic("fan", obj_id, "pct/set"))
+        for obj_id, *_ in _VACUUMS:
+            client.subscribe(_cmd_topic("vacuum", obj_id))
 
     # ── state publication ─────────────────────────────────────────────────────
 
@@ -370,7 +447,7 @@ class MQTTBridge:
             c.publish(_state_topic("select", obj_id), state)
 
         # Auxiliary controllable devices — publish current state from metrics
-        for obj_id, _name, pos_key in _COVERS:
+        for obj_id, _name, pos_key, *_ in _COVERS:
             val = m.get(pos_key)
             if val is not None:
                 c.publish(_sub_topic("cover", obj_id, "position"), str(int(val)))
@@ -387,6 +464,23 @@ class MQTTBridge:
                 c.publish(_sub_topic("climate", obj_id, "temp/state"), str(tgt))
             if (mode := m.get(mode_key)) is not None:
                 c.publish(_sub_topic("climate", obj_id, "mode/state"), str(mode))
+
+        for obj_id, _name, _icon, state_key, _ck in _AUX_SWITCHES:
+            if (val := m.get(state_key)) is not None:
+                c.publish(_state_topic("switch", obj_id), str(val))
+
+        for obj_id, _name, state_key, pct_key in _FANS:
+            if (val := m.get(state_key)) is not None:
+                c.publish(_state_topic("fan", obj_id), str(val))
+            if (pct := m.get(pct_key)) is not None:
+                c.publish(_sub_topic("fan", obj_id, "pct"), str(int(pct)))
+
+        for obj_id, _name, state_key, batt_key in _VACUUMS:
+            st = m.get(state_key)
+            batt = m.get(batt_key)
+            if st is not None:
+                c.publish(_state_topic("vacuum", obj_id),
+                          json.dumps({"state": st, "battery_level": int(batt or 0)}))
 
 
 def enabled() -> bool:
