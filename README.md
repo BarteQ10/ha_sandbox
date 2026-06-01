@@ -76,6 +76,7 @@ ems_simulator/
 ├── media_sim.py           # Simulated media player (dims lights when playing)
 ├── rules.py               # Presence-aware rule engine (window_away, laundry_done)
 ├── security.py            # Motion event simulation (indoor/outdoor PIR)
+├── home_devices.py        # Aux smart devices: temp/humidity, meters, contacts, gate, lock, TRV
 ├── notifications.py       # Webhook + Telegram alert bridge (edge-triggered)
 ├── mqtt_bridge.py         # MQTT autodiscovery → HA entities
 ├── health.py              # Health / metrics HTTP endpoint (port 8088)
@@ -679,8 +680,9 @@ Rolling Z-score detector over 72-tick windows (6 simulated hours). Flags `pv_und
 
 Publishes the simulator as a single HA device via the MQTT discovery protocol (requires `paho-mqtt` + a running broker — Mosquitto is in `docker-compose.yml`).
 
-- **Entities**: 12 sensors, 2 binary sensors (motion), 1 switch (V2G), 1 select (presence)
-- **Control loop**: writable entities subscribe to command topics and write back to Modbus
+- **Entities**: 15 sensors, 7 binary sensors, 1 switch (V2G), 1 select (presence), 1 cover, 1 lock, 1 climate
+- **Auxiliary devices** (`home_devices.py`): temperature/humidity, water + gas meters (`total_increasing`), window/door contacts, leak/smoke/CO safety sensors, plus controllable **gate** (cover), **entrance lock** (lock) and **living-room TRV** (climate). These are MQTT-only virtual devices — they don't touch the EMS core or Modbus.
+- **Control loop**: writable EMS entities (switch/select) write back to Modbus; auxiliary device commands (gate/lock/climate) route to a `command_fn` callback into `HomeDevices`.
 - **State push**: every ~10 s from the main loop
 - **Setup in HA**: Settings → Devices & Services → Add Integration → MQTT, host `mosquitto`, port `1883`, no auth (broker uses `allow_anonymous`)
 - Graceful fallback: bridge disables itself if `paho-mqtt` is missing or `MQTT_HOST` is empty

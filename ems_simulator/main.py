@@ -38,6 +38,7 @@ from ems_simulator.generators import (
     pv_from_ghi,
     standby_load,
 )
+from ems_simulator.home_devices import HomeDevices
 from ems_simulator.influx_writer import read_events as inf_read_events
 from ems_simulator.influx_writer import read_last as inf_read_last
 from ems_simulator.influx_writer import start as inf_start
@@ -46,6 +47,7 @@ from ems_simulator.influx_writer import write as inf_write
 from ems_simulator.influx_writer import write_anomalies as inf_write_anomalies
 from ems_simulator.influx_writer import write_event as inf_write_event
 from ems_simulator.influx_writer import write_forecast as inf_write_forecast
+from ems_simulator.influx_writer import write_home_devices as inf_write_home_devices
 from ems_simulator.influx_writer import write_lighting as inf_write_lighting
 from ems_simulator.influx_writer import write_media_state as inf_write_media
 from ems_simulator.influx_writer import write_motion as inf_write_motion
@@ -122,6 +124,7 @@ def main():
     standby_devices = make_standby_devices()
     media_player = MediaPlayerSim()
     motion_sim = MotionSimulator()
+    home_devices = HomeDevices()
 
     # RL agent (optional — enable with EMS_RL_ENABLED=1)
     _rl_enabled = os.environ.get("EMS_RL_ENABLED", "0") == "1"
@@ -136,7 +139,20 @@ def main():
     if notify.enabled():
         log.info("[NOTIFY] Notification bridge active")
 
-    mqtt_bridge = MQTTBridge(write_register_fn=srv_set_register)
+    def _device_command(kind: str, _obj_id: str, payload: str) -> None:
+        """Route MQTT commands for auxiliary devices to the HomeDevices model."""
+        if kind == "gate":
+            home_devices.cmd_gate(payload)
+        elif kind == "gate_position":
+            home_devices.cmd_gate_position(float(payload))
+        elif kind == "lock":
+            home_devices.cmd_lock(payload)
+        elif kind == "climate_temp":
+            home_devices.cmd_climate_temp(float(payload))
+        elif kind == "climate_mode":
+            home_devices.cmd_climate_mode(payload)
+
+    mqtt_bridge = MQTTBridge(write_register_fn=srv_set_register, command_fn=_device_command)
     if mqtt_enabled():
         mqtt_bridge.start()
 
@@ -311,6 +327,8 @@ def main():
 
             # RC thermal model: advance house temperature, log periodically
             t_house = thermal.tick(current_temp if ghi is not None else None, hp_thermal)
+            # Auxiliary smart-home devices (humidity, meters, contacts, gate, lock, TRV)
+            home_devices.tick(hour, presence_mode, t_house)
             if day_step % (STEPS_PER_HOUR * 6) == 0:
                 thermal.log_status(current_temp)
                 if hp_eff > 0:
@@ -598,6 +616,7 @@ def main():
                 inf_write_anomalies(_anom_flags)
                 inf_write_rules(rule_engine.active_keys)
                 inf_write_motion(_motion["outdoor"], _motion["indoor"])
+                inf_write_home_devices(home_devices.metrics())
 
             if day_step % 2 == 0:  # MQTT push every 2 ticks (10 sim-min = ~10 real-sec)
                 mqtt_bridge.push({
@@ -609,6 +628,7 @@ def main():
                     "light_color_temp_k": lighting.color_temp_k,
                     "motion_outdoor": _motion["outdoor"],
                     "motion_indoor":  _motion["indoor"],
+                    **home_devices.metrics(),
                 })
 
             _anomaly_prev = anomaly

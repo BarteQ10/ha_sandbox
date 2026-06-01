@@ -58,12 +58,22 @@ _SENSORS = [
     ("media_state",     "Media State",          None,      None,          None,          "media_state"),
     ("presence_label",  "Presence Mode",        None,      None,          None,          "presence_label"),
     ("mpc_action",      "MPC Action",           None,      None,          None,          "mpc_action"),
+    # auxiliary home devices (read-only)
+    ("humidity_pct",    "Humidity",             "%",       "humidity",    "measurement",      "humidity_pct"),
+    ("water_m3",        "Water Meter",          "m³",      "water",       "total_increasing", "water_m3"),
+    ("gas_m3",          "Gas Meter",            "m³",      "gas",         "total_increasing", "gas_m3"),
 ]
 
 # (object_id, friendly_name, device_class, metrics_key)
 _BINARY_SENSORS = [
     ("motion_outdoor", "Motion Outdoor", "motion", "motion_outdoor"),
     ("motion_indoor",  "Motion Indoor",  "motion", "motion_indoor"),
+    # auxiliary home devices (read-only)
+    ("window_living",  "Living Window",  "window",          "window_living"),
+    ("door_entrance",  "Entrance Door",  "door",            "door_entrance"),
+    ("leak_kitchen",   "Kitchen Leak",   "moisture",        "leak_kitchen"),
+    ("smoke",          "Smoke Detector", "smoke",           "smoke"),
+    ("co",             "CO Detector",    "carbon_monoxide", "co"),
 ]
 
 # (object_id, friendly_name, icon, modbus_reg)
@@ -84,12 +94,32 @@ _SELECTS = [
 ]
 
 
+# Controllable auxiliary devices — commands route to a callback, not Modbus.
+# (object_id, friendly_name, position_metrics_key)
+_COVERS = [
+    ("gate", "Driveway Gate", "gate_position"),
+]
+# (object_id, friendly_name, state_metrics_key)  → "LOCKED" / "UNLOCKED"
+_LOCKS = [
+    ("lock_entrance", "Entrance Lock", "lock_entrance"),
+]
+# (object_id, friendly_name, current_key, target_key, mode_key, min_t, max_t)
+_CLIMATES = [
+    ("trv_living", "Living Room TRV", "trv_current", "trv_target", "trv_mode", 7, 30),
+]
+
+
 def _state_topic(component: str, obj_id: str) -> str:
     return f"{_STATE_PREFIX}/{component}/{obj_id}/state"
 
 
 def _cmd_topic(component: str, obj_id: str) -> str:
     return f"{_STATE_PREFIX}/{component}/{obj_id}/set"
+
+
+def _sub_topic(component: str, obj_id: str, leaf: str) -> str:
+    """Extra per-entity topic (e.g. cover position, climate mode)."""
+    return f"{_STATE_PREFIX}/{component}/{obj_id}/{leaf}"
 
 
 def _disc_topic(component: str, obj_id: str) -> str:
@@ -99,8 +129,11 @@ def _disc_topic(component: str, obj_id: str) -> str:
 class MQTTBridge:
     """Thread-safe MQTT bridge — connects once, auto-reconnects."""
 
-    def __init__(self, write_register_fn) -> None:
+    def __init__(self, write_register_fn, command_fn=None) -> None:
         self._write_reg = write_register_fn
+        # command_fn(kind, obj_id, payload) handles auxiliary device commands
+        # (gate / gate_position / lock / climate_temp / climate_mode).
+        self._command_fn = command_fn or (lambda *a: None)
         self._client: mqtt.Client | None = None
         self._connected = False
         self._lock = threading.Lock()
@@ -178,6 +211,25 @@ class MQTTBridge:
                     client.publish(_state_topic("select", obj_id), payload, retain=True)
                     log.info("[MQTT] select %s → %r (reg %d)", obj_id, payload, reg)
                 return
+        # ── auxiliary controllable devices (route to command callback) ──────────
+        for obj_id, *_ in _COVERS:
+            if topic == _cmd_topic("cover", obj_id):
+                self._command_fn("gate", obj_id, payload)
+                return
+            if topic == _sub_topic("cover", obj_id, "set_position"):
+                self._command_fn("gate_position", obj_id, payload)
+                return
+        for obj_id, *_ in _LOCKS:
+            if topic == _cmd_topic("lock", obj_id):
+                self._command_fn("lock", obj_id, payload)
+                return
+        for obj_id, *_ in _CLIMATES:
+            if topic == _sub_topic("climate", obj_id, "temp/set"):
+                self._command_fn("climate_temp", obj_id, payload)
+                return
+            if topic == _sub_topic("climate", obj_id, "mode/set"):
+                self._command_fn("climate_mode", obj_id, payload)
+                return
 
     # ── autodiscovery ─────────────────────────────────────────────────────────
 
@@ -231,14 +283,68 @@ class MQTTBridge:
             }
             client.publish(_disc_topic("select", obj_id), json.dumps(cfg), retain=True)
 
-        log.info("[MQTT] Autodiscovery published (%d sensors, %d binary, %d switches, %d selects)",
-                 len(_SENSORS), len(_BINARY_SENSORS), len(_SWITCHES), len(_SELECTS))
+        for obj_id, name, _ in _COVERS:
+            cfg = {
+                "name": name,
+                "unique_id": f"{_DEVICE_ID}_{obj_id}",
+                "command_topic":      _cmd_topic("cover", obj_id),
+                "position_topic":     _sub_topic("cover", obj_id, "position"),
+                "set_position_topic": _sub_topic("cover", obj_id, "set_position"),
+                "payload_open": "OPEN", "payload_close": "CLOSE", "payload_stop": "STOP",
+                "position_open": 100, "position_closed": 0,
+                "device_class": "gate",
+                "device": _DEVICE,
+            }
+            client.publish(_disc_topic("cover", obj_id), json.dumps(cfg), retain=True)
+
+        for obj_id, name, _ in _LOCKS:
+            cfg = {
+                "name": name,
+                "unique_id": f"{_DEVICE_ID}_{obj_id}",
+                "command_topic": _cmd_topic("lock", obj_id),
+                "state_topic":   _state_topic("lock", obj_id),
+                "payload_lock": "LOCK", "payload_unlock": "UNLOCK",
+                "state_locked": "LOCKED", "state_unlocked": "UNLOCKED",
+                "device": _DEVICE,
+            }
+            client.publish(_disc_topic("lock", obj_id), json.dumps(cfg), retain=True)
+
+        for obj_id, name, _cur, _tgt, _mode, min_t, max_t in _CLIMATES:
+            cfg = {
+                "name": name,
+                "unique_id": f"{_DEVICE_ID}_{obj_id}",
+                "modes": ["off", "heat"],
+                "mode_command_topic":        _sub_topic("climate", obj_id, "mode/set"),
+                "mode_state_topic":          _sub_topic("climate", obj_id, "mode/state"),
+                "temperature_command_topic": _sub_topic("climate", obj_id, "temp/set"),
+                "temperature_state_topic":   _sub_topic("climate", obj_id, "temp/state"),
+                "current_temperature_topic": _sub_topic("climate", obj_id, "current"),
+                "min_temp": min_t, "max_temp": max_t, "temp_step": 0.5,
+                "temperature_unit": "C",
+                "device": _DEVICE,
+            }
+            client.publish(_disc_topic("climate", obj_id), json.dumps(cfg), retain=True)
+
+        log.info(
+            "[MQTT] Autodiscovery published (%d sensors, %d binary, %d switches, "
+            "%d selects, %d covers, %d locks, %d climates)",
+            len(_SENSORS), len(_BINARY_SENSORS), len(_SWITCHES), len(_SELECTS),
+            len(_COVERS), len(_LOCKS), len(_CLIMATES),
+        )
 
     def _subscribe_commands(self, client) -> None:
         for obj_id, *_ in _SWITCHES:
             client.subscribe(_cmd_topic("switch", obj_id))
         for obj_id, *_ in _SELECTS:
             client.subscribe(_cmd_topic("select", obj_id))
+        for obj_id, *_ in _COVERS:
+            client.subscribe(_cmd_topic("cover", obj_id))
+            client.subscribe(_sub_topic("cover", obj_id, "set_position"))
+        for obj_id, *_ in _LOCKS:
+            client.subscribe(_cmd_topic("lock", obj_id))
+        for obj_id, *_ in _CLIMATES:
+            client.subscribe(_sub_topic("climate", obj_id, "temp/set"))
+            client.subscribe(_sub_topic("climate", obj_id, "mode/set"))
 
     # ── state publication ─────────────────────────────────────────────────────
 
@@ -262,6 +368,25 @@ class MQTTBridge:
         for obj_id, *_ in _SELECTS:
             state = self._select_state.get(obj_id, "W domu")
             c.publish(_state_topic("select", obj_id), state)
+
+        # Auxiliary controllable devices — publish current state from metrics
+        for obj_id, _name, pos_key in _COVERS:
+            val = m.get(pos_key)
+            if val is not None:
+                c.publish(_sub_topic("cover", obj_id, "position"), str(int(val)))
+
+        for obj_id, _name, state_key in _LOCKS:
+            val = m.get(state_key)
+            if val is not None:
+                c.publish(_state_topic("lock", obj_id), str(val))
+
+        for obj_id, _name, cur_key, tgt_key, mode_key, *_ in _CLIMATES:
+            if (cur := m.get(cur_key)) is not None:
+                c.publish(_sub_topic("climate", obj_id, "current"), str(cur))
+            if (tgt := m.get(tgt_key)) is not None:
+                c.publish(_sub_topic("climate", obj_id, "temp/state"), str(tgt))
+            if (mode := m.get(mode_key)) is not None:
+                c.publish(_sub_topic("climate", obj_id, "mode/state"), str(mode))
 
 
 def enabled() -> bool:

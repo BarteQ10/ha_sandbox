@@ -390,6 +390,25 @@ def write_motion(outdoor: bool, indoor: bool) -> None:
         log.warning("[INFLUX] write_motion failed: %s", e)
 
 
+def write_home_devices(m: dict) -> None:
+    """Write auxiliary smart-home device telemetry (humidity, meters, gate, TRV)."""
+    if not _ensure_connection():
+        return
+    now = datetime.datetime.now(datetime.UTC)
+    try:
+        points = [
+            Point("sensor.ems_humidity").time(now).field("value", float(m["humidity_pct"])),
+            Point("sensor.ems_water_m3").time(now).field("value", float(m["water_m3"])),
+            Point("sensor.ems_gas_m3").time(now).field("value", float(m["gas_m3"])),
+            Point("sensor.ems_gate_position").time(now).field("value", float(m["gate_position"])),
+            Point("sensor.ems_trv_current").time(now).field("value", float(m["trv_current"])),
+            Point("sensor.ems_trv_target").time(now).field("value", float(m["trv_target"])),
+        ]
+        _write.write(bucket=BUCKET, record=points)
+    except Exception as e:
+        log.warning("[INFLUX] write_home_devices failed: %s", e)
+
+
 def write_rules(active_keys: set) -> None:
     """Write rule engine event flags (called every N ticks)."""
     from ems_simulator.rules import ALL_RULE_KEYS
