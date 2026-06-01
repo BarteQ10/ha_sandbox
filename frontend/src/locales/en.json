@@ -32,7 +32,14 @@
     "night": "Goodnight",
     "nightDesc": "All lights off, blinds down, 18°, lock",
     "away": "Leaving",
-    "awayDesc": "Lights off, away mode, lock, gate"
+    "awayDesc": "Lights off, away mode, lock, gate",
+    "custom": "Your scenes",
+    "newName": "Scene name…",
+    "save": "Save current state",
+    "saved": "Saved \"{{name}}\" ({{count}} states)",
+    "deleted": "Scene deleted",
+    "delete": "Delete",
+    "saveHint": "Set the house up (lights, blinds, TRV, lock…), name it and save — restore it in one tap."
   },
   "devices": {
     "controllable": "Controls",

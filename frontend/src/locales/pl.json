@@ -32,7 +32,14 @@
     "night": "Dobranoc",
     "nightDesc": "Wszystkie światła gasną, rolety w dół, 18°, zamek",
     "away": "Wyjście z domu",
-    "awayDesc": "Światła gasną, tryb poza domem, zamek, brama"
+    "awayDesc": "Światła gasną, tryb poza domem, zamek, brama",
+    "custom": "Twoje sceny",
+    "newName": "Nazwa sceny…",
+    "save": "Zapisz obecny stan",
+    "saved": "Zapisano „{{name}}\" ({{count}} stanów)",
+    "deleted": "Usunięto scenę",
+    "delete": "Usuń",
+    "saveHint": "Ustaw dom jak chcesz (światła, rolety, TRV, zamek…), nazwij i zapisz — odtworzysz to jednym kliknięciem."
   },
   "devices": {
     "controllable": "Sterowanie",
