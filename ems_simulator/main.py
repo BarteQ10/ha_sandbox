@@ -92,6 +92,19 @@ def _handle_sigterm(signum, frame):
     raise KeyboardInterrupt()
 
 
+def _build_advisor(now_hour: int, forecast: dict) -> dict:
+    """24h hourly {hour, price_gr (RCE), pv_w (forecast)} for the /advisor endpoint."""
+    pv = forecast.get("pv", []) if isinstance(forecast, dict) else []
+    pv_by_hour = {(now_hour + i) % 24: pv[i] for i in range(len(pv))}
+    hours = []
+    for h in range(24):
+        pr = p_get(h)
+        if pr is None:
+            pr = p_fallback(h)
+        hours.append({"hour": h, "price_gr": round(pr), "pv_w": round(pv_by_hour.get(h, 0))})
+    return {"hours": hours, "now_hour": now_hour}
+
+
 def main():
     _setup_logging()
     # Treat SIGTERM like Ctrl+C (SIGINT) for a graceful shutdown in containers.
@@ -115,6 +128,7 @@ def main():
     forecast_engine = ForecastEngine()
     forecast_engine.fit_all()  # best-effort: may skip models if InfluxDB has no history yet
     _forecast = forecast_engine.predict_next_24h()
+    health.set_advisor(_build_advisor(datetime.datetime.now().hour, _forecast))
     thermal = ThermalModel()
     health.start()
     anomaly_detector = AnomalyDetector()
@@ -270,6 +284,8 @@ def main():
                 if forecast_engine.needs_refit():
                     forecast_engine.fit_all()
             hour = day_step / STEPS_PER_HOUR
+            if day_step % STEPS_PER_HOUR == 0:
+                health.set_advisor(_build_advisor(int(hour), _forecast))
 
             if anomaly:
                 ghi, temp, cloud = None, current_temp, 0

@@ -20,7 +20,23 @@
     "monitoring": "Monitoring",
     "analytics": "Analiza",
     "charts": "Wykresy",
-    "floorplan": "Plan"
+    "floorplan": "Plan",
+    "advisor": "Doradca"
+  },
+  "advisor": {
+    "title": "Najlepszy czas na…",
+    "loading": "Liczenie…",
+    "error": "Nie można połączyć się z doradcą (symulator :8088).",
+    "refresh": "Odśwież",
+    "cost": "koszt",
+    "saving": "Oszczędzisz ~{{zl}} zł vs teraz",
+    "alreadyGood": "Teraz jest dobry moment",
+    "price": "Cena (gr/kWh)",
+    "pv": "PV (W)",
+    "washer": "Pralka",
+    "dishwasher": "Zmywarka",
+    "ev": "Ładowanie EV",
+    "note": "Najtańsze okno z prognozy ceny RCE + PV. PV w danej godzinie obniża pobór z sieci."
   },
   "history": {
     "title": "Oś czasu urządzenia",

@@ -20,7 +20,23 @@
     "monitoring": "Monitoring",
     "analytics": "Analytics",
     "charts": "Charts",
-    "floorplan": "Plan"
+    "floorplan": "Plan",
+    "advisor": "Advisor"
+  },
+  "advisor": {
+    "title": "Best time to run…",
+    "loading": "Computing…",
+    "error": "Could not reach the advisor (simulator :8088).",
+    "refresh": "Refresh",
+    "cost": "cost",
+    "saving": "Save ~{{zl}} zł vs now",
+    "alreadyGood": "Now is a good time",
+    "price": "Price (gr/kWh)",
+    "pv": "PV (W)",
+    "washer": "Washer",
+    "dishwasher": "Dishwasher",
+    "ev": "EV charging",
+    "note": "Cheapest window from the RCE price + PV forecast. PV in an hour reduces grid import."
   },
   "history": {
     "title": "Device timeline",

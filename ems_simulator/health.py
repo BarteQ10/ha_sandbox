@@ -38,6 +38,15 @@ def set_alarm_trigger(fn) -> None:
     _alarm_trigger = fn
 
 
+# Latest 24h advisor forecast {"hours": [...], "now_hour": int}, set from main().
+_advisor: dict | None = None
+
+
+def set_advisor(data: dict) -> None:
+    global _advisor
+    _advisor = data
+
+
 def update(
     *,
     tick: int,
@@ -221,6 +230,13 @@ class _Handler(BaseHTTPRequestHandler):
                 "mode": "history" if frm else "live",
             })
 
+        elif path == "/advisor":
+            from ems_simulator import advisor
+            data = _advisor or {"hours": [], "now_hour": 0}
+            recs = advisor.recommend(data.get("hours", []), advisor.DEFAULT_APPLIANCES,
+                                     data.get("now_hour", 0))
+            self._send_json(200, {"hours": data.get("hours", []), "recommendations": recs})
+
         elif path == "/floorplan":
             try:
                 with open(_FLOORPLAN_PATH, encoding="utf-8") as f:
@@ -249,7 +265,7 @@ class _Handler(BaseHTTPRequestHandler):
             self._send_json(404, {"error": "not found",
                                   "paths": ["/health", "/metrics", "/backtest?days=N",
                                             "/events", "/test-alarm?type=smoke|co|leak",
-                                            "/floorplan (GET/POST)"]})
+                                            "/floorplan (GET/POST)", "/advisor"]})
 
 
 class _Server(threading.Thread):

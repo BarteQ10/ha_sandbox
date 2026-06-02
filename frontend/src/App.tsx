@@ -25,11 +25,12 @@ import { Devices } from "@/components/Devices"
 import { Media } from "@/components/Media"
 import { FloorPlan } from "@/components/FloorPlan"
 import { Timeline } from "@/components/Timeline"
+import { Advisor } from "@/components/Advisor"
 import { DashboardSummary } from "@/components/DashboardSummary"
 import { CostForecast } from "@/components/CostForecast"
 import {
   Home, Languages, Sun, Moon, Bolt, ToggleLeft, BarChart3, FileText,
-  Sofa, Bed, TreePine, WifiOff, Bell, CloudSun, SlidersHorizontal, Users, FlaskConical, ScrollText, Video, Music, Plug, Eye, Map, History,
+  Sofa, Bed, TreePine, WifiOff, Bell, CloudSun, SlidersHorizontal, Users, FlaskConical, ScrollText, Video, Music, Plug, Eye, Map, History, Sparkles,
 } from "lucide-react"
 
 function ConnectionIndicator() {
@@ -262,11 +263,13 @@ function AppContent() {
             <SubNav value={energyTab} onChange={setEnergyTab} items={[
               { value: "flow",     icon: Bolt,       label: t("nav.flow") },
               { value: "energy",   icon: BarChart3,  label: t("nav.charts") },
+              { value: "advisor",  icon: Sparkles,   label: t("nav.advisor") },
               { value: "controls", icon: ToggleLeft, label: t("nav.controls") },
               { value: "presence", icon: Users,      label: t("nav.presence") },
             ]} />
             {energyTab === "flow"     && <Flow />}
             {energyTab === "energy"   && <Energy />}
+            {energyTab === "advisor"  && <Advisor />}
             {energyTab === "controls" && <Controls />}
             {energyTab === "presence" && <Presence />}
           </div>
