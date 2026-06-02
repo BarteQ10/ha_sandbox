@@ -2,7 +2,8 @@ import { describe, it, expect } from "vitest"
 import { anyOn } from "@/components/FloorPlan"
 import {
   DEFAULT_LAYOUT, isPlaceable, addDevice, removeDevice, moveDevice, moveRoom,
-  resizeRoom, snap, wouldRoomOverlap, GRID,
+  resizeRoom, snap, wouldRoomOverlap, GRID, addRoom, removeRoom, renameRoom,
+  updateRoom,
 } from "@/lib/floorplan"
 import type { HassEntity } from "home-assistant-js-websocket"
 
@@ -83,12 +84,14 @@ describe("floorplan reducers", () => {
     expect(d.y % GRID).toBe(0)
   })
 
-  it("moveRoom rejects a position that overlaps another room", () => {
-    // move salon (id rooms[0]) onto kuchnia's spot → unchanged
+  it("moveRoom snaps + clamps and allows overlap (no hard lock)", () => {
+    // overlap is allowed now so dense layouts stay editable; the move applies
     const salon = DEFAULT_LAYOUT.rooms[0]
     const kuchnia = DEFAULT_LAYOUT.rooms[1]
     const l = moveRoom(DEFAULT_LAYOUT, salon.id, kuchnia.x, kuchnia.y)
-    expect(l).toBe(DEFAULT_LAYOUT)
+    const r = l.rooms.find((x) => x.id === salon.id)!
+    expect(r.x).toBe(kuchnia.x)
+    expect(r.y).toBe(kuchnia.y)
   })
 
   it("moveRoom allows a non-overlapping snapped move", () => {
@@ -97,6 +100,36 @@ describe("floorplan reducers", () => {
     const r = l.rooms.find((x) => x.id === salon.id)!
     expect(r.x).toBe(0)
     expect(r.y).toBe(0)
+  })
+
+  it("addRoom appends a labelled custom room with no bindings", () => {
+    const l = addRoom(DEFAULT_LAYOUT, "Biuro")
+    expect(l.rooms.length).toBe(DEFAULT_LAYOUT.rooms.length + 1)
+    const r = l.rooms[l.rooms.length - 1]
+    expect(r.label).toBe("Biuro")
+    expect(r.lights).toEqual([])
+    expect(r.temp).toBe("")
+  })
+
+  it("removeRoom drops the room by id", () => {
+    const id = DEFAULT_LAYOUT.rooms[0].id
+    const l = removeRoom(DEFAULT_LAYOUT, id)
+    expect(l.rooms.some((r) => r.id === id)).toBe(false)
+  })
+
+  it("renameRoom changes the label", () => {
+    const id = DEFAULT_LAYOUT.rooms[0].id
+    const l = renameRoom(DEFAULT_LAYOUT, id, "Salon główny")
+    expect(l.rooms.find((r) => r.id === id)!.label).toBe("Salon główny")
+  })
+
+  it("updateRoom binds lights + temp to a (custom) room", () => {
+    const withRoom = addRoom(DEFAULT_LAYOUT, "Biuro")
+    const id = withRoom.rooms[withRoom.rooms.length - 1].id
+    const l = updateRoom(withRoom, id, { lights: ["light.office"], temp: "sensor.office_temp" })
+    const r = l.rooms.find((x) => x.id === id)!
+    expect(r.lights).toEqual(["light.office"])
+    expect(r.temp).toBe("sensor.office_temp")
   })
 
   it("wouldRoomOverlap detects collisions with other rooms only", () => {

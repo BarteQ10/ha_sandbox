@@ -81,6 +81,43 @@ export function isPlaceable(entityId: string): boolean {
   return PLACEABLE_DOMAINS.includes(domain)
 }
 
+const ROOM_PALETTE = ["#ffa726", "#66bb6a", "#4fc3f7", "#ce93d8", "#81c784", "#f06292", "#9575cd", "#4db6ac"]
+
+// Best-effort: first grid spot where a w×h room doesn't overlap any room.
+function findFreeSpot(layout: PlanLayout, w: number, h: number): { x: number; y: number } {
+  for (let y = 0; y <= 100 - h; y += GRID * 2) {
+    for (let x = 0; x <= 100 - w; x += GRID * 2) {
+      if (!wouldRoomOverlap(layout, "__new__", { x, y, w, h })) return { x, y }
+    }
+  }
+  return { x: 40, y: 40 }   // dense layout → place at centre; user can drag it
+}
+
+export function addRoom(layout: PlanLayout, label: string): PlanLayout {
+  const w = 16, h = 16
+  const { x, y } = findFreeSpot(layout, w, h)
+  const room: PlanRoom = {
+    id: `r_${Date.now()}`,
+    label: label || "Pokój",
+    color: ROOM_PALETTE[layout.rooms.length % ROOM_PALETTE.length],
+    x, y, w, h, lights: [], temp: "",
+  }
+  return { ...layout, rooms: [...layout.rooms, room] }
+}
+
+export function removeRoom(layout: PlanLayout, id: string): PlanLayout {
+  return { ...layout, rooms: layout.rooms.filter((r) => r.id !== id) }
+}
+
+export function renameRoom(layout: PlanLayout, id: string, label: string): PlanLayout {
+  return { ...layout, rooms: layout.rooms.map((r) => (r.id === id ? { ...r, label } : r)) }
+}
+
+// Patch arbitrary room fields (lights binding, temp entity, …).
+export function updateRoom(layout: PlanLayout, id: string, patch: Partial<PlanRoom>): PlanLayout {
+  return { ...layout, rooms: layout.rooms.map((r) => (r.id === id ? { ...r, ...patch } : r)) }
+}
+
 export function addDevice(layout: PlanLayout, entity: string): PlanLayout {
   if (layout.devices.some((d) => d.entity === entity)) return layout
   const device: PlanDevice = { id: `d_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`, entity, x: 50, y: 50 }
@@ -99,12 +136,13 @@ export function moveDevice(layout: PlanLayout, id: string, x: number, y: number)
   }
 }
 
+// Snap + clamp to the plan. Overlap is allowed (the grid keeps things tidy);
+// a hard no-overlap lock made dense layouts un-editable, so it was removed.
 export function moveRoom(layout: PlanLayout, id: string, x: number, y: number): PlanLayout {
   const room = layout.rooms.find((r) => r.id === id)
   if (!room) return layout
   const nx = Math.max(0, Math.min(100 - room.w, snap(x)))
   const ny = Math.max(0, Math.min(100 - room.h, snap(y)))
-  if (wouldRoomOverlap(layout, id, { x: nx, y: ny, w: room.w, h: room.h })) return layout
   return { ...layout, rooms: layout.rooms.map((r) => (r.id === id ? { ...r, x: nx, y: ny } : r)) }
 }
 
@@ -113,6 +151,5 @@ export function resizeRoom(layout: PlanLayout, id: string, w: number, h: number)
   if (!room) return layout
   const nw = Math.max(MIN_ROOM, Math.min(100 - room.x, snap(w)))
   const nh = Math.max(MIN_ROOM, Math.min(100 - room.y, snap(h)))
-  if (wouldRoomOverlap(layout, id, { x: room.x, y: room.y, w: nw, h: nh })) return layout
   return { ...layout, rooms: layout.rooms.map((r) => (r.id === id ? { ...r, w: nw, h: nh } : r)) }
 }

@@ -2,15 +2,14 @@ import { useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Button } from "@/components/ui/button"
 import { useHA } from "@/hooks/useHA"
+import { useToast } from "@/hooks/useToast"
 import { useFloorPlan } from "@/hooks/useFloorPlan"
-import {
-  isPlaceable, snap, wouldRoomOverlap, GRID, type PlanRoom,
-} from "@/lib/floorplan"
+import { isPlaceable, snap, GRID, type PlanRoom, type PlanLayout } from "@/lib/floorplan"
 import type { HassEntity } from "home-assistant-js-websocket"
 import {
   Lightbulb, Thermometer, Lock, Unlock, DoorOpen, DoorClosed, AppWindow,
   Activity, AlertTriangle, Bot, Car, ArrowUpDown, Fan, Power, Pencil, Check,
-  RotateCcw, X, Wind, Droplets, Gauge,
+  RotateCcw, X, Wind, Droplets, Gauge, Plus, Settings2, Download, Upload,
 } from "lucide-react"
 
 // pure helper — kept exported for tests
@@ -81,8 +80,38 @@ function markerVisual(
 export function FloorPlan() {
   const { t } = useTranslation()
   const { entities, callService } = useHA()
-  const { layout, addDevice, removeDevice, moveDevice, moveRoom, resizeRoom, reset } = useFloorPlan()
+  const { layout, addDevice, removeDevice, moveDevice, moveRoom, resizeRoom, addRoom, removeRoom, renameRoom, updateRoom, setLayout, reset } = useFloorPlan()
+  const { toast } = useToast()
   const [edit, setEdit] = useState(false)
+  const [editingRoom, setEditingRoom] = useState<string | null>(null)
+
+  // Export / import the layout so it can move between browsers/devices.
+  const exportLayout = () => {
+    const blob = new Blob([JSON.stringify(layout, null, 2)], { type: "application/json" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = "ems-floorplan.json"
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+  const importLayout = (file: File) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(String(reader.result)) as PlanLayout
+        if (parsed && Array.isArray(parsed.rooms) && Array.isArray(parsed.devices)) {
+          setLayout(parsed)
+          toast(t("floorplan.imported"), "success")
+        } else {
+          toast(t("floorplan.importError"), "error")
+        }
+      } catch {
+        toast(t("floorplan.importError"), "error")
+      }
+    }
+    reader.readAsText(file)
+  }
   const [drag, setDrag] = useState<{ kind: "device" | "room" | "resize"; id: string; x: number; y: number; w?: number; h?: number } | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -108,15 +137,11 @@ export function FloorPlan() {
       } else if (kind === "room" && room) {
         const nx = clamp(snap(p.x - offX), 0, 100 - room.w)
         const ny = clamp(snap(p.y - offY), 0, 100 - room.h)
-        if (!wouldRoomOverlap(layout, id, { x: nx, y: ny, w: room.w, h: room.h })) {
-          setDrag((d) => ({ kind, id, x: nx, y: ny, w: d?.w, h: d?.h }))
-        }
+        setDrag({ kind, id, x: nx, y: ny })
       } else if (kind === "resize" && room) {
         const nw = clamp(snap(p.x - room.x), 8, 100 - room.x)
         const nh = clamp(snap(p.y - room.y), 8, 100 - room.y)
-        if (!wouldRoomOverlap(layout, id, { x: room.x, y: room.y, w: nw, h: nh })) {
-          setDrag({ kind, id, x: room.x, y: room.y, w: nw, h: nh })
-        }
+        setDrag({ kind, id, x: room.x, y: room.y, w: nw, h: nh })
       }
     }
     const up = () => {
@@ -151,6 +176,17 @@ export function FloorPlan() {
     .filter((e) => isPlaceable(e.entity_id) && !placed.has(e.entity_id))
     .sort((a, b) => a.entity_id.localeCompare(b.entity_id))
 
+  // toggleable entities a room can control + temperature sources (room editor)
+  const entName = (id: string) => (entities[id]?.attributes?.friendly_name as string) ?? id
+  const lightOptions = Object.values(entities)
+    .filter((e) => /^(light|switch|input_boolean)\./.test(e.entity_id))
+    .sort((a, b) => entName(a.entity_id).localeCompare(entName(b.entity_id)))
+  const tempOptions = Object.values(entities)
+    .filter((e) => e.entity_id.startsWith("input_number.wirtualna_temp_") ||
+      (e.entity_id.startsWith("sensor.") && e.attributes?.device_class === "temperature"))
+    .sort((a, b) => entName(a.entity_id).localeCompare(entName(b.entity_id)))
+  const roomBeingEdited = editingRoom ? layout.rooms.find((r) => r.id === editingRoom) : null
+
   return (
     <div className="space-y-3">
       {/* Toolbar */}
@@ -174,6 +210,21 @@ export function FloorPlan() {
                 </option>
               ))}
             </select>
+            <Button variant="outline" size="sm" onClick={() => addRoom(t("floorplan.newRoom"))}>
+              <Plus className="mr-1 h-4 w-4" />{t("floorplan.addRoom")}
+            </Button>
+            <Button variant="outline" size="sm" onClick={exportLayout}>
+              <Download className="mr-1 h-4 w-4" />{t("floorplan.export")}
+            </Button>
+            <label className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-md border px-3 text-xs font-medium hover:bg-accent">
+              <Upload className="h-4 w-4" />{t("floorplan.import")}
+              <input
+                type="file"
+                accept="application/json,.json"
+                className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) importLayout(f); e.target.value = "" }}
+              />
+            </label>
             <Button variant="ghost" size="sm" onClick={reset}>
               <RotateCcw className="mr-1 h-4 w-4" />{t("floorplan.reset")}
             </Button>
@@ -199,30 +250,59 @@ export function FloorPlan() {
           const resizeD = drag?.kind === "resize" && drag.id === room.id ? drag : null
           const x = moveD ? moveD.x : room.x, y = moveD ? moveD.y : room.y
           const w = resizeD?.w ?? room.w, h = resizeD?.h ?? room.h
-          const lit = anyOn(entities, room.lights)
+          const hasLights = room.lights.length > 0
+          const lit = hasLights && anyOn(entities, room.lights)
           const common = {
             left: `${x}%`, top: `${y}%`, width: `${w}%`, height: `${h}%`,
             borderColor: lit ? room.color : "var(--border)",
             backgroundColor: lit ? `${room.color}26` : "transparent",
           }
-          const inner = (
-            <>
-              <span className="flex items-center gap-1 text-[10px] font-medium sm:text-xs">
-                <Lightbulb className="h-3 w-3 shrink-0" style={{ color: lit ? room.color : undefined }} fill={lit ? room.color : "none"} />
-                <span className="truncate">{t(room.label)}</span>
-              </span>
-              <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground sm:text-xs">
-                <Thermometer className="h-3 w-3" />{num(room.temp, 21).toFixed(1)}°
-              </span>
-            </>
+          const header = edit ? (
+            <input
+              value={t(room.label)}
+              onChange={(ev) => renameRoom(room.id, ev.target.value)}
+              onPointerDown={(ev) => ev.stopPropagation()}
+              onClick={(ev) => ev.stopPropagation()}
+              className="w-[85%] rounded bg-background/70 px-1 text-[10px] font-medium outline-none focus-visible:ring-1 focus-visible:ring-ring sm:text-xs"
+              aria-label={t("floorplan.roomName")}
+            />
+          ) : (
+            <span className="flex items-center gap-1 text-[10px] font-medium sm:text-xs">
+              {hasLights && <Lightbulb className="h-3 w-3 shrink-0" style={{ color: lit ? room.color : undefined }} fill={lit ? room.color : "none"} />}
+              <span className="truncate">{t(room.label)}</span>
+            </span>
           )
+          const footer = room.temp ? (
+            <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground sm:text-xs">
+              <Thermometer className="h-3 w-3" />{num(room.temp, 21).toFixed(1)}°
+            </span>
+          ) : null
+
           if (edit) {
             return (
               <div key={room.id}
                    onPointerDown={(e) => beginDrag(e, "room", room.id, room.x, room.y)}
                    className="absolute flex cursor-move flex-col items-start justify-between rounded-md border-2 border-dashed p-1.5 sm:p-2"
                    style={common}>
-                {inner}
+                {header}
+                {footer}
+                <button
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => { e.stopPropagation(); removeRoom(room.id) }}
+                  className="absolute right-0.5 top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-destructive text-destructive-foreground"
+                  aria-label={t("floorplan.removeRoom")}
+                >
+                  <X className="h-2.5 w-2.5" />
+                </button>
+                <button
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => { e.stopPropagation(); setEditingRoom((id) => (id === room.id ? null : room.id)) }}
+                  className="absolute bottom-0.5 left-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full border bg-card text-muted-foreground hover:text-foreground"
+                  aria-label={t("floorplan.editRoom")}
+                  title={t("floorplan.editRoom")}
+                >
+                  <Settings2 className="h-2.5 w-2.5" />
+                </button>
                 <div
                   onPointerDown={(e) => beginDrag(e, "resize", room.id, room.x + room.w, room.y + room.h)}
                   className="absolute bottom-0 right-0 h-4 w-4 cursor-se-resize rounded-tl-md border-l border-t border-background bg-primary/70"
@@ -231,12 +311,19 @@ export function FloorPlan() {
               </div>
             )
           }
+          if (!hasLights) {
+            return (
+              <div key={room.id} className="absolute flex flex-col items-start justify-between rounded-md border-2 p-1.5 sm:p-2" style={common}>
+                {header}{footer}
+              </div>
+            )
+          }
           return (
             <button key={room.id} onClick={() => toggleRoomLights(room)}
                     aria-label={`${t(room.label)} — ${t("floorplan.toggleLights")}`}
                     className="absolute flex flex-col items-start justify-between rounded-md border-2 p-1.5 text-left transition-colors sm:p-2"
                     style={common}>
-              {inner}
+              {header}{footer}
             </button>
           )
         })}
@@ -277,6 +364,54 @@ export function FloorPlan() {
           )
         })}
       </div>
+
+      {/* Room bindings editor */}
+      {edit && roomBeingEdited && (
+        <div className="space-y-2 rounded-lg border p-3">
+          <div className="flex items-center gap-2">
+            <Settings2 className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-semibold">{t(roomBeingEdited.label)}</span>
+            <button onClick={() => setEditingRoom(null)} className="ml-auto rounded p-1 hover:bg-accent" aria-label={t("floorplan.done")}>
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <p className="text-xs text-muted-foreground">{t("floorplan.roomLights")}</p>
+          <div className="grid max-h-36 grid-cols-1 gap-0.5 overflow-y-auto rounded border p-1 sm:grid-cols-2">
+            {lightOptions.map((e) => {
+              const checked = roomBeingEdited.lights.includes(e.entity_id)
+              return (
+                <label key={e.entity_id} className="flex cursor-pointer items-center gap-1.5 rounded px-1 py-0.5 text-xs hover:bg-accent">
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => updateRoom(roomBeingEdited.id, {
+                      lights: checked
+                        ? roomBeingEdited.lights.filter((x) => x !== e.entity_id)
+                        : [...roomBeingEdited.lights, e.entity_id],
+                    })}
+                  />
+                  <span className="truncate">{entName(e.entity_id)}</span>
+                </label>
+              )
+            })}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">{t("floorplan.roomTemp")}</span>
+            <select
+              value={roomBeingEdited.temp}
+              onChange={(ev) => updateRoom(roomBeingEdited.id, { temp: ev.target.value })}
+              className="rounded border bg-background px-2 py-1 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <option value="">{t("floorplan.none")}</option>
+              {tempOptions.map((e) => (
+                <option key={e.entity_id} value={e.entity_id}>{entName(e.entity_id)}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      )}
 
       <p className="text-[10px] text-muted-foreground">
         {edit ? t("floorplan.editHint") : t("floorplan.hint")}

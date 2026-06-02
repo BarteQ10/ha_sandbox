@@ -572,7 +572,7 @@ HA → Modbus TCP → Python Simulator
 - **Multi-light control**: individual light toggles with dimmer (1-100%) and color temperature (2700-6500K) or RGB (R/G/B 0-255) sliders, plus All-ON/OFF per room
 - **Thermostat setpoint**: +/- buttons in Salon, Kuchnia, Sypialnia for target temperature (16-30°C, step 0.5)
 - **Top-level navigation**: themed sections — **Dom** · **Energia** · **Monitoring** · **Analiza** · **Ustawienia** — each with its own sub-tabs (icon-only on mobile, icon+label on ≥ sm):
-  - **Dom** (Home): **Plan** (editable interactive floor plan — rooms glow when lit + show temperature, tap to toggle lights; device markers live + clickable. **Edit mode**: drag rooms/markers, resize rooms, add any placeable HA entity from a list, remove markers; layout persists in localStorage, reset to default) + Wspolne / Prywatne / Ogrod room views + **Media** + **Urzadzenia**, with the KPI summary + cost-forecast sidebar
+  - **Dom** (Home): **Plan** (editable interactive floor plan — rooms glow when lit + show temperature, tap to toggle lights; device markers live + clickable. **Edit mode**: drag rooms/markers, resize rooms (snap-grid, no hard overlap lock), add/rename/remove rooms, bind lights + a temperature sensor to a room (⚙), add any placeable HA entity, remove markers. Layout syncs to the simulator (`/floorplan`, cross-browser) with localStorage as offline cache; export/import JSON + reset) + Wspolne / Prywatne / Ogrod room views + **Media** + **Urzadzenia**, with the KPI summary + cost-forecast sidebar
   - **Energia**: Flow · Charts · Controls · Presence
   - **Monitoring**: Cameras · Events · Alerts
   - **Analiza**: Reports · Backtest · Weather
@@ -700,6 +700,7 @@ Lightweight HTTP server on port 8088 (daemon thread):
 - `GET /backtest?days=N` → runs `backtest.py` over the last N days of InfluxDB history and returns the 4-strategy comparison as JSON (used by the Backtest tab). Served on a threading HTTP server with CORS so the React app can call it cross-origin.
 - `GET /events?limit=N&category=X&since=ts` → recent events from the in-memory buffer; `GET /events?from=ISO&to=ISO` queries persisted history from InfluxDB (measurement `ems_event`). Events are recorded by `events.py`, persisted via a registered sink, and the buffer is hydrated from InfluxDB on startup so the log survives restarts. Used by the Events tab (live feed + date-range history).
 - `GET /test-alarm?type=smoke|co|leak` → manually latches a `home_devices` safety sensor ON for ~8 ticks so the dashboard's sound-alert + banner flow can be demonstrated on demand (e.g. `curl localhost:8088/test-alarm?type=smoke`).
+- `GET/POST /floorplan` → loads/saves the dashboard's floor-plan layout (JSON) so it follows the user across browsers/devices. Persisted to `FLOORPLAN_PATH` (default `/data/floorplan.json`, mounted via `./simulator_data` in docker-compose). The frontend hydrates from here on load and writes through on every edit (localStorage stays as an offline cache).
 
 HA polls `/metrics` via a REST sensor (`sensor.ems_metrics_snapshot`, 15 s interval) to expose presence/media/motion as native HA sensors.
 

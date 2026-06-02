@@ -19,6 +19,9 @@ from urllib.parse import parse_qs, urlparse
 log = logging.getLogger(__name__)
 
 HEALTH_PORT = int(os.environ.get("HEALTH_PORT", "8088"))
+# Floor-plan layout persistence (POST to save, GET to load) — survives across
+# browsers/devices. Put it on a mounted volume so it survives container rebuilds.
+_FLOORPLAN_PATH = os.environ.get("FLOORPLAN_PATH", "/data/floorplan.json")
 
 # Shared state — written by the main loop, read by the HTTP handler.
 _metrics: dict = {}
@@ -123,11 +126,33 @@ class _Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
-    def do_OPTIONS(self):  # CORS preflight (harmless for simple GETs)
+    def do_OPTIONS(self):  # CORS preflight
         self.send_response(204)
         self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
+
+    def do_POST(self):
+        path = urlparse(self.path).path.rstrip("/") or "/"
+        if path == "/floorplan":
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+                body = self.rfile.read(length).decode("utf-8")
+                data = json.loads(body)
+                if not (isinstance(data, dict) and isinstance(data.get("rooms"), list)
+                        and isinstance(data.get("devices"), list)):
+                    self._send_json(400, {"error": "invalid_layout"})
+                    return
+                os.makedirs(os.path.dirname(_FLOORPLAN_PATH), exist_ok=True)
+                with open(_FLOORPLAN_PATH, "w", encoding="utf-8") as f:
+                    json.dump(data, f)
+                self._send_json(200, {"saved": True})
+            except Exception as e:
+                log.warning("[HEALTH] POST /floorplan failed: %s", e)
+                self._send_json(500, {"error": "save_failed", "detail": str(e)})
+        else:
+            self._send_json(404, {"error": "not found"})
 
     def do_GET(self):
         uptime = round(time.monotonic() - _started_at)
@@ -196,6 +221,16 @@ class _Handler(BaseHTTPRequestHandler):
                 "mode": "history" if frm else "live",
             })
 
+        elif path == "/floorplan":
+            try:
+                with open(_FLOORPLAN_PATH, encoding="utf-8") as f:
+                    self._send_json(200, json.load(f))
+            except FileNotFoundError:
+                self._send_json(404, {"error": "no_layout"})
+            except Exception as e:
+                log.warning("[HEALTH] GET /floorplan failed: %s", e)
+                self._send_json(500, {"error": "read_failed"})
+
         elif path == "/test-alarm":
             q = parse_qs(parsed.query)
             kind = q.get("type", [""])[0]
@@ -213,7 +248,8 @@ class _Handler(BaseHTTPRequestHandler):
         else:
             self._send_json(404, {"error": "not found",
                                   "paths": ["/health", "/metrics", "/backtest?days=N",
-                                            "/events", "/test-alarm?type=smoke|co|leak"]})
+                                            "/events", "/test-alarm?type=smoke|co|leak",
+                                            "/floorplan (GET/POST)"]})
 
 
 class _Server(threading.Thread):

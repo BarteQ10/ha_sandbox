@@ -47,6 +47,8 @@ services:
     ports:
       - "5020:5020"        # Modbus TCP (MODBUS_PORT)
       - "8088:8088"        # Health / metrics HTTP
+    volumes:
+      - ./simulator_data:/data   # persists the floor-plan layout (/floorplan endpoint)
     environment:
       INFLUX_URL: http://influxdb:8086
       INFLUX_TOKEN: ems-token
