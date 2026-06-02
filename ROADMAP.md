@@ -154,4 +154,5 @@ Rozszerzenia z kolejnych iteracji — wszystko działa i jest pokryte testami.
 | 9.D | **Widok miesięczny w Raportach** + eksport PDF | M | 🟢 |
 | 9.E | **Asystent głosowy / LLM** — sterowanie naturalnym językiem | L | 🟢 |
 | 9.F | **Jakość**: mypy, testy `main.py`, E2E Playwright | M | 🟡 |
-| 9.G | **„Najlepszy czas na…"** — doradca cena+PV (kiedy uruchomić pralkę/EV) | M | 🟢 |
+
+> ✅ Zrobione: **9.G „Najlepszy czas na…"** — doradca cena RCE + PV (`advisor.py`, `/advisor`, zakładka Energia → Doradca).
