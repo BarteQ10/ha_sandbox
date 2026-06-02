@@ -16,10 +16,18 @@
     "cameras": "Cameras",
     "devices": "Devices",
     "media": "Media",
+    "history": "History",
     "monitoring": "Monitoring",
     "analytics": "Analytics",
     "charts": "Charts",
     "floorplan": "Plan"
+  },
+  "history": {
+    "title": "Device timeline",
+    "pick": "Pick an entity",
+    "loading": "Loading history…",
+    "empty": "No history for this entity.",
+    "note": "History from Home Assistant (recorder). Numbers → chart, states → time strip."
   },
   "floorplan": {
     "toggleLights": "toggle lights",

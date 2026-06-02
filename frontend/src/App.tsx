@@ -24,11 +24,12 @@ import { Cameras } from "@/components/Cameras"
 import { Devices } from "@/components/Devices"
 import { Media } from "@/components/Media"
 import { FloorPlan } from "@/components/FloorPlan"
+import { Timeline } from "@/components/Timeline"
 import { DashboardSummary } from "@/components/DashboardSummary"
 import { CostForecast } from "@/components/CostForecast"
 import {
   Home, Languages, Sun, Moon, Bolt, ToggleLeft, BarChart3, FileText,
-  Sofa, Bed, TreePine, WifiOff, Bell, CloudSun, SlidersHorizontal, Users, FlaskConical, ScrollText, Video, Music, Plug, Eye, Map,
+  Sofa, Bed, TreePine, WifiOff, Bell, CloudSun, SlidersHorizontal, Users, FlaskConical, ScrollText, Video, Music, Plug, Eye, Map, History,
 } from "lucide-react"
 
 function ConnectionIndicator() {
@@ -276,10 +277,12 @@ function AppContent() {
             <SubNav value={monitorTab} onChange={setMonitorTab} items={[
               { value: "cameras", icon: Video,      label: t("nav.cameras") },
               { value: "events",  icon: ScrollText, label: t("nav.events") },
+              { value: "history", icon: History,    label: t("nav.history") },
               { value: "alerts",  icon: Bell,       label: t("nav.alerts") },
             ]} />
             {monitorTab === "cameras" && <Cameras />}
             {monitorTab === "events"  && <EventLog />}
+            {monitorTab === "history" && <Timeline />}
             {monitorTab === "alerts"  && <Alerts />}
           </div>
         )}

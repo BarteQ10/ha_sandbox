@@ -16,10 +16,18 @@
     "cameras": "Kamery",
     "devices": "Urządzenia",
     "media": "Media",
+    "history": "Historia",
     "monitoring": "Monitoring",
     "analytics": "Analiza",
     "charts": "Wykresy",
     "floorplan": "Plan"
+  },
+  "history": {
+    "title": "Oś czasu urządzenia",
+    "pick": "Wybierz encję",
+    "loading": "Wczytywanie historii…",
+    "empty": "Brak historii dla tej encji.",
+    "note": "Historia z Home Assistant (recorder). Liczby → wykres, stany → pasek czasu."
   },
   "floorplan": {
     "toggleLights": "przełącz światła",

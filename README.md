@@ -574,7 +574,7 @@ HA → Modbus TCP → Python Simulator
 - **Top-level navigation**: themed sections — **Dom** · **Energia** · **Monitoring** · **Analiza** · **Ustawienia** — each with its own sub-tabs (icon-only on mobile, icon+label on ≥ sm):
   - **Dom** (Home): **Plan** (editable interactive floor plan — rooms glow when lit + show temperature, tap to toggle lights; device markers live + clickable. **Edit mode**: drag rooms/markers, resize rooms (snap-grid, no hard overlap lock), add/rename/remove rooms, bind lights + a temperature sensor to a room (⚙), add any placeable HA entity, remove markers. Layout syncs to the simulator (`/floorplan`, cross-browser) with localStorage as offline cache; export/import JSON + reset) + Wspolne / Prywatne / Ogrod room views + **Media** + **Urzadzenia**, with the KPI summary + cost-forecast sidebar
   - **Energia**: Flow · Charts · Controls · Presence
-  - **Monitoring**: Cameras · Events · Alerts
+  - **Monitoring**: Cameras · Events · **History** (per-entity timeline — numeric entities as an area chart, discrete ones as a coloured state strip; picker + 6h/24h/7d range, from HA recorder) · Alerts
   - **Analiza**: Reports · Backtest · Weather
   - **Ustawienia**: thresholds, notifications, sound alerts, system config, tariff zones
   - **Flow**: animated SVG energy-flow diagram + gauges + 12h history
