@@ -5,6 +5,7 @@ import { usePersistentState } from "@/hooks/usePersistentState"
 import { useToast } from "@/hooks/useToast"
 import { deriveAlarms, type Alarm } from "@/lib/alarms"
 import { playAlarm, unlockAudio } from "@/lib/sound"
+import { pushPermission, requestPush, showNotification } from "@/lib/push"
 
 // How often an active, unacknowledged critical alarm re-sounds.
 const REPEAT_MS = 8000
@@ -18,6 +19,9 @@ interface AlarmCtx {
   dismissed: boolean
   dismiss: () => void
   test: () => void
+  pushEnabled: boolean
+  setPushEnabled: (b: boolean) => void
+  pushPermission: NotificationPermission
 }
 
 const AlarmContext = createContext<AlarmCtx>({
@@ -29,6 +33,9 @@ const AlarmContext = createContext<AlarmCtx>({
   dismissed: false,
   dismiss: () => {},
   test: () => {},
+  pushEnabled: false,
+  setPushEnabled: () => {},
+  pushPermission: "default",
 })
 
 export function AlarmProvider({ children }: { children: React.ReactNode }) {
@@ -38,8 +45,10 @@ export function AlarmProvider({ children }: { children: React.ReactNode }) {
 
   const [soundStr, setSoundStr] = usePersistentState("ems.alarmSound", "1")
   const [critStr, setCritStr]   = usePersistentState("ems.alarmCriticalOnly", "0")
+  const [pushStr, setPushStr]   = usePersistentState("ems.alarmPush", "0")
   const soundEnabled = soundStr === "1"
   const criticalOnly = critStr === "1"
+  const pushEnabled = pushStr === "1"
 
   const alarms = deriveAlarms(entities)
   const activeCritical = alarms.filter((a) => a.severity === "critical")
@@ -59,9 +68,11 @@ export function AlarmProvider({ children }: { children: React.ReactNode }) {
       if (soundEnabled) playAlarm("critical")
       setDismissed(false)
       newCrit.forEach((a) => toast(t(a.labelKey), "error"))
+      if (pushEnabled) showNotification(t("alarms.pushTitle"), newCrit.map((a) => t(a.labelKey)).join(" · "))
     } else if (newWarn.length) {
       if (soundEnabled && !criticalOnly) playAlarm("warning")
       newWarn.forEach((a) => toast(t(a.labelKey)))
+      if (pushEnabled && !criticalOnly) showNotification(t("alarms.pushTitle"), newWarn.map((a) => t(a.labelKey)).join(" · "))
     }
     prevRef.current = current
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -91,7 +102,14 @@ export function AlarmProvider({ children }: { children: React.ReactNode }) {
     activeCritical,
     dismissed,
     dismiss: () => setDismissed(true),
-    test: () => { unlockAudio(); playAlarm("critical") },
+    test: () => { unlockAudio(); playAlarm("critical"); if (pushEnabled) showNotification(t("alarms.pushTitle"), t("alarms.testToast")) },
+    pushEnabled,
+    setPushEnabled: async (b: boolean) => {
+      if (!b) { setPushStr("0"); return }
+      const ok = await requestPush()
+      setPushStr(ok ? "1" : "0")
+    },
+    pushPermission: pushPermission(),
   }
 
   return <AlarmContext.Provider value={value}>{children}</AlarmContext.Provider>

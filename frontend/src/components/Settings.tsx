@@ -264,7 +264,8 @@ function NotificationsCard() {
 function SoundAlertsCard() {
   const { t } = useTranslation()
   const { toast } = useToast()
-  const { soundEnabled, setSoundEnabled, criticalOnly, setCriticalOnly, test } = useAlarms()
+  const { soundEnabled, setSoundEnabled, criticalOnly, setCriticalOnly, test, pushEnabled, setPushEnabled, pushPermission } = useAlarms()
+  const pushBlocked = pushPermission === "denied"
 
   return (
     <Card>
@@ -289,6 +290,16 @@ function SoundAlertsCard() {
             <p className="text-xs text-muted-foreground">{t("alarms.criticalOnlyDesc")}</p>
           </div>
           <Switch checked={criticalOnly} disabled={!soundEnabled} onCheckedChange={setCriticalOnly} />
+        </div>
+
+        <div className="flex items-center justify-between border-t pt-3">
+          <div className="min-w-0">
+            <p className="text-sm font-medium">{t("alarms.pushEnable")}</p>
+            <p className="text-xs text-muted-foreground">
+              {pushBlocked ? t("alarms.pushBlocked") : t("alarms.pushEnableDesc")}
+            </p>
+          </div>
+          <Switch checked={pushEnabled} disabled={pushBlocked} onCheckedChange={setPushEnabled} />
         </div>
 
         <Button

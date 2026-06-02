@@ -576,7 +576,7 @@ HA → Modbus TCP → Python Simulator
   - **Energia**: Flow · Charts · Controls · Presence
   - **Monitoring**: Cameras · Events · **History** (per-entity timeline — numeric entities as an area chart, discrete ones as a coloured state strip; picker + 6h/24h/7d range, from HA recorder) · Alerts
   - **Analiza**: Reports · Backtest · Weather
-  - **Ustawienia**: thresholds, notifications, sound alerts, system config, tariff zones
+  - **Ustawienia**: thresholds, notifications, sound alerts + **system notifications** (browser Notifications API — fire on critical alarms even when the tab is backgrounded; opt-in with permission), system config, tariff zones
   - **Flow**: animated SVG energy-flow diagram + gauges + 12h history
   - **Controls**: inverter/HP/grid selects, boiler/PV/anomaly switches, **presence mode + V2G + smart socket**, storm/EV override, EV limit + degradation sliders
   - **Energy**: Riemann integrals, 24h price chart, daily financial balance
