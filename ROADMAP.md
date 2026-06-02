@@ -120,3 +120,39 @@ między backendem EMS a encjami HA.
 | 8.8 | **Tuya virtual device** — wirtualne urządzenie przez Tuya IoT Platform Developer Console + integracja HA | external / `configuration.yaml` | L | 🟢 | — |
 | 8.9 | **MQTT device autodiscovery** — symulator publikuje urządzenia przez MQTT (Mosquitto w docker-compose) → HA autodiscovery | new `ems_simulator/mqtt_bridge.py` | M | 🟢 | ✅ |
 | 8.10 | **hass-virtual (HACS)** — dedykowane wirtualne encje przez `custom-components/virtual`; alternatywa dla `input_*` | `configuration.yaml` | S | 🟢 | ✅ |
+
+---
+
+## 9. Smart-home expansion & dashboard (delivered)
+
+Rozszerzenia z kolejnych iteracji — wszystko działa i jest pokryte testami.
+
+| # | Item | Where | Status |
+|---|------|-------|--------|
+| 9.1 | **Aux MQTT devices** — temp/wilgotność, wodomierz/gazomierz, kontaktrony okno/drzwi, czujniki dym/CO/zalanie | `home_devices.py`, `mqtt_bridge.py` | ✅ |
+| 9.2 | **Controllable MQTT devices** — brama + garaż (cover), zamek (lock), TRV (climate), odkurzacz (vacuum), nawadnianie (switch), wentylator (fan) | `home_devices.py`, `mqtt_bridge.py`, `main.py` | ✅ |
+| 9.3 | **Air-quality sensor** — CO₂/PM2.5/VOC + binary_sensor alert | `home_devices.py` | ✅ |
+| 9.4 | **Video doorbell** — `binary_sensor` (occupancy), losowy dzwonek | `home_devices.py` | ✅ |
+| 9.5 | **Devices tab** — auto-discovery cover/lock/climate/fan/vacuum + chipy kontaktronów + kafelki środowiskowe | `Devices.tsx`, `DeviceControls.tsx` | ✅ |
+| 9.6 | **Editable floor plan** — interaktywny rzut domu; tryb edycji (drag/resize, snap-grid, brak nachodzenia, dodawanie encji), zapis w localStorage | `FloorPlan.tsx`, `lib/floorplan.ts`, `useFloorPlan.ts` | ✅ |
+| 9.7 | **Sound alerts + critical banner** — Web Audio, edge-triggered, powtarzanie do potwierdzenia, toggle/critical-only | `useAlarms.tsx`, `lib/sound.ts`, `AlarmBanner.tsx` | ✅ |
+| 9.8 | **Per-category Telegram alerts** — maska wyciszenia (reg 22) + 4 przełączniki w UI | `notifications.py`, `main.py`, `Settings.tsx` | ✅ |
+| 9.9 | **Notifications UI control** — master toggle + status kanałów + test (reg 20/21) | `Settings.tsx`, `notifications.py` | ✅ |
+| 9.10 | **KPI summary + cost forecast** — kafelki na stronie głównej; prognoza kosztu tygodnia (cena+PV) | `DashboardSummary.tsx`, `CostForecast.tsx` | ✅ |
+| 9.11 | **MPC vs RL compare + Backtest UI** | `MpcRlCompare.tsx`, `Backtest.tsx`, `/backtest` | ✅ |
+| 9.12 | **Persistent event log** — bufor in-memory + InfluxDB (`ems_event`), tryb historii | `events.py`, `influx_writer.py`, `EventLog.tsx` | ✅ |
+| 9.13 | **Camera grid + Media control** — auto-discovery `camera.*` / `media_player.*` | `Cameras.tsx`, `Media.tsx` | ✅ |
+| 9.14 | **Themed top-level nav** — Dom / Energia / Monitoring / Analiza / Ustawienia; persystencja zakładek; tooltips | `App.tsx`, `usePersistentState.ts` | ✅ |
+| 9.15 | **YAML duplicate-key CI guard** — test wykrywający zdublowane klucze w `config/*.yaml` | `tests/test_config_yaml.py` | ✅ |
+
+### Pomysły na dalej (otwarte)
+
+| # | Item | Effort | Prio |
+|---|------|--------|------|
+| 9.A | **Plan: własne pokoje** — dodawanie/usuwanie pokoi w edytorze (nie tylko 5 domyślnych) | M | 🟢 |
+| 9.B | **Oś czasu urządzenia** — historia zmian (światło/drzwi/ruch) z InfluxDB | M | 🟢 |
+| 9.C | **Web Push** — powiadomienia systemowe przeglądarki (obok dźwięku + Telegrama) | M | 🟢 |
+| 9.D | **Widok miesięczny w Raportach** + eksport PDF | M | 🟢 |
+| 9.E | **Asystent głosowy / LLM** — sterowanie naturalnym językiem | L | 🟢 |
+| 9.F | **Jakość**: mypy, testy `main.py`, E2E Playwright | M | 🟡 |
+| 9.G | **„Najlepszy czas na…"** — doradca cena+PV (kiedy uruchomić pralkę/EV) | M | 🟢 |

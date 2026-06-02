@@ -23,7 +23,7 @@ See `README.md` for the full architecture and `ROADMAP.md` for feature status
 ## Repository layout
 
 ```
-ems_simulator/   # Python simulation package (18 modules — see README File Structure)
+ems_simulator/   # Python simulation package (~19 modules — see README File Structure)
 rl/              # Optional Q-learning agent (EMS_RL_ENABLED=1)
 tests/           # pytest backend tests
 frontend/        # React 19 + TS + Vite dashboard (vitest tests in src/__tests__/)
@@ -39,9 +39,15 @@ loop that ties every subsystem together. New per-tick behaviour usually plugs in
 
 ## Key architectural facts
 
-- **Modbus registers**: 20 total (`NUM_REGISTERS` in `config.py`). R = simulator
+- **Modbus registers**: 23 total (`NUM_REGISTERS` in `config.py`). R = simulator
   writes, RW = HA writes. Reg map in `server.py` banner + README. Latest additions:
-  18 = V2G, 19 = Presence.
+  18 = V2G, 19 = Presence, 20 = Notifications enabled, 21 = Notify test trigger,
+  22 = Notify category mute mask.
+- **Auxiliary MQTT virtual devices** (`home_devices.py`): a separate class of
+  "props" (sensors, contacts, air-quality, doorbell, gate/garage, lock, TRV,
+  vacuum, irrigation, fan) published via MQTT autodiscovery (`mqtt_bridge.py`),
+  **not** through Modbus. Controllable ones route commands to a `command_fn`
+  callback in `main.py`, not to a register. Add new ones here, not as registers.
 - **HA ↔ Modbus sync**: changing an HA `input_*` entity does nothing until an
   automation in `automations.yaml` writes the value to the matching register.
   When you add a control entity, add its sync automation too.
