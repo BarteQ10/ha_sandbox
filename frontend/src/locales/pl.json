@@ -335,6 +335,7 @@
     "placeholder": "np. włącz bojler",
     "send": "Wyślij",
     "voice": "Sterowanie głosem",
+    "thinking": "Myślę…",
     "unknown": "Nie zrozumiałem tego polecenia.",
     "examples": ["włącz bojler", "ustaw inwerter na ładowanie", "wyjeżdżam", "ustaw ev na 5000"],
     "done": {

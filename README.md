@@ -49,6 +49,8 @@ The `ems-simulator` service builds from the local `Dockerfile` and reaches Influ
 | `EMS_RL_ENABLED` | `0` | `1` enables the Q-learning control agent (`rl/`) |
 | `EMS_WEBHOOK_URL` | *(empty)* | Generic webhook for alerts (POST JSON) |
 | `EMS_TELEGRAM_TOKEN` / `EMS_TELEGRAM_CHAT_ID` | *(empty)* | Telegram bot notifications |
+| `EMS_LLM_URL` | *(empty)* | Local LLM endpoint for the NL assistant, incl. `/v1` (e.g. `http://localhost:1234/v1` for LM Studio, `http://localhost:11434/v1` for Ollama). Empty = assistant uses the offline rule parser only. |
+| `EMS_LLM_MODEL` | `bielik-11b-v3.0-instruct` | Model id served by the local LLM |
 
 ### Graceful shutdown
 
@@ -701,6 +703,7 @@ Lightweight HTTP server on port 8088 (daemon thread):
 - `GET /events?limit=N&category=X&since=ts` → recent events from the in-memory buffer; `GET /events?from=ISO&to=ISO` queries persisted history from InfluxDB (measurement `ems_event`). Events are recorded by `events.py`, persisted via a registered sink, and the buffer is hydrated from InfluxDB on startup so the log survives restarts. Used by the Events tab (live feed + date-range history).
 - `GET /test-alarm?type=smoke|co|leak` → manually latches a `home_devices` safety sensor ON for ~8 ticks so the dashboard's sound-alert + banner flow can be demonstrated on demand (e.g. `curl localhost:8088/test-alarm?type=smoke`).
 - `GET /advisor` → "best time to run" advisor: a 24h hourly forecast (RCE price + PV) plus the cheapest start hour for each deferrable appliance (washer/dishwasher/EV), computed by `advisor.py` (PV in an hour offsets the grid import). Pushed from `main()` each sim hour.
+- `POST /assistant` → natural-language assistant layer 2: body `{"text": "..."}`, returns a validated `{intent, value, enabled}`. Proxies a locally-hosted LLM (LM Studio / Ollama, OpenAI-compatible) via `assistant_llm.py` with a JSON-schema-constrained intent allow-list. The dashboard only calls this when its offline rule parser (`lib/assistant.ts`) can't match the phrase. `enabled` is false (and intent `unknown`) when `EMS_LLM_URL` is unset — no LLM required.
 - `GET/POST /floorplan` → loads/saves the dashboard's floor-plan layout (JSON) so it follows the user across browsers/devices. Persisted to `FLOORPLAN_PATH` (default `/data/floorplan.json`, mounted via `./simulator_data` in docker-compose). The frontend hydrates from here on load and writes through on every edit (localStorage stays as an offline cache).
 
 HA polls `/metrics` via a REST sensor (`sensor.ems_metrics_snapshot`, 15 s interval) to expose presence/media/motion as native HA sensors.

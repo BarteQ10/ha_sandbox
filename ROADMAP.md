@@ -152,7 +152,7 @@ Rozszerzenia z kolejnych iteracji — wszystko działa i jest pokryte testami.
 | # | Item | Effort | Prio | Status |
 |---|------|--------|------|--------|
 | 9.D | **Widok miesięczny w Raportach + eksport PDF** — przełącznik tydzień/miesiąc (`usePeriodReport`), bezzależnościowy eksport PDF (`lib/reportPdf.ts`, print-to-PDF) | M | 🟢 | ✅ |
-| 9.E | **Asystent naturalnego języka** — lokalny parser intencji PL/EN (`lib/assistant.ts`) → wywołania serwisów HA; opcjonalne sterowanie głosem (Web Speech API); zakładka Energia → Asystent | L | 🟢 | ✅ |
+| 9.E | **Asystent naturalnego języka** — warstwa 1: lokalny parser intencji PL/EN (`lib/assistant.ts`); warstwa 2 (opcjonalna): lokalny LLM (LM Studio/Ollama, np. Bielik) przez `assistant_llm.py` + endpoint `POST /assistant`, JSON-schema constrained, allow-lista intencji, gracjalne wyłączenie gdy `EMS_LLM_URL` pusty; sterowanie głosem (Web Speech API); zakładka Energia → Asystent | L | 🟢 | ✅ |
 | 9.F | **Jakość**: ~~mypy~~, ~~testy `main.py`~~, ~~E2E Playwright~~ — ✅ logika pętli wyekstrahowana do `loop_logic.py` + przetestowana; mypy gate w CI (czysty); Playwright E2E (`frontend/e2e/`, mock HA przez `VITE_HA_MOCK`) w CI | M | 🟡 | ✅ |
 
 > ✅ Zrobione: **9.G „Najlepszy czas na…"** — doradca cena RCE + PV (`advisor.py`, `/advisor`, zakładka Energia → Doradca).

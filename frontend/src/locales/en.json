@@ -334,6 +334,7 @@
     "placeholder": "e.g. turn on the boiler",
     "send": "Send",
     "voice": "Voice input",
+    "thinking": "Thinking…",
     "unknown": "Sorry, I didn't understand that command.",
     "examples": ["turn on the boiler", "set inverter to charge", "I'm leaving", "set EV to 5000"],
     "done": {

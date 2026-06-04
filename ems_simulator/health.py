@@ -144,6 +144,19 @@ class _Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = urlparse(self.path).path.rstrip("/") or "/"
+        if path == "/assistant":
+            try:
+                import ems_simulator.assistant_llm as assistant_llm
+                length = int(self.headers.get("Content-Length", "0"))
+                body = self.rfile.read(length).decode("utf-8")
+                text = json.loads(body).get("text", "") if body else ""
+                result = assistant_llm.classify(text)
+                result["enabled"] = assistant_llm.enabled()
+                self._send_json(200, result)
+            except Exception as e:
+                log.warning("[HEALTH] POST /assistant failed: %s", e)
+                self._send_json(200, {"intent": "unknown", "value": None, "enabled": False})
+            return
         if path == "/floorplan":
             try:
                 length = int(self.headers.get("Content-Length", "0"))
@@ -265,7 +278,8 @@ class _Handler(BaseHTTPRequestHandler):
             self._send_json(404, {"error": "not found",
                                   "paths": ["/health", "/metrics", "/backtest?days=N",
                                             "/events", "/test-alarm?type=smoke|co|leak",
-                                            "/floorplan (GET/POST)", "/advisor"]})
+                                            "/floorplan (GET/POST)", "/advisor",
+                                            "/assistant (POST)"]})
 
 
 class _Server(threading.Thread):

@@ -3,8 +3,9 @@ import { useTranslation } from "react-i18next"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useHA } from "@/hooks/useHA"
-import { parseCommand } from "@/lib/assistant"
-import { Bot, Send, User, Mic, Sparkles } from "lucide-react"
+import { parseCommand, intentToCommand } from "@/lib/assistant"
+import { classifyRemote } from "@/api/assistant"
+import { Bot, Send, User, Mic, Sparkles, Loader2 } from "lucide-react"
 
 interface Msg { role: "user" | "bot"; text: string; ok?: boolean }
 
@@ -23,29 +24,36 @@ export function Assistant() {
   const [input, setInput] = useState("")
   const [log, setLog] = useState<Msg[]>([])
   const [listening, setListening] = useState(false)
+  const [busy, setBusy] = useState(false)
   const recRef = useRef<SpeechRecognition | null>(null)
 
   const examples: string[] = t("assistant.examples", { returnObjects: true }) as unknown as string[]
 
   async function run(text: string) {
     const trimmed = text.trim()
-    if (!trimmed) return
-    const result = parseCommand(trimmed)
-    if (result) {
-      await callService(result.domain, result.service, result.data)
-      setLog((l) => [
-        ...l,
-        { role: "user", text: trimmed },
-        { role: "bot", text: t(result.key, result.params), ok: true },
-      ])
-    } else {
-      setLog((l) => [
-        ...l,
-        { role: "user", text: trimmed },
-        { role: "bot", text: t("assistant.unknown"), ok: false },
-      ])
-    }
+    if (!trimmed || busy) return
     setInput("")
+    setLog((l) => [...l, { role: "user", text: trimmed }])
+
+    // Layer 1: instant offline rule parser.
+    let cmd = parseCommand(trimmed)
+    // Layer 2: fall back to the local LLM (backend /assistant) when unmatched.
+    if (!cmd) {
+      setBusy(true)
+      const remote = await classifyRemote(trimmed)
+      setBusy(false)
+      if (remote && remote.intent !== "unknown") {
+        cmd = intentToCommand(remote.intent, remote.value)
+      }
+    }
+
+    if (cmd) {
+      const c = cmd
+      await callService(c.domain, c.service, c.data)
+      setLog((l) => [...l, { role: "bot", text: t(c.key, c.params), ok: true }])
+    } else {
+      setLog((l) => [...l, { role: "bot", text: t("assistant.unknown"), ok: false }])
+    }
   }
 
   function toggleVoice() {
@@ -100,6 +108,13 @@ export function Assistant() {
         </Card>
       )}
 
+      {busy && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          {t("assistant.thinking")}
+        </div>
+      )}
+
       {/* Input */}
       <form
         className="flex items-center gap-2"
@@ -124,7 +139,7 @@ export function Assistant() {
             <Mic className={`h-4 w-4 ${listening ? "animate-pulse" : ""}`} />
           </Button>
         )}
-        <Button type="submit" className="gap-1.5" disabled={!input.trim()}>
+        <Button type="submit" className="gap-1.5" disabled={!input.trim() || busy}>
           <Send className="h-4 w-4" />
           {t("assistant.send")}
         </Button>

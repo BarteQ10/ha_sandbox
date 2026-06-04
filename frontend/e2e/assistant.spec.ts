@@ -5,6 +5,10 @@ test.beforeEach(async ({ page }) => {
     window.localStorage.setItem("i18nextLng", "en")
     window.localStorage.setItem("ems-theme", "light")
   })
+  // Default: the backend LLM (layer 2) doesn't recognise anything. Individual
+  // tests re-route /assistant to override. (Playwright: last route wins.)
+  await page.route("**localhost:8088/assistant", (route) =>
+    route.fulfill({ json: { intent: "unknown", value: null, enabled: true } }))
   await page.goto("/")
 })
 
@@ -32,6 +36,28 @@ test("example chip dispatches a command", async ({ page }) => {
   await openAssistant(page)
   await page.getByRole("button", { name: "set inverter to charge" }).click()
   await expect(page.getByText("Inverter set to Force Charge.")).toBeVisible()
+})
+
+test("falls back to the local LLM for a phrase the parser misses", async ({ page }) => {
+  // "podgrzej wodę" has no rule match → goes to /assistant, which (mocked here)
+  // classifies it as boiler_on.
+  await page.route("**localhost:8088/assistant", (route) =>
+    route.fulfill({ json: { intent: "boiler_on", value: null, enabled: true } }))
+
+  await openAssistant(page)
+  await page.getByRole("textbox").fill("podgrzej wodę w zbiorniku")
+  await page.getByRole("button", { name: "Send" }).click()
+  await expect(page.getByText("Boiler turned on.")).toBeVisible()
+})
+
+test("set_ev intent from the LLM carries the wattage value", async ({ page }) => {
+  await page.route("**localhost:8088/assistant", (route) =>
+    route.fulfill({ json: { intent: "set_ev", value: 6000, enabled: true } }))
+
+  await openAssistant(page)
+  await page.getByRole("textbox").fill("naładuj auto do sześciu kilowatów")
+  await page.getByRole("button", { name: "Send" }).click()
+  await expect(page.getByText(/6000/)).toBeVisible()
 })
 
 test("command actually changes device state (end-to-end through the mock)", async ({ page }) => {
