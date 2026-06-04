@@ -35,12 +35,17 @@ const _LIST: HassEntity[] = [
   ent("sensor.ems_szczyt_cena_dzis", "68", { unit_of_measurement: "gr/kWh" }),
   ent("sensor.ems_bilans_finansowy_dzis", "-3.42", { unit_of_measurement: "PLN" }),
 
-  // Lighting (Salon)
+  // Lighting (Salon) — auto-discovered light.* entities
   ent("light.salon_lampa_stojaca", "on", {
     brightness: 200, color_temp_kelvin: 3000, friendly_name: "Lampa stojąca",
     supported_color_modes: ["color_temp"],
   }),
   ent("light.salon_led", "off", { friendly_name: "Salon LED", supported_color_modes: ["rgb"] }),
+
+  // Room-card light/temperature entities (input_*) used by the Home → rooms view
+  ent("input_boolean.wirtualne_swiatlo_salon_glowne", "off", { friendly_name: "Salon Main Light" }),
+  ent("input_number.wirtualna_temp_salon", "21.5", { unit_of_measurement: "°C" }),
+  ent("input_number.wirtualne_ustawienie_temp_salon", "21", { min: 16, max: 30, step: 0.5 }),
 
   // Climate + cover
   ent("climate.salon", "heat", {
