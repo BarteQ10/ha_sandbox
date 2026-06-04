@@ -22,8 +22,14 @@ test("loads the dashboard and connects to the mock HA", async ({ page }) => {
   await expect(page.getByRole("alert")).toHaveCount(0)
 })
 
-test("renders a real telemetry value from the mock store", async ({ page }) => {
+test("renders telemetry from the mock store", async ({ page }) => {
   await page.goto("/")
-  // Battery SoC fixture is 73% — assert it surfaces somewhere on the home view.
-  await expect(page.getByText(/73/).first()).toBeVisible()
+  // The Battery (SoC) KPI tile must show the mock fixture value (73%).
+  // Scope to the tile that has both "Battery" and "73" so it can't collide
+  // with the "Battery health" tile or any other number on the page.
+  const socTile = page
+    .getByRole("button")
+    .filter({ hasText: "Battery" })
+    .filter({ hasText: "73" })
+  await expect(socTile).toBeVisible()
 })

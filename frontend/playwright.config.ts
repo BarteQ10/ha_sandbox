@@ -10,7 +10,9 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
   use: {
-    baseURL: "http://localhost:5173",
+    // Dedicated port (5174) so E2E never reuses a normal `npm run dev` (:5173)
+    // that talks to a real HA — the mock server must own its own port.
+    baseURL: "http://localhost:5174",
     trace: "on-first-retry",
   },
   projects: [
@@ -18,7 +20,7 @@ export default defineConfig({
   ],
   webServer: {
     command: "npm run dev:e2e",
-    url: "http://localhost:5173",
+    url: "http://localhost:5174",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
   },
