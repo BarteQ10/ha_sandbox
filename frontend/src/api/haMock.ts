@@ -66,6 +66,19 @@ const _LIST: HassEntity[] = [
   ent("input_number.ems_limit_ladowania_ev", "3700", {
     min: 0, max: 7400, step: 100, friendly_name: "EV Charge Limit",
   }),
+
+  // Auto-discovered media player + camera (for the Media / Cameras views)
+  ent("media_player.salon", "playing", {
+    friendly_name: "Salon Speaker",
+    media_title: "Mock Track",
+    media_artist: "Mock Artist",
+    volume_level: 0.4,
+    supported_features: 0,
+  }),
+  ent("camera.ogrod", "streaming", {
+    friendly_name: "Garden Cam",
+    entity_picture: "/api/camera_proxy/camera.ogrod",
+  }),
 ]
 
 export const MOCK_ENTITIES: HassEntities = Object.fromEntries(
