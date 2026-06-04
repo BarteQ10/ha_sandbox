@@ -18,7 +18,6 @@ from ems_simulator.charge_scheduler import compute_charge_window
 from ems_simulator.config import (
     GRID_BLACKOUT,
     GRID_INSTABILITY,
-    GRID_NORMAL,
     STEPS_PER_DAY,
     STEPS_PER_HOUR,
     TICK_S,
@@ -58,6 +57,15 @@ from ems_simulator.influx_writer import write_standby as inf_write_standby
 from ems_simulator.influx_writer import write_standby_cuts as inf_write_standby_cuts
 from ems_simulator.lighting import CircadianModel
 from ems_simulator.log_setup import setup as _setup_logging
+from ems_simulator.loop_logic import (
+    apply_instability,
+    base_force,
+    compute_balance,
+    island_shed,
+    resolve_force,
+    self_consumption_shed,
+    tick_cost_pln,
+)
 from ems_simulator.media_sim import MediaPlayerSim
 from ems_simulator.mpc_scheduler import solve as mpc_solve
 from ems_simulator.mqtt_bridge import MQTTBridge
@@ -382,12 +390,7 @@ def main():
             # Grid instability: random voltage/frequency deviations → PV inverter
             # curtails output, load fluctuates, effective import price spikes.
             if grid_status == GRID_INSTABILITY:
-                if _random.random() < 0.3:          # 30% of ticks: PV derates
-                    curtail_factor = _random.uniform(0.4, 0.9)
-                    pv = int(pv * curtail_factor)
-                if _random.random() < 0.2:          # 20% of ticks: load surge/drop
-                    load = int(load * _random.uniform(0.85, 1.3))
-                price = int(price * _random.uniform(1.0, 2.5))  # price volatility
+                pv, load, price = apply_instability(pv, load, price, _random)
                 if day_step % (STEPS_PER_HOUR * 2) == 0:
                     log.info("[INSTAB] Grid instability — PV=%dW load=%dW price=%d gr/kWh",
                              pv, load, price)
@@ -423,7 +426,7 @@ def main():
             elif anomaly and day_step % (STEPS_PER_HOUR * 5) == 0:
                 log.info("[ANOMALY] Charge scheduler paused (no API data)")
 
-            balance = pv + v2g_power - load
+            balance = compute_balance(pv, v2g_power, load)
 
             _anom_flags = anomaly_detector.update(pv, load, soc, price, ghi, balance)
             _rule_events = rule_engine.evaluate(hour, presence.mode, appliances)
@@ -462,52 +465,28 @@ def main():
             else:
                 notify.send_if_changed("indoor_motion", "", False, severity="warning", category="security")
 
-            if grid_status == GRID_NORMAL and balance < 0 and soc < 20:
-                shed_w = 0
-                if ev_eff > 0:
-                    shed_w += ev_eff
-                    log.info(f"[PRIO] Shed EV {ev_eff}W (SoC={soc:.0f}%, balance={balance:.0f}W)")
-                if shed_w == 0 and hp_eff > 0:
-                    hp_save = {1: 1500, 2: 3000}.get(hp_eff, 0)
-                    shed_w += hp_save
-                    log.info(f"[PRIO] Shed HP {hp_save}W (SoC={soc:.0f}%)")
-                if shed_w == 0 and boiler_eff > 0:
-                    shed_w += 3000
-                    log.info(f"[PRIO] Shed boiler 3000W (SoC={soc:.0f}%)")
-                if shed_w > 0:
-                    load -= shed_w
-                    balance = pv - load
+            load, balance, _prio_shed = self_consumption_shed(
+                load, balance, soc, grid_status, ev_eff, hp_eff, boiler_eff, pv, v2g_power)
+            if _prio_shed is not None:
+                log.info(f"[PRIO] Shed {_prio_shed[0]} {_prio_shed[1]}W "
+                         f"(SoC={soc:.0f}%, balance={balance:.0f}W)")
 
             # Island mode: load shed on critical SoC (bypasses timers — emergency)
-            if grid_status == GRID_BLACKOUT and soc <= 5 and balance < 0:
-                if boiler_eff > 0:
-                    log.info(f"[ISLAND] Shed boiler (SoC={soc:.0f}%)")
-                    load -= 3000
-                    boiler_eff = 0
+            boiler_eff, hp_eff, ev_eff, load, balance, _island_shed = island_shed(
+                boiler_eff, hp_eff, ev_eff, load, balance, soc, grid_status, pv, v2g_power)
+            for _dev, _w in _island_shed:
+                log.info(f"[ISLAND] Shed {_dev} {_w}W (SoC={soc:.0f}%)")
+                if _dev == "boiler":
                     timer_boiler = DeviceTimer()
-                if ev_eff > 0:
-                    log.info(f"[ISLAND] Shed EV {ev_eff}W (SoC={soc:.0f}%)")
-                    load -= ev_eff
-                    ev_eff = 0
+                elif _dev == "EV":
                     timer_ev = DeviceTimer()
-                if hp_eff > 0:
-                    hp_save = {1: 1500, 2: 3000}.get(hp_eff, 0)
-                    log.info(f"[ISLAND] Shed HP {hp_save}W (SoC={soc:.0f}%)")
-                    load -= hp_save
-                    hp_eff = 0
+                elif _dev == "HP":
                     timer_hp = DeviceTimer()
-                balance = pv - load
-                if balance < 0:
-                    log.info(f"[ISLAND] After shed: still deficit {balance:.0f}W")
+            if _island_shed and balance < 0:
+                log.info(f"[ISLAND] After shed: still deficit {balance:.0f}W")
 
             dt_h = TICK_S * 60.0 / 3600.0
-            if grid_status == GRID_BLACKOUT:
-                pass  # no grid → no financial tracking
-            else:
-                effective_price = price
-                if balance < 0:
-                    effective_price = price + p_dist_rate(hour)
-                running_cost_pln += -balance * effective_price * dt_h / (100.0 * 1000.0)
+            running_cost_pln += tick_cost_pln(balance, price, p_dist_rate(hour), dt_h, grid_status)
 
             # RL agent: act + update
             if _rl_enabled and _rl_agent is not None:
@@ -517,19 +496,10 @@ def main():
                 _rl_agent.update(soc, hour, price, pv, _tick_cost, grid_status == GRID_BLACKOUT)
                 _rl_prev_cost = running_cost_pln
 
-            actual_force = force
             # RL takes priority over MPC when RL is enabled and suggests an override
-            if actual_force == MODE_AUTO:
-                if _rl_action != MODE_AUTO:
-                    actual_force = _rl_action
-                elif _mpc_action != MODE_AUTO:
-                    actual_force = _mpc_action
-            if storm_safe:
-                if actual_force != MODE_FORCE_CHARGE:
-                    log.info("[STORM] Safeguard active — force charging to 100%")
-                actual_force = MODE_FORCE_CHARGE
-            if grid_status == GRID_BLACKOUT and actual_force == MODE_FORCE_CHARGE:
-                actual_force = MODE_AUTO
+            if storm_safe and base_force(force, _rl_action, _mpc_action) != MODE_FORCE_CHARGE:
+                log.info("[STORM] Safeguard active — force charging to 100%")
+            actual_force = resolve_force(force, _rl_action, _mpc_action, storm_safe, grid_status)
 
             _total_sim_days += 1.0 / 288.0
             aging_factor = batt_soh(_total_sim_days, _kwh_throughput)
