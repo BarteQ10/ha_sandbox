@@ -336,6 +336,7 @@
     "voice": "Voice input",
     "close": "Close",
     "thinking": "Thinking…",
+    "disambig": "Did you mean one of these?",
     "unknown": "Sorry, I didn't understand that command.",
     "examples": ["turn on the boiler", "set inverter to charge", "I'm leaving", "set EV to 5000"],
     "done": {

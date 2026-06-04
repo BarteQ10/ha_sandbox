@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { parseCommand, intentToCommand } from "@/lib/assistant"
+import { parseCommand, intentToCommand, disambiguate } from "@/lib/assistant"
 
 describe("parseCommand", () => {
   it("returns null for empty or unrecognised input", () => {
@@ -83,5 +83,33 @@ describe("parseCommand", () => {
   it("clamps temperature to the 16–30°C range", () => {
     expect(intentToCommand("set_temp", 99)).toMatchObject({ data: { value: 30 } })
     expect(intentToCommand("temp_down", null, { salonTemp: 16 })).toMatchObject({ data: { value: 16 } })
+  })
+})
+
+describe("disambiguate", () => {
+  it("offers device choices for a bare on/off action", () => {
+    const opts = disambiguate("włącz")
+    const entities = opts.map((o) => o.data.entity_id)
+    expect(opts.length).toBeGreaterThanOrEqual(2)
+    expect(entities).toContain("input_boolean.wirtualny_bojler")
+    expect(entities).toContain("input_boolean.wirtualne_swiatlo_salon_glowne")
+    expect(opts.every((o) => o.service === "turn_on")).toBe(true)
+  })
+
+  it("respects direction (wyłącz → all turn_off)", () => {
+    const opts = disambiguate("wyłącz")
+    expect(opts.every((o) => o.service === "turn_off")).toBe(true)
+  })
+
+  it("offers inverter vs EV for an unscoped 'naładuj'", () => {
+    const opts = disambiguate("naładuj")
+    expect(opts).toHaveLength(2)
+    expect(opts.map((o) => o.key)).toContain("assistant.done.inverterCharge")
+    expect(opts.map((o) => o.key)).toContain("assistant.done.evLimit")
+  })
+
+  it("returns nothing when the phrase is unambiguous", () => {
+    expect(disambiguate("włącz bojler")).toHaveLength(0)
+    expect(disambiguate("opowiedz dowcip")).toHaveLength(0)
   })
 })

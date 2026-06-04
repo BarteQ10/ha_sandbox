@@ -59,6 +59,17 @@ test("sets an absolute temperature", async ({ page }) => {
   await expect(page.getByText(/set to 24°C/)).toBeVisible()
 })
 
+test("offers choices for an ambiguous command and runs the picked one", async ({ page }) => {
+  await openAssistant(page)
+  await page.getByRole("textbox").fill("włącz")
+  await page.getByRole("button", { name: "Send" }).click()
+
+  await expect(page.getByText(/Did you mean/i)).toBeVisible()
+  // Pick the boiler option (button labelled with its confirmation phrase).
+  await page.getByRole("button", { name: "Boiler turned on." }).click()
+  await expect(page.getByText("Boiler turned on.").last()).toBeVisible()
+})
+
 test("falls back to the local LLM for a phrase the parser misses", async ({ page }) => {
   // "podgrzej wodę" has no rule match → goes to /assistant, which (mocked here)
   // classifies it as boiler_on.
@@ -76,7 +87,8 @@ test("set_ev intent from the LLM carries the wattage value", async ({ page }) =>
     route.fulfill({ json: { intent: "set_ev", value: 6000, enabled: true } }))
 
   await openAssistant(page)
-  await page.getByRole("textbox").fill("naładuj auto do sześciu kilowatów")
+  // Phrase the parser misses and the disambiguator doesn't claim → reaches the LLM.
+  await page.getByRole("textbox").fill("ustaw moc ładowarki auta na maksa")
   await page.getByRole("button", { name: "Send" }).click()
   await expect(page.getByText(/6000/)).toBeVisible()
 })

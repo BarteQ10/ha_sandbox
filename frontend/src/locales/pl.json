@@ -337,6 +337,7 @@
     "voice": "Sterowanie głosem",
     "close": "Zamknij",
     "thinking": "Myślę…",
+    "disambig": "Czy chodziło o jedną z tych opcji?",
     "unknown": "Nie zrozumiałem tego polecenia.",
     "examples": ["włącz bojler", "ustaw inwerter na ładowanie", "wyjeżdżam", "ustaw ev na 5000"],
     "done": {

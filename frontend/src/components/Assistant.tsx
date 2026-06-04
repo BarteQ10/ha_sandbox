@@ -3,11 +3,11 @@ import { useTranslation } from "react-i18next"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useHA, useEntityNum } from "@/hooks/useHA"
-import { parseCommand, intentToCommand } from "@/lib/assistant"
+import { parseCommand, intentToCommand, disambiguate, type ParsedCommand } from "@/lib/assistant"
 import { classifyRemote } from "@/api/assistant"
 import { Bot, Send, User, Mic, Sparkles, Loader2 } from "lucide-react"
 
-interface Msg { role: "user" | "bot"; text: string; ok?: boolean }
+interface Msg { role: "user" | "bot"; text: string; ok?: boolean; choices?: ParsedCommand[] }
 
 // Feature-detect the Web Speech API (Chrome/Edge expose webkitSpeechRecognition).
 function getSpeechRecognition(): (new () => SpeechRecognition) | null {
@@ -32,6 +32,11 @@ export function Assistant() {
 
   const examples: string[] = t("assistant.examples", { returnObjects: true }) as unknown as string[]
 
+  async function execute(c: ParsedCommand) {
+    await callService(c.domain, c.service, c.data)
+    setLog((l) => [...l, { role: "bot", text: t(c.key, c.params), ok: true }])
+  }
+
   async function run(text: string) {
     const trimmed = text.trim()
     if (!trimmed || busy) return
@@ -39,24 +44,25 @@ export function Assistant() {
     setLog((l) => [...l, { role: "user", text: trimmed }])
 
     // Layer 1: instant offline rule parser.
-    let cmd = parseCommand(trimmed, ctx)
-    // Layer 2: fall back to the local LLM (backend /assistant) when unmatched.
-    if (!cmd) {
-      setBusy(true)
-      const remote = await classifyRemote(trimmed)
-      setBusy(false)
-      if (remote && remote.intent !== "unknown") {
-        cmd = intentToCommand(remote.intent, remote.value, ctx)
-      }
+    const cmd = parseCommand(trimmed, ctx)
+    if (cmd) { await execute(cmd); return }
+
+    // Ambiguous phrase → offer the candidate commands instead of guessing.
+    const choices = disambiguate(trimmed, ctx)
+    if (choices.length >= 2) {
+      setLog((l) => [...l, { role: "bot", text: t("assistant.disambig"), choices }])
+      return
     }
 
-    if (cmd) {
-      const c = cmd
-      await callService(c.domain, c.service, c.data)
-      setLog((l) => [...l, { role: "bot", text: t(c.key, c.params), ok: true }])
-    } else {
-      setLog((l) => [...l, { role: "bot", text: t("assistant.unknown"), ok: false }])
-    }
+    // Layer 2: fall back to the local LLM (backend /assistant).
+    setBusy(true)
+    const remote = await classifyRemote(trimmed)
+    setBusy(false)
+    const rcmd = remote && remote.intent !== "unknown"
+      ? intentToCommand(remote.intent, remote.value, ctx)
+      : null
+    if (rcmd) { await execute(rcmd); return }
+    setLog((l) => [...l, { role: "bot", text: t("assistant.unknown"), ok: false }])
   }
 
   function toggleVoice() {
@@ -93,18 +99,34 @@ export function Assistant() {
         <Card>
           <CardContent className="space-y-2 p-3 sm:p-4">
             {log.map((m, i) => (
-              <div key={i} className={`flex items-start gap-2 ${m.role === "user" ? "justify-end" : ""}`}>
-                {m.role === "bot" && (
-                  <Bot className={`mt-0.5 h-4 w-4 shrink-0 ${m.ok === false ? "text-muted-foreground" : "text-primary"}`} />
+              <div key={i} className="space-y-1.5">
+                <div className={`flex items-start gap-2 ${m.role === "user" ? "justify-end" : ""}`}>
+                  {m.role === "bot" && (
+                    <Bot className={`mt-0.5 h-4 w-4 shrink-0 ${m.ok === false ? "text-muted-foreground" : "text-primary"}`} />
+                  )}
+                  <span
+                    className={`max-w-[80%] rounded-lg px-2.5 py-1.5 text-sm ${
+                      m.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"
+                    }`}
+                  >
+                    {m.text}
+                  </span>
+                  {m.role === "user" && <User className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />}
+                </div>
+                {m.choices && (
+                  <div className="flex flex-wrap gap-1.5 pl-6">
+                    {m.choices.map((c, ci) => (
+                      <button
+                        key={ci}
+                        type="button"
+                        onClick={() => execute(c)}
+                        className="rounded-full border bg-card px-2.5 py-1 text-xs transition-colors hover:bg-accent"
+                      >
+                        {t(c.key, c.params)}
+                      </button>
+                    ))}
+                  </div>
                 )}
-                <span
-                  className={`max-w-[80%] rounded-lg px-2.5 py-1.5 text-sm ${
-                    m.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"
-                  }`}
-                >
-                  {m.text}
-                </span>
-                {m.role === "user" && <User className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />}
               </div>
             ))}
           </CardContent>

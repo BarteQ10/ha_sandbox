@@ -162,6 +162,42 @@ export function parseCommand(raw: string, ctx?: AssistantCtx): ParseResult {
   return null
 }
 
+const DEVICE_WORDS =
+  /(boiler|bojler|light|swiatl|lamp|storm|sztorm|burz|inverter|inwerter|falownik|ev|samochod|car|elektryk|ladowark|presence|obecnosc|w domu|urlop|temperatur|cieplej|chlodniej|zimniej)/
+
+/**
+ * When a phrase is under-specified — an action with no clear target — return the
+ * plausible commands so the UI can ask the user to pick one. Empty array when the
+ * phrase is unambiguous (parseCommand should handle it) or not an action at all.
+ */
+export function disambiguate(raw: string, ctx?: AssistantCtx): ParsedCommand[] {
+  const t = norm(raw)
+  if (!t) return []
+  const keep = (xs: (ParsedCommand | null)[]) => xs.filter((c): c is ParsedCommand => c !== null)
+
+  // Bare on/off with no device named → which device?
+  const dir = onOff(t)
+  if (dir && !DEVICE_WORDS.test(t)) {
+    const on = dir === "on"
+    return keep([
+      intentToCommand(on ? "boiler_on" : "boiler_off"),
+      intentToCommand(on ? "light_on" : "light_off"),
+      intentToCommand(on ? "storm_on" : "storm_off", null, ctx),
+    ])
+  }
+
+  // "charge / ładuj" with neither an inverter nor a numeric EV target → which charge?
+  if (/(naladuj|ladowanie|laduj|charge)/.test(t)
+      && !/(inverter|inwerter|falownik)/.test(t) && !/\d/.test(t)) {
+    return keep([
+      intentToCommand("inverter_charge"),
+      intentToCommand("set_ev", EV_MAX),
+    ])
+  }
+
+  return []
+}
+
 function invSel(option: string, key: string): ParsedCommand {
   return {
     domain: "input_select",
