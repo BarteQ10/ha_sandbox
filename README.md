@@ -709,8 +709,11 @@ HA polls `/metrics` via a REST sensor (`sensor.ems_metrics_snapshot`, 15 s inter
 
 ```bash
 pytest                       # backend (Python)
-cd frontend && npx vitest run  # frontend (TypeScript)
+mypy ems_simulator/ rl/ tests/  # backend type-check
+cd frontend && npx vitest run  # frontend unit (TypeScript)
+cd frontend && npm run test:e2e  # frontend E2E (Playwright, mock HA)
 ```
 
-- **Backend**: `tests/` — battery, generators (incl. StandbyDevice), pricing, http_util, presence, lighting, rules, security, media_sim
-- **Frontend**: `frontend/src/__tests__/` — haClient, useTheme, useCommittedSlider, utils, Presence, Controls
+- **Backend**: `tests/` — battery, generators (incl. StandbyDevice), pricing, http_util, presence, lighting, rules, security, media_sim, loop_logic, advisor
+- **Frontend (unit)**: `frontend/src/__tests__/` — haClient, useTheme, useCommittedSlider, utils, Presence, Controls
+- **Frontend (E2E)**: `frontend/e2e/` — Playwright smoke + navigation against an in-browser HA mock (`VITE_HA_MOCK=1`, `src/api/haMock.ts`); needs no real Home Assistant

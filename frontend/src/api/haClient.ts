@@ -13,6 +13,9 @@ const HA_URL = import.meta.env.VITE_HA_URL || "http://localhost:8123"
 // Keep this app behind your home network / VPN — never expose it publicly.
 // Use a dedicated HA user with minimal permissions; see frontend/.env.example.
 const HA_TOKEN = import.meta.env.VITE_HA_TOKEN
+// Offline mock backend for E2E / no-HA dev — seeds the store from fixtures
+// instead of opening a WebSocket. Enabled via VITE_HA_MOCK=1 (see .env.e2e).
+const HA_MOCK = import.meta.env.VITE_HA_MOCK === "1"
 
 // ---------------------------------------------------------------------------
 // External store — single source of truth for entity state + connection status.
@@ -90,6 +93,12 @@ function _subscribeEntities(c: Connection) {
 }
 
 export async function connectHA(): Promise<Connection> {
+  if (HA_MOCK) {
+    const { MOCK_ENTITIES } = await import("./haMock")
+    _setEntities(MOCK_ENTITIES)
+    _setConnected(true)
+    return {} as Connection
+  }
   if (!HA_TOKEN) {
     throw new Error(
       "VITE_HA_TOKEN is not set — copy .env.example to .env and add a long-lived token from " +
@@ -116,6 +125,11 @@ export async function haCallService(
   service: string,
   data: Record<string, unknown>
 ): Promise<void> {
+  if (HA_MOCK) {
+    const { applyMockService } = await import("./haMock")
+    applyMockService(domain, service, data, _store.entities, _setEntities)
+    return
+  }
   if (!_conn) throw new Error("Not connected")
   await wsCallService(_conn, domain, service, data)
 }

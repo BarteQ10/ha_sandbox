@@ -84,6 +84,7 @@ cd frontend
 npm install
 npm run dev                   # dev server on :5173
 npm run test                  # vitest (CI gates it)
+npm run test:e2e              # Playwright E2E (mock HA, CI gates it)
 npx tsc --noEmit              # type-check
 
 # Full stack
@@ -92,8 +93,13 @@ docker compose up --build     # HA + InfluxDB + Mosquitto + simulator
 
 ## CI gate (`.github/workflows/deploy.yml`)
 
-On push to `master`: ruff → mypy → pytest → tsc → vitest → frontend build → SSH deploy.
+On push to `master`: ruff → mypy → pytest → tsc → vitest → frontend build →
+Playwright E2E → SSH deploy.
 **Keep ruff + mypy clean and all tests green** — a red gate blocks deploy.
+
+E2E note: Playwright tests (`frontend/e2e/`) run against an in-browser HA mock
+(`VITE_HA_MOCK=1` via `npm run dev:e2e`) — no real Home Assistant needed. Add
+fixtures in `frontend/src/api/haMock.ts`.
 
 ## Gotchas
 
