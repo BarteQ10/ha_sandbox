@@ -320,7 +320,12 @@
     "selfConsumption": "Self-consumption",
     "total": "Total",
     "noData": "No historical data",
-    "exportCsv": "Export CSV"
+    "exportCsv": "Export CSV",
+    "exportPdf": "Export PDF",
+    "week": "Week",
+    "month": "Month",
+    "thisMonth": "This month",
+    "reportTitle": "EMS Energy Report"
   },
   "settings": {
     "thresholds": "EMS Thresholds",

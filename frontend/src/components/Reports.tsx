@@ -6,10 +6,11 @@ import {
 } from "recharts"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { ChevronLeft, ChevronRight, Download, Sun, Wallet, Zap } from "lucide-react"
+import { ChevronLeft, ChevronRight, Download, FileText, Sun, Wallet, Zap } from "lucide-react"
 import {
-  useWeekReport, weekTotals, weekStart, addDays, type DayReport,
+  usePeriodReport, periodRange, weekTotals, type DayReport, type ReportPeriod,
 } from "@/hooks/useWeekReport"
+import { exportReportPDF } from "@/lib/reportPdf"
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -57,31 +58,61 @@ function SumCard({ icon, label, value, unit, color }: {
 
 export function Reports() {
   const { t } = useTranslation()
-  const [weekOffset, setWeekOffset] = useState(0)
-  const { rows, loading } = useWeekReport(weekOffset)
+  const [period, setPeriod] = useState<ReportPeriod>("week")
+  const [offset, setOffset] = useState(0)
+  const { rows, loading } = usePeriodReport(period, offset)
 
   const { totalPv, totalCost, totalNet, avgSelf } = weekTotals(rows)
+  const rangeLabel = periodRange(period, offset).label
+  const currentLabel = period === "week" ? t("reports.thisWeek") : t("reports.thisMonth")
 
-  const weekLabel = (() => {
-    const today = new Date(); today.setHours(0,0,0,0)
-    const mon = weekStart(addDays(today, weekOffset * 7))
-    const sun = addDays(mon, 6)
-    return `${mon.toLocaleDateString("pl-PL", { day: "numeric", month: "short" })} – ${sun.toLocaleDateString("pl-PL", { day: "numeric", month: "short", year: "numeric" })}`
-  })()
+  const switchPeriod = (p: ReportPeriod) => { setPeriod(p); setOffset(0) }
+
+  const exportPdf = () =>
+    exportReportPDF(
+      rows,
+      { totalPv, totalNet, totalCost, avgSelf },
+      {
+        title: t("reports.reportTitle"),
+        period: offset === 0 ? `${currentLabel} (${rangeLabel})` : rangeLabel,
+        date: t("reports.date"),
+        pv: t("reports.pv"),
+        net: t("reports.net"),
+        balance: t("reports.balance"),
+        self: t("reports.selfConsumption"),
+        total: t("reports.total"),
+        generated: new Date().toLocaleString("pl-PL"),
+      },
+    )
 
   return (
     <div className="space-y-4">
 
-      {/* Week navigator */}
+      {/* Period toggle */}
+      <div className="flex justify-center gap-1">
+        {(["week", "month"] as ReportPeriod[]).map((p) => (
+          <button
+            key={p}
+            onClick={() => switchPeriod(p)}
+            className={`rounded-md px-3 py-1 text-sm transition-colors ${
+              period === p ? "bg-primary text-primary-foreground" : "border hover:bg-accent"
+            }`}
+          >
+            {t(`reports.${p}`)}
+          </button>
+        ))}
+      </div>
+
+      {/* Period navigator */}
       <div className="flex items-center justify-between">
-        <Button variant="ghost" size="icon" onClick={() => setWeekOffset((o) => o - 1)}>
+        <Button variant="ghost" size="icon" onClick={() => setOffset((o) => o - 1)}>
           <ChevronLeft className="h-4 w-4" />
         </Button>
         <div className="text-center">
-          <p className="text-sm font-semibold">{weekOffset === 0 ? t("reports.thisWeek") : weekLabel}</p>
-          {weekOffset !== 0 && <p className="text-xs text-muted-foreground">{weekLabel}</p>}
+          <p className="text-sm font-semibold">{offset === 0 ? currentLabel : rangeLabel}</p>
+          {offset !== 0 && <p className="text-xs text-muted-foreground">{rangeLabel}</p>}
         </div>
-        <Button variant="ghost" size="icon" disabled={weekOffset >= 0} onClick={() => setWeekOffset((o) => o + 1)}>
+        <Button variant="ghost" size="icon" disabled={offset >= 0} onClick={() => setOffset((o) => o + 1)}>
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
@@ -186,12 +217,18 @@ export function Reports() {
         </CardContent>
       </Card>
 
-      {/* CSV export */}
+      {/* Export */}
       {!loading && rows.length > 0 && (
-        <Button variant="outline" className="w-full gap-2" onClick={() => downloadCSV(rows, t)}>
-          <Download className="h-4 w-4" />
-          {t("reports.exportCsv")}
-        </Button>
+        <div className="grid grid-cols-2 gap-2">
+          <Button variant="outline" className="gap-2" onClick={() => downloadCSV(rows, t)}>
+            <Download className="h-4 w-4" />
+            {t("reports.exportCsv")}
+          </Button>
+          <Button variant="outline" className="gap-2" onClick={exportPdf}>
+            <FileText className="h-4 w-4" />
+            {t("reports.exportPdf")}
+          </Button>
+        </div>
       )}
 
     </div>

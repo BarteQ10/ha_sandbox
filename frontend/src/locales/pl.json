@@ -321,7 +321,12 @@
     "selfConsumption": "Autokonsumpcja",
     "total": "Razem",
     "noData": "Brak danych historycznych",
-    "exportCsv": "Eksportuj CSV"
+    "exportCsv": "Eksportuj CSV",
+    "exportPdf": "Eksportuj PDF",
+    "week": "Tydzień",
+    "month": "Miesiąc",
+    "thisMonth": "Ten miesiąc",
+    "reportTitle": "Raport energetyczny EMS"
   },
   "settings": {
     "thresholds": "Progi EMS",
