@@ -427,6 +427,8 @@ class MQTTBridge:
 
     def _publish_states(self, m: dict) -> None:
         c = self._client
+        if c is None:
+            return
         for obj_id, *_, key in _SENSORS:
             val = m.get(key)
             if val is not None:

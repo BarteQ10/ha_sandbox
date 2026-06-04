@@ -31,7 +31,7 @@ def _duplicate_keys(stream) -> list[tuple[str, int]]:
         if isinstance(node, MappingNode):
             seen: set[str] = set()
             for key_node, value_node in node.value:
-                key = getattr(key_node, "value", None)
+                key = str(getattr(key_node, "value", ""))
                 if key in seen:
                     dups.append((key, key_node.start_mark.line + 1))
                 seen.add(key)

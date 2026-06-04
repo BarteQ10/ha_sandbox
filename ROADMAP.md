@@ -153,6 +153,6 @@ Rozszerzenia z kolejnych iteracji — wszystko działa i jest pokryte testami.
 |---|------|--------|------|
 | 9.D | **Widok miesięczny w Raportach** + eksport PDF | M | 🟢 |
 | 9.E | **Asystent głosowy / LLM** — sterowanie naturalnym językiem | L | 🟢 |
-| 9.F | **Jakość**: mypy, testy `main.py`, E2E Playwright | M | 🟡 |
+| 9.F | **Jakość**: ~~mypy~~, ~~testy `main.py`~~, E2E Playwright — ⏳ logika pętli wyekstrahowana do `loop_logic.py` + przetestowana; mypy gate dodany do CI (`mypy ems_simulator/ rl/ tests/`, czysty); **Playwright** nadal otwarty | M | 🟡 |
 
 > ✅ Zrobione: **9.G „Najlepszy czas na…"** — doradca cena RCE + PV (`advisor.py`, `/advisor`, zakładka Energia → Doradca).

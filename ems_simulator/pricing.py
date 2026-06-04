@@ -9,7 +9,7 @@ log = logging.getLogger(__name__)
 
 PSE_URL = "https://api.raporty.pse.pl/api/rce-pln"
 
-_price_cache = {}
+_price_cache: dict = {}
 _last_refresh = -1
 
 

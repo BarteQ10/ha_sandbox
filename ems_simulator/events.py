@@ -11,6 +11,7 @@ import contextlib
 import threading
 import time
 from collections import deque
+from collections.abc import Callable
 
 MAX_EVENTS = 500
 
@@ -24,8 +25,8 @@ _seq = 0
 
 # Optional persistence backends, registered by main.py at startup. Kept as
 # callbacks so this module stays decoupled from InfluxDB (and testable).
-_sink = None    # callable(event_dict) -> None   — persists one event
-_reader = None  # callable(start, stop, category, limit) -> list[dict] — reads history
+_sink: Callable[[dict], None] | None = None    # persists one event
+_reader: Callable[..., list[dict]] | None = None  # reads history → list[dict]
 
 
 def set_backends(sink=None, reader=None) -> None:

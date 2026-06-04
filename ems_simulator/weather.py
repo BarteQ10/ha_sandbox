@@ -6,8 +6,8 @@ from ems_simulator.http_util import get_json
 
 log = logging.getLogger(__name__)
 
-_cache = {}
-_forecast_rows = []
+_cache: dict = {}
+_forecast_rows: list = []
 _last_refresh = -1
 
 def _parse_rows(data):

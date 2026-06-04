@@ -77,6 +77,7 @@ pip install -r requirements-dev.txt
 python run.py                 # run the simulator
 pytest -q                     # all backend tests
 ruff check ems_simulator/ rl/ tests/   # lint (must be clean — CI gates it)
+mypy ems_simulator/ rl/ tests/         # type-check (must be clean — CI gates it)
 
 # Frontend
 cd frontend
@@ -91,8 +92,8 @@ docker compose up --build     # HA + InfluxDB + Mosquitto + simulator
 
 ## CI gate (`.github/workflows/deploy.yml`)
 
-On push to `master`: ruff → pytest → tsc → vitest → frontend build → SSH deploy.
-**Keep ruff clean and all tests green** — a red gate blocks deploy.
+On push to `master`: ruff → mypy → pytest → tsc → vitest → frontend build → SSH deploy.
+**Keep ruff + mypy clean and all tests green** — a red gate blocks deploy.
 
 ## Gotchas
 

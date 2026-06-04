@@ -2,4 +2,5 @@
 -r requirements.txt
 pytest>=8.0
 ruff>=0.6
+mypy>=1.10    # static type-check gate (CI: mypy ems_simulator/ rl/ tests/)
 PyYAML>=6.0   # config lint test (tests/test_config_yaml.py)

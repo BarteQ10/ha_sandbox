@@ -18,6 +18,8 @@ jobs:
         run: pip install -r requirements-dev.txt
       - name: Lint Python (ruff)
         run: ruff check ems_simulator/ rl/ tests/
+      - name: Type-check Python (mypy)
+        run: mypy ems_simulator/ rl/ tests/
       - name: Run backend tests
         run: pytest -q
 

@@ -3,6 +3,7 @@ import logging
 import os
 import re
 import time
+from typing import Any
 
 from influxdb_client import InfluxDBClient, Point
 from influxdb_client.client.write_api import SYNCHRONOUS
@@ -20,8 +21,8 @@ RECONNECT_COOLDOWN_S = 30
 
 _SAFE_MEASUREMENT = re.compile(r'^[\w.]+$')
 
-_client = None
-_write = None
+_client: Any = None
+_write: Any = None
 _failed = False
 _last_attempt = 0.0  # monotonic time of the last (re)connect attempt
 
