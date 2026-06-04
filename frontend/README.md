@@ -31,10 +31,18 @@ Open `http://localhost:5173`.
 
 ## Views
 
-| Tab | Description |
-|-----|-------------|
-| **Dom** | Room cards (Salon, Kuchnia, Sypialnia, Lazienka, Ogrod) with temperature, multi-light controls (dimmer + color temp), blinds slider, humidity. Sub-tabs: Wspolne / Prywatne / Ogrod |
-| **System** | EMS views with sub-tabs: Przeplywy (energy flow gauges, stats, device badges, history charts), Sterowanie (inverter, HP, boiler, PV limit, storm, EV), Energia (daily stats, charge window, PV forecast, price history) |
+Top-level navigation is split into five themed sections, each with its own sub-tabs
+(icon-only on mobile, icon+label on ≥ sm):
+
+| Section | Sub-tabs |
+|---------|----------|
+| **Dom** | **Plan** (editable interactive floor plan — rooms glow when lit + show temperature, tap to toggle lights, live clickable device markers; edit mode: drag/resize rooms with snap-grid, add/rename/remove rooms, bind lights + temp sensor per room, place any HA entity; layout syncs to the simulator via `/floorplan` with localStorage offline cache + JSON export/import) · room views (Wspolne / Prywatne / Ogrod) · **Media** · **Urzadzenia**, plus a KPI summary + cost-forecast sidebar |
+| **Energia** | **Flow** (animated SVG energy-flow + gauges + 12h history) · **Charts** · **Doradca** ("best time to run" — cheapest start hour for washer/dishwasher/EV from RCE price + PV, via `/advisor`) · **Controls** (inverter/HP/grid, boiler/PV/anomaly, presence + V2G + smart socket, storm/EV override, EV limit + degradation) · **Presence** |
+| **Monitoring** | **Cameras** (auto-discovered `camera.*` grid) · **Events** (event log from `/events` + history mode) · **History** (per-entity timeline from HA recorder) · **Alerts** (actionable cards, snooze/dismiss) |
+| **Analiza** | **Reports** (daily/weekly + CSV export) · **Backtest** (4-strategy comparison via `/backtest`) · **Weather** (GHI + PV forecast) |
+| **Ustawienia** | EMS thresholds · notifications (enable toggle + channel status + test + per-category mute) · sound alerts + browser system notifications · system config · tariff zones |
+
+Tab selection is persisted to localStorage; tab labels have tooltips.
 
 ### Per-room lighting
 
