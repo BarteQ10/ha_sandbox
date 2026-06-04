@@ -2,7 +2,7 @@ import { useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { useHA } from "@/hooks/useHA"
+import { useHA, useEntityNum } from "@/hooks/useHA"
 import { parseCommand, intentToCommand } from "@/lib/assistant"
 import { classifyRemote } from "@/api/assistant"
 import { Bot, Send, User, Mic, Sparkles, Loader2 } from "lucide-react"
@@ -26,6 +26,9 @@ export function Assistant() {
   const [listening, setListening] = useState(false)
   const [busy, setBusy] = useState(false)
   const recRef = useRef<SpeechRecognition | null>(null)
+  // Live setpoint so relative commands ("warmer") resolve to an absolute value.
+  const salonTemp = useEntityNum("input_number.wirtualne_ustawienie_temp_salon", 21)
+  const ctx = { salonTemp }
 
   const examples: string[] = t("assistant.examples", { returnObjects: true }) as unknown as string[]
 
@@ -36,14 +39,14 @@ export function Assistant() {
     setLog((l) => [...l, { role: "user", text: trimmed }])
 
     // Layer 1: instant offline rule parser.
-    let cmd = parseCommand(trimmed)
+    let cmd = parseCommand(trimmed, ctx)
     // Layer 2: fall back to the local LLM (backend /assistant) when unmatched.
     if (!cmd) {
       setBusy(true)
       const remote = await classifyRemote(trimmed)
       setBusy(false)
       if (remote && remote.intent !== "unknown") {
-        cmd = intentToCommand(remote.intent, remote.value)
+        cmd = intentToCommand(remote.intent, remote.value, ctx)
       }
     }
 

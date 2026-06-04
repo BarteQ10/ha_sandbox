@@ -335,6 +335,7 @@
     "placeholder": "np. włącz bojler",
     "send": "Wyślij",
     "voice": "Sterowanie głosem",
+    "close": "Zamknij",
     "thinking": "Myślę…",
     "unknown": "Nie zrozumiałem tego polecenia.",
     "examples": ["włącz bojler", "ustaw inwerter na ładowanie", "wyjeżdżam", "ustaw ev na 5000"],
@@ -351,7 +352,10 @@
       "presenceVacation": "Tryb obecności: Urlop.",
       "stormOn": "Zabezpieczenie sztormowe włączone.",
       "stormOff": "Zabezpieczenie sztormowe wyłączone.",
-      "evLimit": "Limit ładowania EV ustawiony na {{w}} W."
+      "evLimit": "Limit ładowania EV ustawiony na {{w}} W.",
+      "setTemp": "Temperatura w salonie ustawiona na {{t}}°C.",
+      "tempUp": "Temperatura podniesiona do {{t}}°C.",
+      "tempDown": "Temperatura obniżona do {{t}}°C."
     }
   },
   "settings": {

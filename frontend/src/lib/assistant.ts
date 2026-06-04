@@ -25,11 +25,37 @@ export type Intent =
   | "presence_home" | "presence_away" | "presence_vacation"
   | "storm_on" | "storm_off"
   | "set_ev"
+  | "set_temp" | "temp_up" | "temp_down"
+
+/** Live state the mapping may need (e.g. current setpoint for relative temp). */
+export interface AssistantCtx {
+  salonTemp?: number
+}
 
 const EV_MAX = 7400
+const TEMP_MIN = 16
+const TEMP_MAX = 30
+const TEMP_DEFAULT = 21
+const TEMP_ENTITY = "input_number.wirtualne_ustawienie_temp_salon"
 
-/** Map a validated intent (+ value for set_ev) to a HA service call. */
-export function intentToCommand(intent: string, value?: number | null): ParsedCommand | null {
+const clampTemp = (v: number) => Math.max(TEMP_MIN, Math.min(TEMP_MAX, Math.round(v * 2) / 2))
+
+function setTemp(value: number, key: string): ParsedCommand {
+  const v = clampTemp(value)
+  return {
+    domain: "input_number", service: "set_value",
+    data: { entity_id: TEMP_ENTITY, value: v },
+    key, params: { t: v },
+  }
+}
+
+/** Map a validated intent (+ value, + live ctx) to a HA service call. */
+export function intentToCommand(
+  intent: string,
+  value?: number | null,
+  ctx?: AssistantCtx,
+): ParsedCommand | null {
+  const curTemp = ctx?.salonTemp ?? TEMP_DEFAULT
   switch (intent) {
     case "boiler_on":  return bool("input_boolean.wirtualny_bojler", true, "assistant.done.boilerOn")
     case "boiler_off": return bool("input_boolean.wirtualny_bojler", false, "assistant.done.boilerOff")
@@ -51,6 +77,9 @@ export function intentToCommand(intent: string, value?: number | null): ParsedCo
         key: "assistant.done.evLimit", params: { w },
       }
     }
+    case "set_temp":  return setTemp(value ?? TEMP_DEFAULT, "assistant.done.setTemp")
+    case "temp_up":   return setTemp(curTemp + 1, "assistant.done.tempUp")
+    case "temp_down": return setTemp(curTemp - 1, "assistant.done.tempDown")
     default: return null
   }
 }
@@ -83,9 +112,19 @@ function onOff(text: string): "on" | "off" | null {
  * confirmation key, or null when nothing matched. Order matters: more specific
  * intents are checked before generic on/off devices.
  */
-export function parseCommand(raw: string): ParseResult {
+export function parseCommand(raw: string, ctx?: AssistantCtx): ParseResult {
   const t = norm(raw)
   if (!t) return null
+
+  // ── Temperature (salon setpoint): absolute "ustaw temp na 22" or relative.
+  // Note: "grzej" is intentionally NOT a trigger — "podgrzej wodę" is a boiler
+  // command, not a thermostat one (handled below / by the LLM). ──
+  if (/(temperatur|cieplej|chlodniej|zimniej)/.test(t)) {
+    const m = t.match(/(\d{1,2})/)
+    if (m && /(ustaw|na |=|do )/.test(t)) return intentToCommand("set_temp", parseInt(m[1], 10), ctx)
+    if (/(zwieksz|podnies|wyzej|wyzsz|cieplej|wiecej)/.test(t)) return intentToCommand("temp_up", null, ctx)
+    if (/(zmniejsz|obniz|nizej|nizsz|chlodniej|zimniej|mniej)/.test(t)) return intentToCommand("temp_down", null, ctx)
+  }
 
   // ── Storm safeguard ──
   if (/(storm|sztorm|burz)/.test(t)) {

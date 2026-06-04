@@ -334,6 +334,7 @@
     "placeholder": "e.g. turn on the boiler",
     "send": "Send",
     "voice": "Voice input",
+    "close": "Close",
     "thinking": "Thinking…",
     "unknown": "Sorry, I didn't understand that command.",
     "examples": ["turn on the boiler", "set inverter to charge", "I'm leaving", "set EV to 5000"],
@@ -350,7 +351,10 @@
       "presenceVacation": "Presence set to Vacation.",
       "stormOn": "Storm safeguard activated.",
       "stormOff": "Storm safeguard deactivated.",
-      "evLimit": "EV charge limit set to {{w}} W."
+      "evLimit": "EV charge limit set to {{w}} W.",
+      "setTemp": "Living-room temperature set to {{t}}°C.",
+      "tempUp": "Temperature raised to {{t}}°C.",
+      "tempDown": "Temperature lowered to {{t}}°C."
     }
   },
   "settings": {

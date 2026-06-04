@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { parseCommand } from "@/lib/assistant"
+import { parseCommand, intentToCommand } from "@/lib/assistant"
 
 describe("parseCommand", () => {
   it("returns null for empty or unrecognised input", () => {
@@ -57,5 +57,31 @@ describe("parseCommand", () => {
 
   it("defaults a bare device mention to ON", () => {
     expect(parseCommand("boiler")).toMatchObject({ service: "turn_on" })
+  })
+
+  it("handles absolute and relative temperature commands", () => {
+    expect(parseCommand("ustaw temperaturę na 23", { salonTemp: 20 })).toMatchObject({
+      domain: "input_number", service: "set_value",
+      data: { entity_id: "input_number.wirtualne_ustawienie_temp_salon", value: 23 },
+      key: "assistant.done.setTemp", params: { t: 23 },
+    })
+    // relative commands resolve against the current setpoint from ctx
+    expect(parseCommand("zwiększ temperaturę", { salonTemp: 21 })).toMatchObject({
+      data: { value: 22 }, key: "assistant.done.tempUp",
+    })
+    expect(parseCommand("zrób chłodniej", { salonTemp: 21 })).toMatchObject({
+      data: { value: 20 }, key: "assistant.done.tempDown",
+    })
+  })
+
+  it("does not mistake 'podgrzej wodę' for a temperature command", () => {
+    // "podgrzej" contains "grzej" — must NOT trigger temp_up; it's a boiler
+    // phrase that should fall through to the LLM (parser returns null).
+    expect(parseCommand("podgrzej wodę w zbiorniku", { salonTemp: 21 })).toBeNull()
+  })
+
+  it("clamps temperature to the 16–30°C range", () => {
+    expect(intentToCommand("set_temp", 99)).toMatchObject({ data: { value: 30 } })
+    expect(intentToCommand("temp_down", null, { salonTemp: 16 })).toMatchObject({ data: { value: 16 } })
   })
 })

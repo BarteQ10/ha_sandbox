@@ -39,6 +39,16 @@ def test_set_ev_without_number_is_unknown(monkeypatch):
     assert al.classify("ustaw ladowanie ev") == {"intent": "unknown", "value": None}
 
 
+def test_set_temp_clamps_to_range(monkeypatch):
+    _enable(monkeypatch, '{"intent": "set_temp", "value": 99}')
+    assert al.classify("ustaw 99 stopni") == {"intent": "set_temp", "value": 30}
+
+
+def test_relative_temp_has_no_value(monkeypatch):
+    _enable(monkeypatch, '{"intent": "temp_up", "value": null}')
+    assert al.classify("zrob cieplej") == {"intent": "temp_up", "value": None}
+
+
 def test_hallucinated_intent_rejected(monkeypatch):
     # A model that invents an action off the allow-list must be neutralised.
     _enable(monkeypatch, '{"intent": "launch_missiles", "value": null}')

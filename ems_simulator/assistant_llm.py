@@ -34,10 +34,12 @@ INTENTS = (
     "presence_home", "presence_away", "presence_vacation",
     "storm_on", "storm_off",
     "set_ev",
+    "set_temp", "temp_up", "temp_down",
     "unknown",
 )
 
 EV_MIN_W, EV_MAX_W = 0, 7400
+TEMP_MIN_C, TEMP_MAX_C = 16, 30
 
 SYSTEM_PROMPT = (
     "Jestes klasyfikatorem intencji dla systemu EMS smart home. Zmapuj polecenie "
@@ -51,8 +53,14 @@ SYSTEM_PROMPT = (
     "(w domu / poza domem / urlop)\n"
     "- storm_on/storm_off: zabezpieczenie sztormowe (burzowe) baterii\n"
     "- set_ev: ustaw limit mocy ladowania samochodu elektrycznego; value = waty (0-7400)\n"
+    "- set_temp: ustaw temperature w salonie na KONKRETNA wartosc; value = stopnie Celsjusza (16-30)\n"
+    "- temp_up: podnies/zwieksz temperature, ma byc cieplej; value = null\n"
+    "- temp_down: obniz/zmniejsz temperature, ma byc chlodniej/zimniej; value = null\n"
     "- unknown: nic nie pasuje\n"
-    "value = liczba watow tylko dla set_ev, w innym wypadku null. Odpowiedz wylacznie JSON."
+    "Wskazowki: 'cieplej'/'zimno mi'/'podnies o stopien' => temp_up; "
+    "'chlodniej'/'za goraco' => temp_down; 'ustaw 22 stopnie'/'na 21' => set_temp z value.\n"
+    "value: waty dla set_ev, stopnie dla set_temp, w kazdym innym wypadku null. "
+    "Odpowiedz wylacznie JSON."
 )
 
 _SCHEMA = {
@@ -137,6 +145,11 @@ def classify(text: str) -> dict:
             value = max(EV_MIN_W, min(EV_MAX_W, int(parsed.get("value"))))
         except (TypeError, ValueError):
             # set_ev without a usable number is not actionable.
+            return {"intent": "unknown", "value": None}
+    elif intent == "set_temp":
+        try:
+            value = max(TEMP_MIN_C, min(TEMP_MAX_C, int(parsed.get("value"))))
+        except (TypeError, ValueError):
             return {"intent": "unknown", "value": None}
 
     return {"intent": intent, "value": value}

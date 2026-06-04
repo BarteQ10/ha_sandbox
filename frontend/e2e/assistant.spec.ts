@@ -12,11 +12,17 @@ test.beforeEach(async ({ page }) => {
   await page.goto("/")
 })
 
+// The assistant is a global floating button (FAB) — open it from any tab.
 async function openAssistant(page: Page) {
-  await page.getByRole("tab", { name: "Energy", exact: true }).click()
-  await page.getByRole("tab", { name: "Assistant", exact: true }).click()
+  await page.getByRole("button", { name: "Assistant", exact: true }).click()
   await expect(page.getByRole("heading", { name: "Assistant" })).toBeVisible()
 }
+
+test("FAB is available on every tab without navigation", async ({ page }) => {
+  await expect(page.getByRole("button", { name: "Assistant", exact: true })).toBeVisible()
+  await page.getByRole("tab", { name: "Monitoring", exact: true }).click()
+  await expect(page.getByRole("button", { name: "Assistant", exact: true })).toBeVisible()
+})
 
 test("understands a command and confirms it", async ({ page }) => {
   await openAssistant(page)
@@ -36,6 +42,21 @@ test("example chip dispatches a command", async ({ page }) => {
   await openAssistant(page)
   await page.getByRole("button", { name: "set inverter to charge" }).click()
   await expect(page.getByText("Inverter set to Force Charge.")).toBeVisible()
+})
+
+test("raises the temperature with a relative command", async ({ page }) => {
+  await openAssistant(page)
+  await page.getByRole("textbox").fill("zwiększ temperaturę")
+  await page.getByRole("button", { name: "Send" }).click()
+  // salon setpoint fixture is 21 → +1 = 22
+  await expect(page.getByText(/Temperature raised to 22/)).toBeVisible()
+})
+
+test("sets an absolute temperature", async ({ page }) => {
+  await openAssistant(page)
+  await page.getByRole("textbox").fill("ustaw temperaturę na 24 stopnie")
+  await page.getByRole("button", { name: "Send" }).click()
+  await expect(page.getByText(/set to 24°C/)).toBeVisible()
 })
 
 test("falls back to the local LLM for a phrase the parser misses", async ({ page }) => {
@@ -66,7 +87,9 @@ test("command actually changes device state (end-to-end through the mock)", asyn
   await page.getByRole("button", { name: "Send" }).click()
   await expect(page.getByText("Boiler turned on.")).toBeVisible()
 
-  // Switch to Controls — the boiler switch must reflect the assistant's action.
+  // Close the assistant, then verify the boiler switch in Controls reflects it.
+  await page.getByRole("button", { name: "Assistant", exact: true }).click()
+  await page.getByRole("tab", { name: "Energy", exact: true }).click()
   await page.getByRole("tab", { name: "Controls", exact: true }).click()
   const boiler = page.getByText("Boiler 3kW", { exact: true }).locator("..").getByRole("switch")
   await expect(boiler).toHaveAttribute("aria-checked", "true")
