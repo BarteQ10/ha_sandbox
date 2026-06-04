@@ -21,7 +21,8 @@
     "analytics": "Analytics",
     "charts": "Charts",
     "floorplan": "Plan",
-    "advisor": "Advisor"
+    "advisor": "Advisor",
+    "assistant": "Assistant"
   },
   "advisor": {
     "title": "Best time to run…",
@@ -326,6 +327,30 @@
     "month": "Month",
     "thisMonth": "This month",
     "reportTitle": "EMS Energy Report"
+  },
+  "assistant": {
+    "title": "Assistant",
+    "hint": "Type or speak a command in plain language — e.g. turn on the boiler, set inverter to charge.",
+    "placeholder": "e.g. turn on the boiler",
+    "send": "Send",
+    "voice": "Voice input",
+    "unknown": "Sorry, I didn't understand that command.",
+    "examples": ["turn on the boiler", "set inverter to charge", "I'm leaving", "set EV to 5000"],
+    "done": {
+      "boilerOn": "Boiler turned on.",
+      "boilerOff": "Boiler turned off.",
+      "lightOn": "Living-room light on.",
+      "lightOff": "Living-room light off.",
+      "inverterAuto": "Inverter set to Auto.",
+      "inverterCharge": "Inverter set to Force Charge.",
+      "inverterDischarge": "Inverter set to Force Discharge.",
+      "presenceHome": "Presence set to Home.",
+      "presenceAway": "Presence set to Away.",
+      "presenceVacation": "Presence set to Vacation.",
+      "stormOn": "Storm safeguard activated.",
+      "stormOff": "Storm safeguard deactivated.",
+      "evLimit": "EV charge limit set to {{w}} W."
+    }
   },
   "settings": {
     "thresholds": "EMS Thresholds",

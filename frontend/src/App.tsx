@@ -26,11 +26,12 @@ import { Media } from "@/components/Media"
 import { FloorPlan } from "@/components/FloorPlan"
 import { Timeline } from "@/components/Timeline"
 import { Advisor } from "@/components/Advisor"
+import { Assistant } from "@/components/Assistant"
 import { DashboardSummary } from "@/components/DashboardSummary"
 import { CostForecast } from "@/components/CostForecast"
 import {
   Home, Languages, Sun, Moon, Bolt, ToggleLeft, BarChart3, FileText,
-  Sofa, Bed, TreePine, WifiOff, Bell, CloudSun, SlidersHorizontal, Users, FlaskConical, ScrollText, Video, Music, Plug, Eye, Map, History, Sparkles,
+  Sofa, Bed, TreePine, WifiOff, Bell, CloudSun, SlidersHorizontal, Users, FlaskConical, ScrollText, Video, Music, Plug, Eye, Map, History, Sparkles, Bot,
 } from "lucide-react"
 
 function ConnectionIndicator() {
@@ -264,12 +265,14 @@ function AppContent() {
               { value: "flow",     icon: Bolt,       label: t("nav.flow") },
               { value: "energy",   icon: BarChart3,  label: t("nav.charts") },
               { value: "advisor",  icon: Sparkles,   label: t("nav.advisor") },
+              { value: "assistant", icon: Bot,       label: t("nav.assistant") },
               { value: "controls", icon: ToggleLeft, label: t("nav.controls") },
               { value: "presence", icon: Users,      label: t("nav.presence") },
             ]} />
             {energyTab === "flow"     && <Flow />}
             {energyTab === "energy"   && <Energy />}
             {energyTab === "advisor"  && <Advisor />}
+            {energyTab === "assistant" && <Assistant />}
             {energyTab === "controls" && <Controls />}
             {energyTab === "presence" && <Presence />}
           </div>

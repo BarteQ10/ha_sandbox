@@ -21,7 +21,8 @@
     "analytics": "Analiza",
     "charts": "Wykresy",
     "floorplan": "Plan",
-    "advisor": "Doradca"
+    "advisor": "Doradca",
+    "assistant": "Asystent"
   },
   "advisor": {
     "title": "Najlepszy czas na…",
@@ -327,6 +328,30 @@
     "month": "Miesiąc",
     "thisMonth": "Ten miesiąc",
     "reportTitle": "Raport energetyczny EMS"
+  },
+  "assistant": {
+    "title": "Asystent",
+    "hint": "Wpisz lub powiedz polecenie naturalnym językiem — np. włącz bojler, ustaw inwerter na ładowanie.",
+    "placeholder": "np. włącz bojler",
+    "send": "Wyślij",
+    "voice": "Sterowanie głosem",
+    "unknown": "Nie zrozumiałem tego polecenia.",
+    "examples": ["włącz bojler", "ustaw inwerter na ładowanie", "wyjeżdżam", "ustaw ev na 5000"],
+    "done": {
+      "boilerOn": "Bojler włączony.",
+      "boilerOff": "Bojler wyłączony.",
+      "lightOn": "Światło w salonie włączone.",
+      "lightOff": "Światło w salonie wyłączone.",
+      "inverterAuto": "Inwerter ustawiony na Auto.",
+      "inverterCharge": "Inwerter ustawiony na wymuszone ładowanie.",
+      "inverterDischarge": "Inwerter ustawiony na wymuszone rozładowanie.",
+      "presenceHome": "Tryb obecności: W domu.",
+      "presenceAway": "Tryb obecności: Poza domem.",
+      "presenceVacation": "Tryb obecności: Urlop.",
+      "stormOn": "Zabezpieczenie sztormowe włączone.",
+      "stormOff": "Zabezpieczenie sztormowe wyłączone.",
+      "evLimit": "Limit ładowania EV ustawiony na {{w}} W."
+    }
   },
   "settings": {
     "thresholds": "Progi EMS",
