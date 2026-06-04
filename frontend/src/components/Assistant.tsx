@@ -3,9 +3,12 @@ import { useTranslation } from "react-i18next"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useHA, useEntityNum } from "@/hooks/useHA"
-import { parseCommand, intentToCommand, disambiguate, type ParsedCommand } from "@/lib/assistant"
+import {
+  parseCommand, intentToCommand, disambiguate, matchScene, resolveFollowUp,
+  type ParsedCommand,
+} from "@/lib/assistant"
 import { classifyRemote } from "@/api/assistant"
-import { Bot, Send, User, Mic, Sparkles, Loader2 } from "lucide-react"
+import { Bot, Send, User, Mic, Sparkles, Loader2, Volume2, VolumeX } from "lucide-react"
 
 interface Msg { role: "user" | "bot"; text: string; ok?: boolean; choices?: ParsedCommand[] }
 
@@ -25,16 +28,43 @@ export function Assistant() {
   const [log, setLog] = useState<Msg[]>([])
   const [listening, setListening] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [speakOn, setSpeakOn] = useState(
+    () => typeof localStorage !== "undefined" && localStorage.getItem("ems.assistant.tts") === "1",
+  )
   const recRef = useRef<SpeechRecognition | null>(null)
+  const lastIntentRef = useRef<string | null>(null)
   // Live setpoint so relative commands ("warmer") resolve to an absolute value.
   const salonTemp = useEntityNum("input_number.wirtualne_ustawienie_temp_salon", 21)
   const ctx = { salonTemp }
 
   const examples: string[] = t("assistant.examples", { returnObjects: true }) as unknown as string[]
 
+  function speak(text: string) {
+    if (!speakOn || typeof window === "undefined" || !("speechSynthesis" in window)) return
+    const u = new SpeechSynthesisUtterance(text)
+    u.lang = i18n.language === "pl" ? "pl-PL" : "en-US"
+    window.speechSynthesis.cancel()
+    window.speechSynthesis.speak(u)
+  }
+
+  function toggleSpeak() {
+    setSpeakOn((on) => {
+      const next = !on
+      localStorage.setItem("ems.assistant.tts", next ? "1" : "0")
+      if (!next) window.speechSynthesis?.cancel()
+      return next
+    })
+  }
+
+  function botSay(text: string, ok = true) {
+    setLog((l) => [...l, { role: "bot", text, ok }])
+    speak(text)
+  }
+
   async function execute(c: ParsedCommand) {
     await callService(c.domain, c.service, c.data)
-    setLog((l) => [...l, { role: "bot", text: t(c.key, c.params), ok: true }])
+    if (c.intent) lastIntentRef.current = c.intent
+    botSay(t(c.key, c.params))
   }
 
   async function run(text: string) {
@@ -42,6 +72,19 @@ export function Assistant() {
     if (!trimmed || busy) return
     setInput("")
     setLog((l) => [...l, { role: "user", text: trimmed }])
+
+    // Scenes: one phrase → several actions.
+    const scene = matchScene(trimmed, ctx)
+    if (scene) {
+      for (const c of scene.commands) await callService(c.domain, c.service, c.data)
+      lastIntentRef.current = null
+      botSay(t(scene.key))
+      return
+    }
+
+    // Follow-up context: "a teraz wyłącz", "jeszcze cieplej".
+    const follow = resolveFollowUp(trimmed, lastIntentRef.current, ctx)
+    if (follow) { await execute(follow); return }
 
     // Layer 1: instant offline rule parser.
     const cmd = parseCommand(trimmed, ctx)
@@ -62,7 +105,7 @@ export function Assistant() {
       ? intentToCommand(remote.intent, remote.value, ctx)
       : null
     if (rcmd) { await execute(rcmd); return }
-    setLog((l) => [...l, { role: "bot", text: t("assistant.unknown"), ok: false }])
+    botSay(t("assistant.unknown"), false)
   }
 
   function toggleVoice() {
@@ -91,6 +134,16 @@ export function Assistant() {
       <div className="flex items-center gap-2">
         <Sparkles className="h-4 w-4 text-primary" />
         <h2 className="text-base font-semibold sm:text-lg">{t("assistant.title")}</h2>
+        <button
+          type="button"
+          onClick={toggleSpeak}
+          aria-label={t("assistant.tts")}
+          aria-pressed={speakOn}
+          title={t("assistant.tts")}
+          className={`ml-auto rounded p-1.5 transition-colors hover:bg-accent ${speakOn ? "text-primary" : "text-muted-foreground"}`}
+        >
+          {speakOn ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+        </button>
       </div>
       <p className="text-xs text-muted-foreground">{t("assistant.hint")}</p>
 

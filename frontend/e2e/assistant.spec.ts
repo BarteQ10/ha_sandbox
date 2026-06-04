@@ -59,6 +59,25 @@ test("sets an absolute temperature", async ({ page }) => {
   await expect(page.getByText(/set to 24°C/)).toBeVisible()
 })
 
+test("runs a multi-action scene", async ({ page }) => {
+  await openAssistant(page)
+  await page.getByRole("textbox").fill("dobranoc")
+  await page.getByRole("button", { name: "Send" }).click()
+  await expect(page.getByText(/Good night/i)).toBeVisible()
+})
+
+test("follow-up command re-targets the last device", async ({ page }) => {
+  await openAssistant(page)
+  await page.getByRole("textbox").fill("włącz bojler")
+  await page.getByRole("button", { name: "Send" }).click()
+  await expect(page.getByText("Boiler turned on.")).toBeVisible()
+
+  // bare "wyłącz" with no device → applies to the boiler from context
+  await page.getByRole("textbox").fill("a teraz wyłącz")
+  await page.getByRole("button", { name: "Send" }).click()
+  await expect(page.getByText("Boiler turned off.")).toBeVisible()
+})
+
 test("offers choices for an ambiguous command and runs the picked one", async ({ page }) => {
   await openAssistant(page)
   await page.getByRole("textbox").fill("włącz")

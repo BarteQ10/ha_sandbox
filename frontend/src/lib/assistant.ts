@@ -10,6 +10,8 @@ export interface ParsedCommand {
   /** i18n key for the confirmation message (e.g. "assistant.done.boilerOn"). */
   key: string
   params?: Record<string, unknown>
+  /** The intent that produced this command — used for follow-up context. */
+  intent?: string
 }
 
 export type ParseResult = ParsedCommand | null
@@ -51,6 +53,15 @@ function setTemp(value: number, key: string): ParsedCommand {
 
 /** Map a validated intent (+ value, + live ctx) to a HA service call. */
 export function intentToCommand(
+  intent: string,
+  value?: number | null,
+  ctx?: AssistantCtx,
+): ParsedCommand | null {
+  const cmd = buildCommand(intent, value, ctx)
+  return cmd ? { ...cmd, intent } : null
+}
+
+function buildCommand(
   intent: string,
   value?: number | null,
   ctx?: AssistantCtx,
@@ -196,6 +207,79 @@ export function disambiguate(raw: string, ctx?: AssistantCtx): ParsedCommand[] {
   }
 
   return []
+}
+
+// ── Scenes: one phrase → several actions ───────────────────────────────────────
+interface SceneDef { match: RegExp; key: string; steps: { intent: Intent; value?: number }[] }
+
+const SCENES: SceneDef[] = [
+  {
+    match: /(dobranoc|good ?night|ide spac|idziemy spac)/,
+    key: "assistant.scene.goodnight",
+    steps: [{ intent: "light_off" }, { intent: "boiler_off" }, { intent: "inverter_auto" }],
+  },
+  {
+    match: /(dzien dobry|good morning|pobudka|wstaje)/,
+    key: "assistant.scene.morning",
+    steps: [{ intent: "light_on" }, { intent: "set_temp", value: 21 }],
+  },
+  {
+    match: /(wychodze|opuszczam dom|i'?m leaving|leaving home)/,
+    key: "assistant.scene.away",
+    steps: [{ intent: "presence_away" }, { intent: "light_off" }, { intent: "boiler_off" }],
+  },
+  {
+    match: /(wracam do domu|wrocilem|i'?m home|arrived home)/,
+    key: "assistant.scene.home",
+    steps: [{ intent: "presence_home" }, { intent: "light_on" }],
+  },
+]
+
+/** Match a multi-action scene phrase. Checked before the single-command parser. */
+export function matchScene(raw: string, ctx?: AssistantCtx): { key: string; commands: ParsedCommand[] } | null {
+  const t = norm(raw)
+  if (!t) return null
+  for (const s of SCENES) {
+    if (!s.match.test(t)) continue
+    const commands = s.steps
+      .map((step) => intentToCommand(step.intent, step.value ?? null, ctx))
+      .filter((c): c is ParsedCommand => c !== null)
+    if (commands.length) return { key: s.key, commands }
+  }
+  return null
+}
+
+// ── Follow-up context: resolve a short reply against the previous command ───────
+/**
+ * Resolve a contextual follow-up ("a teraz wyłącz", "jeszcze cieplej") against
+ * the last executed intent. Returns null when there's nothing to anchor to.
+ */
+export function resolveFollowUp(
+  raw: string,
+  lastIntent: string | null | undefined,
+  ctx?: AssistantCtx,
+): ParsedCommand | null {
+  if (!lastIntent) return null
+  const t = norm(raw)
+  if (!t) return null
+
+  // 1) Bare on/off with no device named → re-target the last toggled device.
+  const dir = onOff(t)
+  if (dir && !DEVICE_WORDS.test(t)) {
+    const m = lastIntent.match(/^(boiler|light|storm)_(on|off)$/)
+    if (m) return intentToCommand(`${m[1]}_${dir === "on" ? "on" : "off"}`, null, ctx)
+  }
+
+  // 2) "more / again" after a temperature command → step in the same (or named) dir.
+  const lastWasTemp = lastIntent === "temp_up" || lastIntent === "temp_down" || lastIntent === "set_temp"
+  if (lastWasTemp && /(jeszcze|bardziej|wiecej|troche|mniej|znowu|jeszcze raz|a bit|more|again)/.test(t)) {
+    const down = /(mniej|nizej|chlodniej|zimniej|slabiej|less|down)/.test(t)
+    const up = /(wiecej|bardziej|cieplej|wyzej|more|up)/.test(t)
+    const dirTemp = down ? "temp_down" : up ? "temp_up" : lastIntent === "temp_down" ? "temp_down" : "temp_up"
+    return intentToCommand(dirTemp, null, ctx)
+  }
+
+  return null
 }
 
 function invSel(option: string, key: string): ParsedCommand {

@@ -334,6 +334,7 @@
     "placeholder": "e.g. turn on the boiler",
     "send": "Send",
     "voice": "Voice input",
+    "tts": "Spoken replies",
     "close": "Close",
     "thinking": "Thinking…",
     "disambig": "Did you mean one of these?",
@@ -356,6 +357,12 @@
       "setTemp": "Living-room temperature set to {{t}}°C.",
       "tempUp": "Temperature raised to {{t}}°C.",
       "tempDown": "Temperature lowered to {{t}}°C."
+    },
+    "scene": {
+      "goodnight": "Good night — lights off, boiler off, inverter on auto.",
+      "morning": "Good morning — lights on, temperature 21°C.",
+      "away": "Leaving — away mode, lights and boiler off.",
+      "home": "Welcome home — home mode, lights on."
     }
   },
   "settings": {

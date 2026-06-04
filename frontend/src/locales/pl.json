@@ -335,6 +335,7 @@
     "placeholder": "np. włącz bojler",
     "send": "Wyślij",
     "voice": "Sterowanie głosem",
+    "tts": "Odpowiedzi głosowe",
     "close": "Zamknij",
     "thinking": "Myślę…",
     "disambig": "Czy chodziło o jedną z tych opcji?",
@@ -357,6 +358,12 @@
       "setTemp": "Temperatura w salonie ustawiona na {{t}}°C.",
       "tempUp": "Temperatura podniesiona do {{t}}°C.",
       "tempDown": "Temperatura obniżona do {{t}}°C."
+    },
+    "scene": {
+      "goodnight": "Dobranoc — światła zgaszone, bojler wyłączony, inwerter w trybie auto.",
+      "morning": "Dzień dobry — światła włączone, temperatura 21°C.",
+      "away": "Wychodzisz — tryb poza domem, światła i bojler wyłączone.",
+      "home": "Witaj w domu — tryb w domu, światła włączone."
     }
   },
   "settings": {

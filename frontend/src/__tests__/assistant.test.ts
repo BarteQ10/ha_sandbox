@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest"
-import { parseCommand, intentToCommand, disambiguate } from "@/lib/assistant"
+import {
+  parseCommand, intentToCommand, disambiguate, matchScene, resolveFollowUp,
+} from "@/lib/assistant"
 
 describe("parseCommand", () => {
   it("returns null for empty or unrecognised input", () => {
@@ -112,4 +114,50 @@ describe("disambiguate", () => {
     expect(disambiguate("włącz bojler")).toHaveLength(0)
     expect(disambiguate("opowiedz dowcip")).toHaveLength(0)
   })
+})
+
+describe("scenes", () => {
+  it("expands 'dobranoc' into multiple commands", () => {
+    const s = matchScene("dobranoc")
+    expect(s?.key).toBe("assistant.scene.goodnight")
+    const entities = s!.commands.map((c) => c.data.entity_id)
+    expect(entities).toContain("input_boolean.wirtualne_swiatlo_salon_glowne")
+    expect(entities).toContain("input_boolean.wirtualny_bojler")
+  })
+
+  it("'wychodzę' sets away presence and turns things off", () => {
+    const s = matchScene("wychodzę")
+    expect(s?.key).toBe("assistant.scene.away")
+    expect(s!.commands.some((c) => c.data.option === "Poza domem")).toBe(true)
+  })
+
+  it("returns null for a non-scene phrase", () => {
+    expect(matchScene("włącz bojler")).toBeNull()
+  })
+})
+
+describe("resolveFollowUp", () => {
+  it("re-targets the last toggled device on a bare on/off", () => {
+    expect(resolveFollowUp("a teraz wyłącz", "boiler_on")).toMatchObject({
+      service: "turn_off", data: { entity_id: "input_boolean.wirtualny_bojler" },
+    })
+  })
+
+  it("repeats / flips temperature steps relative to the setpoint", () => {
+    expect(resolveFollowUp("jeszcze cieplej", "temp_up", { salonTemp: 22 })).toMatchObject({
+      key: "assistant.done.tempUp", data: { value: 23 },
+    })
+    expect(resolveFollowUp("trochę mniej", "temp_up", { salonTemp: 22 })).toMatchObject({
+      key: "assistant.done.tempDown", data: { value: 21 },
+    })
+  })
+
+  it("returns null without a prior intent or a usable anchor", () => {
+    expect(resolveFollowUp("wyłącz", null)).toBeNull()
+    expect(resolveFollowUp("hello there", "boiler_on")).toBeNull()
+  })
+})
+
+it("attaches the resolved intent to a parsed command", () => {
+  expect(parseCommand("włącz bojler")).toMatchObject({ intent: "boiler_on" })
 })
