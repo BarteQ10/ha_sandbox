@@ -13,8 +13,16 @@ default_config:
 #   discovery_prefix: homeassistant
 
 http:
+  # Behind the nginx reverse proxy (docker) + Tailscale. Required so HA accepts
+  # the X-Forwarded-For header the proxy adds; trust the docker bridge network.
+  use_x_forwarded_for: true
+  trusted_proxies:
+    - 172.16.0.0/12   # docker bridge (nginx container)
+    - 127.0.0.1
+    - ::1
   cors_allowed_origins:
     - http://localhost:5173
+    - https://bartek.tail879c2a.ts.net
 
 frontend:
   themes: !include_dir_merge_named themes
