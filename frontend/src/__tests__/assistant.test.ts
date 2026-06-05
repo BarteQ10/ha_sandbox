@@ -126,6 +126,39 @@ describe("parseCommand", () => {
       key: "assistant.done.blindsOpen", params: { roomId: "salon" },
     })
   })
+
+  it("sets heat-pump mode", () => {
+    expect(parseCommand("ustaw pompę ciepła na boost")).toMatchObject({
+      domain: "input_select", service: "select_option",
+      data: { entity_id: "input_select.ems_tryb_pompy_ciepla", option: "Boost" },
+      key: "assistant.done.hpBoost",
+    })
+    expect(parseCommand("wyłącz pompę ciepła")).toMatchObject({ data: { option: "Wylaczona" } })
+  })
+
+  it("toggles V2G and EV override", () => {
+    expect(parseCommand("włącz v2g")).toMatchObject({
+      domain: "input_boolean", service: "turn_on",
+      data: { entity_id: "input_boolean.ems_v2g_mode" }, key: "assistant.done.v2gOn",
+    })
+    expect(parseCommand("wymuś ładowanie auta")).toMatchObject({
+      service: "turn_on", data: { entity_id: "input_boolean.ems_ev_override" },
+    })
+  })
+
+  it("curtails PV export (switch domain)", () => {
+    expect(parseCommand("ogranicz eksport PV")).toMatchObject({
+      domain: "switch", service: "turn_on",
+      data: { entity_id: "switch.ems_ograniczenie_pv" }, key: "assistant.done.pvCurtailOn",
+    })
+  })
+
+  it("sets grid status", () => {
+    expect(parseCommand("ustaw blackout")).toMatchObject({
+      data: { entity_id: "input_select.ems_status_sieci", option: "Blackout" },
+      key: "assistant.done.gridBlackout",
+    })
+  })
 })
 
 describe("disambiguate", () => {

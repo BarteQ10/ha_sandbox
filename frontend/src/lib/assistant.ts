@@ -29,6 +29,11 @@ export type Intent =
   | "set_ev"
   | "set_temp" | "temp_up" | "temp_down"
   | "blinds_open" | "blinds_close"
+  | "hp_off" | "hp_comfort" | "hp_boost"
+  | "v2g_on" | "v2g_off"
+  | "ev_override_on" | "ev_override_off"
+  | "pv_curtail_on" | "pv_curtail_off"
+  | "grid_normal" | "grid_blackout" | "grid_instability"
 
 /** Live state the mapping may need (e.g. current setpoints for relative temp). */
 export interface AssistantCtx {
@@ -159,6 +164,18 @@ function buildCommand(
     case "temp_down": return setTemp(tempRoom, curTemp - 1, "assistant.done.tempDown")
     case "blinds_open":  return blindsCmd(room ?? "salon", true)
     case "blinds_close": return blindsCmd(room ?? "salon", false)
+    case "hp_off":     return sel(HP_ENTITY, "Wylaczona", "assistant.done.hpOff")
+    case "hp_comfort": return sel(HP_ENTITY, "Komfort", "assistant.done.hpComfort")
+    case "hp_boost":   return sel(HP_ENTITY, "Boost", "assistant.done.hpBoost")
+    case "v2g_on":  return toggle("input_boolean", "input_boolean.ems_v2g_mode", true, "assistant.done.v2gOn")
+    case "v2g_off": return toggle("input_boolean", "input_boolean.ems_v2g_mode", false, "assistant.done.v2gOff")
+    case "ev_override_on":  return toggle("input_boolean", "input_boolean.ems_ev_override", true, "assistant.done.evOverrideOn")
+    case "ev_override_off": return toggle("input_boolean", "input_boolean.ems_ev_override", false, "assistant.done.evOverrideOff")
+    case "pv_curtail_on":  return toggle("switch", "switch.ems_ograniczenie_pv", true, "assistant.done.pvCurtailOn")
+    case "pv_curtail_off": return toggle("switch", "switch.ems_ograniczenie_pv", false, "assistant.done.pvCurtailOff")
+    case "grid_normal":      return sel(GRID_ENTITY, "Normal", "assistant.done.gridNormal")
+    case "grid_blackout":    return sel(GRID_ENTITY, "Blackout", "assistant.done.gridBlackout")
+    case "grid_instability": return sel(GRID_ENTITY, "Fluktuacje", "assistant.done.gridInstability")
     default: return null
   }
 }
@@ -166,6 +183,17 @@ function buildCommand(
 function bool(entity_id: string, on: boolean, key: string): ParsedCommand {
   return { domain: "input_boolean", service: on ? "turn_on" : "turn_off", data: { entity_id }, key }
 }
+
+function toggle(domain: string, entity_id: string, on: boolean, key: string): ParsedCommand {
+  return { domain, service: on ? "turn_on" : "turn_off", data: { entity_id }, key }
+}
+
+function sel(entity_id: string, option: string, key: string): ParsedCommand {
+  return { domain: "input_select", service: "select_option", data: { entity_id, option }, key }
+}
+
+const HP_ENTITY = "input_select.ems_tryb_pompy_ciepla"
+const GRID_ENTITY = "input_select.ems_status_sieci"
 
 // Normalise: lowercase + strip Polish diacritics so patterns stay ASCII.
 function norm(s: string): string {
@@ -222,6 +250,37 @@ export function parseCommand(raw: string, ctx?: AssistantCtx): ParseResult {
   if (/(away|poza dom|wyjazd|wyjezdzam|wychodze)/.test(t)) return intentToCommand("presence_away")
   if (/(vacation|urlop|wakacj)/.test(t))                   return intentToCommand("presence_vacation")
   if (/(w domu|jestem w domu|wracam|i'?m home|at home)/.test(t)) return intentToCommand("presence_home")
+
+  // ── Heat pump mode ──
+  if (/(pompa? ciepla|pompe ciepla|pompy ciepla|heat pump|\bpompa\b|\bpompe\b)/.test(t)) {
+    if (/(boost|maks|maksymaln|turbo)/.test(t)) return intentToCommand("hp_boost")
+    if (/(komfort|comfort|normaln)/.test(t)) return intentToCommand("hp_comfort")
+    if (OFF.test(t)) return intentToCommand("hp_off")
+    if (ON.test(t)) return intentToCommand("hp_comfort")
+  }
+
+  // ── V2G ──
+  if (/(v2g|vehicle.?to.?grid|auto do sieci)/.test(t)) {
+    return intentToCommand((onOff(t) ?? "on") === "on" ? "v2g_on" : "v2g_off")
+  }
+
+  // ── EV override (force max charge) ──
+  if (/(wymus ladowani|wymuszone ladowani|override|tryb manualny|tryb reczny|force ev)/.test(t)) {
+    return intentToCommand(OFF.test(t) || /(auto|automatyczn)/.test(t) ? "ev_override_off" : "ev_override_on")
+  }
+
+  // ── PV curtailment (zero-export) ──
+  if (/((ogranicz|curtail|nie eksportuj).*(pv|eksport|fotowolt|export)|zero.?export)/.test(t)) {
+    return intentToCommand("pv_curtail_on")
+  }
+  if (/((wlacz|pozwol).*(eksport|export)|bez ograniczen pv|normalny eksport)/.test(t)) {
+    return intentToCommand("pv_curtail_off")
+  }
+
+  // ── Grid status ──
+  if (/(blackout|zanik pradu|awaria pradu|odlacz siec|wylacz siec)/.test(t)) return intentToCommand("grid_blackout")
+  if (/(fluktuacj|niestabiln|wahania)/.test(t)) return intentToCommand("grid_instability")
+  if (/(siec normaln|przywroc siec|siec ok|normalna praca)/.test(t)) return intentToCommand("grid_normal")
 
   // ── EV charge limit: "set EV to 5000", "limit ladowania ev 6000" ──
   if (/(ev|samochod|car|elektryk|ladowark)/.test(t)) {

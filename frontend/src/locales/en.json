@@ -358,7 +358,19 @@
       "tempUp": "$t(assistant.room.{{roomId}}) temperature raised to {{t}}°C.",
       "tempDown": "$t(assistant.room.{{roomId}}) temperature lowered to {{t}}°C.",
       "blindsOpen": "$t(assistant.room.{{roomId}}) blinds opened.",
-      "blindsClose": "$t(assistant.room.{{roomId}}) blinds closed."
+      "blindsClose": "$t(assistant.room.{{roomId}}) blinds closed.",
+      "hpOff": "Heat pump turned off.",
+      "hpComfort": "Heat pump set to Comfort.",
+      "hpBoost": "Heat pump set to Boost.",
+      "v2gOn": "V2G mode on.",
+      "v2gOff": "V2G mode off.",
+      "evOverrideOn": "EV override on — charging at max.",
+      "evOverrideOff": "EV override off — back to auto.",
+      "pvCurtailOn": "PV export limited (zero-export).",
+      "pvCurtailOff": "PV export restored.",
+      "gridNormal": "Grid set to Normal.",
+      "gridBlackout": "Grid set to Blackout (island mode).",
+      "gridInstability": "Grid set to Fluctuations."
     },
     "scene": {
       "goodnight": "Good night — lights off, boiler off, inverter on auto.",

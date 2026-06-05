@@ -359,7 +359,19 @@
       "tempUp": "Temperatura $t(assistant.room.{{roomId}}) podniesiona do {{t}}°C.",
       "tempDown": "Temperatura $t(assistant.room.{{roomId}}) obniżona do {{t}}°C.",
       "blindsOpen": "Rolety $t(assistant.room.{{roomId}}) otwarte.",
-      "blindsClose": "Rolety $t(assistant.room.{{roomId}}) zamknięte."
+      "blindsClose": "Rolety $t(assistant.room.{{roomId}}) zamknięte.",
+      "hpOff": "Pompa ciepła wyłączona.",
+      "hpComfort": "Pompa ciepła w trybie Komfort.",
+      "hpBoost": "Pompa ciepła w trybie Boost.",
+      "v2gOn": "Tryb V2G włączony.",
+      "v2gOff": "Tryb V2G wyłączony.",
+      "evOverrideOn": "Wymuszone ładowanie auta — maksymalna moc.",
+      "evOverrideOff": "Wymuszanie wyłączone — powrót do auto.",
+      "pvCurtailOn": "Eksport PV ograniczony (zero-export).",
+      "pvCurtailOff": "Eksport PV przywrócony.",
+      "gridNormal": "Sieć ustawiona na Normalną.",
+      "gridBlackout": "Sieć ustawiona na Blackout (tryb wyspowy).",
+      "gridInstability": "Sieć ustawiona na Fluktuacje."
     },
     "scene": {
       "goodnight": "Dobranoc — światła zgaszone, bojler wyłączony, inwerter w trybie auto.",

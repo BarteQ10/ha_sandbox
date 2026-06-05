@@ -36,6 +36,11 @@ INTENTS = (
     "set_ev",
     "set_temp", "temp_up", "temp_down",
     "blinds_open", "blinds_close",
+    "hp_off", "hp_comfort", "hp_boost",
+    "v2g_on", "v2g_off",
+    "ev_override_on", "ev_override_off",
+    "pv_curtail_on", "pv_curtail_off",
+    "grid_normal", "grid_blackout", "grid_instability",
     "unknown",
 )
 
@@ -64,6 +69,11 @@ SYSTEM_PROMPT = (
     "- temp_down: obniz/zmniejsz temperature, ma byc chlodniej/zimniej; value = null; podaj room\n"
     "- blinds_open: otworz/podnies/rozsun rolety lub zaluzje; podaj room; value = null\n"
     "- blinds_close: zamknij/opusc/zasun rolety lub zaluzje; podaj room; value = null\n"
+    "- hp_off/hp_comfort/hp_boost: tryb pompy ciepla (wylaczona / komfort / boost)\n"
+    "- v2g_on/v2g_off: tryb V2G (oddawanie energii z auta do domu)\n"
+    "- ev_override_on/ev_override_off: wymuszone ladowanie auta na maksa / powrot do auto\n"
+    "- pv_curtail_on/pv_curtail_off: ograniczenie eksportu PV (zero-export) wlacz/wylacz\n"
+    "- grid_normal/grid_blackout/grid_instability: status sieci (normalny / blackout / fluktuacje)\n"
     "- unknown: nic nie pasuje\n"
     "Wskazowki: 'cieplej'/'zimno mi'/'podnies o stopien' => temp_up; "
     "'chlodniej'/'za goraco' => temp_down; 'ustaw 22 stopnie'/'na 21' => set_temp z value.\n"

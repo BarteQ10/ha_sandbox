@@ -70,6 +70,16 @@ def test_blinds_carry_the_room(monkeypatch):
     }
 
 
+def test_heat_pump_intent_passes_through(monkeypatch):
+    _enable(monkeypatch, '{"intent": "hp_boost", "value": null, "room": null}')
+    assert al.classify("pompa na maksa") == {"intent": "hp_boost", "value": None, "room": None}
+
+
+def test_grid_intent_passes_through(monkeypatch):
+    _enable(monkeypatch, '{"intent": "grid_blackout", "value": null, "room": null}')
+    assert al.classify("odlacz siec") == {"intent": "grid_blackout", "value": None, "room": None}
+
+
 def test_hallucinated_intent_rejected(monkeypatch):
     # A model that invents an action off the allow-list must be neutralised.
     _enable(monkeypatch, '{"intent": "launch_missiles", "value": null, "room": null}')

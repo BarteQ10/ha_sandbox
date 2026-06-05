@@ -75,6 +75,15 @@ const _LIST: HassEntity[] = [
   ent("input_number.ems_limit_ladowania_ev", "3700", {
     min: 0, max: 7400, step: 100, friendly_name: "EV Charge Limit",
   }),
+  ent("input_select.ems_tryb_pompy_ciepla", "Wylaczona", {
+    options: ["Wylaczona", "Komfort", "Boost"], friendly_name: "Heat Pump Mode",
+  }),
+  ent("input_select.ems_status_sieci", "Normal", {
+    options: ["Normal", "Blackout", "Fluktuacje"], friendly_name: "Grid Status",
+  }),
+  ent("input_boolean.ems_v2g_mode", "off", { friendly_name: "V2G Mode" }),
+  ent("input_boolean.ems_ev_override", "off", { friendly_name: "EV Override" }),
+  ent("switch.ems_ograniczenie_pv", "off", { friendly_name: "PV Curtailment" }),
 
   // Auto-discovered media player + camera (for the Media / Cameras views)
   ent("media_player.salon", "playing", {

@@ -67,6 +67,20 @@ test("turns on the light in the named room (not the default salon)", async ({ pa
   await expect(page.getByText(/Living-room/i)).toHaveCount(0)
 })
 
+test("sets the heat-pump mode", async ({ page }) => {
+  await openAssistant(page)
+  await page.getByRole("textbox").fill("ustaw pompę ciepła na boost")
+  await page.getByRole("button", { name: "Send" }).click()
+  await expect(page.getByText("Heat pump set to Boost.")).toBeVisible()
+})
+
+test("triggers a grid blackout", async ({ page }) => {
+  await openAssistant(page)
+  await page.getByRole("textbox").fill("ustaw blackout")
+  await page.getByRole("button", { name: "Send" }).click()
+  await expect(page.getByText(/Blackout/)).toBeVisible()
+})
+
 test("closes blinds in the named room", async ({ page }) => {
   await openAssistant(page)
   await page.getByRole("textbox").fill("zamknij rolety w kuchni")
