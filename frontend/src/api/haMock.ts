@@ -48,6 +48,13 @@ const _LIST: HassEntity[] = [
   ent("input_boolean.wirtualne_swiatlo_sypialnia_glowne", "off", { friendly_name: "Bedroom Main Light" }),
   ent("input_number.wirtualna_temp_salon", "21.5", { unit_of_measurement: "°C" }),
   ent("input_number.wirtualne_ustawienie_temp_salon", "21", { min: 16, max: 30, step: 0.5 }),
+  ent("input_number.wirtualne_ustawienie_temp_kuchnia", "20", { min: 16, max: 30, step: 0.5 }),
+  ent("input_number.wirtualne_ustawienie_temp_sypialnia", "19", { min: 16, max: 30, step: 0.5 }),
+  // Motorised blinds (0–100 position)
+  ent("input_number.wirtualne_rolety_salon", "100", { min: 0, max: 100, step: 1 }),
+  ent("input_number.wirtualne_rolety_kuchnia", "100", { min: 0, max: 100, step: 1 }),
+  ent("input_number.wirtualne_rolety_sypialnia", "100", { min: 0, max: 100, step: 1 }),
+  ent("input_number.wirtualne_rolety_lazienka", "100", { min: 0, max: 100, step: 1 }),
 
   // Climate + cover
   ent("climate.salon", "heat", {

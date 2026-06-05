@@ -28,9 +28,13 @@ export type Intent =
   | "storm_on" | "storm_off"
   | "set_ev"
   | "set_temp" | "temp_up" | "temp_down"
+  | "blinds_open" | "blinds_close"
 
-/** Live state the mapping may need (e.g. current setpoint for relative temp). */
+/** Live state the mapping may need (e.g. current setpoints for relative temp). */
 export interface AssistantCtx {
+  /** Current setpoint per room id, for relative temperature commands. */
+  temps?: Record<string, number>
+  /** @deprecated kept for back-compat; prefer temps.salon */
   salonTemp?: number
 }
 
@@ -38,7 +42,21 @@ const EV_MAX = 7400
 const TEMP_MIN = 16
 const TEMP_MAX = 30
 const TEMP_DEFAULT = 21
-const TEMP_ENTITY = "input_number.wirtualne_ustawienie_temp_salon"
+
+// Rooms that expose a thermostat setpoint (others fall back to salon).
+const ROOM_SETPOINT: Record<string, string> = {
+  salon: "input_number.wirtualne_ustawienie_temp_salon",
+  kuchnia: "input_number.wirtualne_ustawienie_temp_kuchnia",
+  sypialnia: "input_number.wirtualne_ustawienie_temp_sypialnia",
+}
+
+// Rooms with motorised blinds (input_number position 0–100).
+const ROOM_BLIND: Record<string, string> = {
+  salon: "input_number.wirtualne_rolety_salon",
+  kuchnia: "input_number.wirtualne_rolety_kuchnia",
+  sypialnia: "input_number.wirtualne_rolety_sypialnia",
+  lazienka: "input_number.wirtualne_rolety_lazienka",
+}
 
 // Per-room main lights. roomId is also the i18n key under `assistant.room.*`.
 export const ROOM_IDS = ["salon", "kuchnia", "sypialnia", "lazienka", "ogrod"] as const
@@ -76,12 +94,23 @@ function lightCmd(roomId: string, on: boolean): ParsedCommand {
 
 const clampTemp = (v: number) => Math.max(TEMP_MIN, Math.min(TEMP_MAX, Math.round(v * 2) / 2))
 
-function setTemp(value: number, key: string): ParsedCommand {
+function setTemp(roomId: string, value: number, key: string): ParsedCommand {
+  const room = ROOM_SETPOINT[roomId] ? roomId : "salon"
   const v = clampTemp(value)
   return {
     domain: "input_number", service: "set_value",
-    data: { entity_id: TEMP_ENTITY, value: v },
-    key, params: { t: v },
+    data: { entity_id: ROOM_SETPOINT[room], value: v },
+    key, params: { roomId: room, t: v },
+  }
+}
+
+function blindsCmd(roomId: string, open: boolean): ParsedCommand {
+  const room = ROOM_BLIND[roomId] ? roomId : "salon"
+  return {
+    domain: "input_number", service: "set_value",
+    data: { entity_id: ROOM_BLIND[room], value: open ? 100 : 0 },
+    key: open ? "assistant.done.blindsOpen" : "assistant.done.blindsClose",
+    params: { roomId: room },
   }
 }
 
@@ -102,7 +131,8 @@ function buildCommand(
   ctx?: AssistantCtx,
   room?: string | null,
 ): ParsedCommand | null {
-  const curTemp = ctx?.salonTemp ?? TEMP_DEFAULT
+  const tempRoom = room && ROOM_SETPOINT[room] ? room : "salon"
+  const curTemp = ctx?.temps?.[tempRoom] ?? ctx?.salonTemp ?? TEMP_DEFAULT
   switch (intent) {
     case "boiler_on":  return bool("input_boolean.wirtualny_bojler", true, "assistant.done.boilerOn")
     case "boiler_off": return bool("input_boolean.wirtualny_bojler", false, "assistant.done.boilerOff")
@@ -124,9 +154,11 @@ function buildCommand(
         key: "assistant.done.evLimit", params: { w },
       }
     }
-    case "set_temp":  return setTemp(value ?? TEMP_DEFAULT, "assistant.done.setTemp")
-    case "temp_up":   return setTemp(curTemp + 1, "assistant.done.tempUp")
-    case "temp_down": return setTemp(curTemp - 1, "assistant.done.tempDown")
+    case "set_temp":  return setTemp(tempRoom, value ?? TEMP_DEFAULT, "assistant.done.setTemp")
+    case "temp_up":   return setTemp(tempRoom, curTemp + 1, "assistant.done.tempUp")
+    case "temp_down": return setTemp(tempRoom, curTemp - 1, "assistant.done.tempDown")
+    case "blinds_open":  return blindsCmd(room ?? "salon", true)
+    case "blinds_close": return blindsCmd(room ?? "salon", false)
     default: return null
   }
 }
@@ -166,11 +198,12 @@ export function parseCommand(raw: string, ctx?: AssistantCtx): ParseResult {
   // ── Temperature (salon setpoint): absolute "ustaw temp na 22" or relative.
   // Note: "grzej" is intentionally NOT a trigger — "podgrzej wodę" is a boiler
   // command, not a thermostat one (handled below / by the LLM). ──
-  if (/(temperatur|cieplej|chlodniej|zimniej)/.test(t)) {
+  if (/(temperatur|stopni|cieplej|chlodniej|zimniej)/.test(t)) {
+    const room = detectRoom(t) ?? "salon"
     const m = t.match(/(\d{1,2})/)
-    if (m && /(ustaw|na |=|do )/.test(t)) return intentToCommand("set_temp", parseInt(m[1], 10), ctx)
-    if (/(zwieksz|podnies|wyzej|wyzsz|cieplej|wiecej)/.test(t)) return intentToCommand("temp_up", null, ctx)
-    if (/(zmniejsz|obniz|nizej|nizsz|chlodniej|zimniej|mniej)/.test(t)) return intentToCommand("temp_down", null, ctx)
+    if (m && /(ustaw|na |=|do )/.test(t)) return intentToCommand("set_temp", parseInt(m[1], 10), ctx, room)
+    if (/(zwieksz|podnies|wyzej|wyzsz|cieplej|wiecej)/.test(t)) return intentToCommand("temp_up", null, ctx, room)
+    if (/(zmniejsz|obniz|nizej|nizsz|chlodniej|zimniej|mniej)/.test(t)) return intentToCommand("temp_down", null, ctx, room)
   }
 
   // ── Storm safeguard ──
@@ -199,6 +232,13 @@ export function parseCommand(raw: string, ctx?: AssistantCtx): ParseResult {
   // ── Boiler ──
   if (/(boiler|bojler)/.test(t)) {
     return intentToCommand((onOff(t) ?? "on") === "on" ? "boiler_on" : "boiler_off")
+  }
+
+  // ── Blinds / roller shutters (room-aware): "zamknij rolety w kuchni" ──
+  if (/(rolet|zaluzj|blind|markiz)/.test(t)) {
+    const room = detectRoom(t) ?? "salon"
+    if (/(otworz|rozsun|podnies|odsun|open|up|wpusc)/.test(t)) return intentToCommand("blinds_open", null, ctx, room)
+    if (/(zamknij|zasun|opusc|zaslon|zaciemnij|close|down)/.test(t)) return intentToCommand("blinds_close", null, ctx, room)
   }
 
   // ── Lights (room-aware): "zapal światło w kuchni", "zgaś lampę w sypialni" ──
@@ -247,9 +287,20 @@ export function disambiguate(raw: string, ctx?: AssistantCtx): ParsedCommand[] {
 }
 
 // ── Scenes: one phrase → several actions ───────────────────────────────────────
-interface SceneDef { match: RegExp; key: string; steps: { intent: Intent; value?: number }[] }
+interface SceneStep { intent: Intent; value?: number; room?: string }
+interface SceneDef { match: RegExp; key: string; steps: SceneStep[] }
 
 const SCENES: SceneDef[] = [
+  {
+    match: /((zapal|wlacz|zaswiec).*(wszystk|wszedzie)|all lights on|turn on all lights)/,
+    key: "assistant.scene.allLightsOn",
+    steps: ROOM_IDS.map((r) => ({ intent: "light_on" as Intent, room: r })),
+  },
+  {
+    match: /((zgas|wylacz|pogas|zgaszenie).*(wszystk|swiatl|wszedzie)|zgas wszystko|all lights off|turn off all lights)/,
+    key: "assistant.scene.allLightsOff",
+    steps: ROOM_IDS.map((r) => ({ intent: "light_off" as Intent, room: r })),
+  },
   {
     match: /(dobranoc|good ?night|ide spac|idziemy spac)/,
     key: "assistant.scene.goodnight",
@@ -279,7 +330,7 @@ export function matchScene(raw: string, ctx?: AssistantCtx): { key: string; comm
   for (const s of SCENES) {
     if (!s.match.test(t)) continue
     const commands = s.steps
-      .map((step) => intentToCommand(step.intent, step.value ?? null, ctx))
+      .map((step) => intentToCommand(step.intent, step.value ?? null, ctx, step.room ?? null))
       .filter((c): c is ParsedCommand => c !== null)
     if (commands.length) return { key: s.key, commands }
   }

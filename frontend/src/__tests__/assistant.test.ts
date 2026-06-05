@@ -104,6 +104,28 @@ describe("parseCommand", () => {
     expect(intentToCommand("set_temp", 99)).toMatchObject({ data: { value: 30 } })
     expect(intentToCommand("temp_down", null, { salonTemp: 16 })).toMatchObject({ data: { value: 16 } })
   })
+
+  it("targets temperature by room", () => {
+    expect(parseCommand("ustaw temperaturę na 22 w kuchni", { temps: { kuchnia: 18 } })).toMatchObject({
+      data: { entity_id: "input_number.wirtualne_ustawienie_temp_kuchnia", value: 22 },
+      key: "assistant.done.setTemp", params: { roomId: "kuchnia", t: 22 },
+    })
+    expect(parseCommand("cieplej w sypialni", { temps: { sypialnia: 19 } })).toMatchObject({
+      key: "assistant.done.tempUp", params: { roomId: "sypialnia", t: 20 },
+    })
+  })
+
+  it("opens and closes blinds per room", () => {
+    expect(parseCommand("zamknij rolety w kuchni")).toMatchObject({
+      domain: "input_number", service: "set_value",
+      data: { entity_id: "input_number.wirtualne_rolety_kuchnia", value: 0 },
+      key: "assistant.done.blindsClose", params: { roomId: "kuchnia" }, intent: "blinds_close",
+    })
+    expect(parseCommand("otwórz rolety")).toMatchObject({
+      data: { entity_id: "input_number.wirtualne_rolety_salon", value: 100 },
+      key: "assistant.done.blindsOpen", params: { roomId: "salon" },
+    })
+  })
 })
 
 describe("disambiguate", () => {
@@ -151,6 +173,19 @@ describe("scenes", () => {
 
   it("returns null for a non-scene phrase", () => {
     expect(matchScene("włącz bojler")).toBeNull()
+  })
+
+  it("turns off every room light via the all-lights scene", () => {
+    const s = matchScene("zgaś wszystkie światła")
+    expect(s?.key).toBe("assistant.scene.allLightsOff")
+    expect(s!.commands).toHaveLength(5)
+    expect(s!.commands.every((c) => c.service === "turn_off")).toBe(true)
+  })
+
+  it("'zapal wszystkie światła' turns them all on", () => {
+    const s = matchScene("zapal wszystkie światła")
+    expect(s?.key).toBe("assistant.scene.allLightsOn")
+    expect(s!.commands.every((c) => c.service === "turn_on")).toBe(true)
   })
 })
 

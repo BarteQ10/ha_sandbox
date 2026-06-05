@@ -33,9 +33,11 @@ export function Assistant() {
   )
   const recRef = useRef<SpeechRecognition | null>(null)
   const lastIntentRef = useRef<string | null>(null)
-  // Live setpoint so relative commands ("warmer") resolve to an absolute value.
-  const salonTemp = useEntityNum("input_number.wirtualne_ustawienie_temp_salon", 21)
-  const ctx = { salonTemp }
+  // Live setpoints per room so relative commands ("warmer") resolve to absolutes.
+  const tSalon = useEntityNum("input_number.wirtualne_ustawienie_temp_salon", 21)
+  const tKuchnia = useEntityNum("input_number.wirtualne_ustawienie_temp_kuchnia", 21)
+  const tSypialnia = useEntityNum("input_number.wirtualne_ustawienie_temp_sypialnia", 21)
+  const ctx = { temps: { salon: tSalon, kuchnia: tKuchnia, sypialnia: tSypialnia }, salonTemp: tSalon }
 
   const examples: string[] = t("assistant.examples", { returnObjects: true }) as unknown as string[]
 

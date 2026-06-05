@@ -355,15 +355,19 @@
       "stormOn": "Zabezpieczenie sztormowe włączone.",
       "stormOff": "Zabezpieczenie sztormowe wyłączone.",
       "evLimit": "Limit ładowania EV ustawiony na {{w}} W.",
-      "setTemp": "Temperatura w salonie ustawiona na {{t}}°C.",
-      "tempUp": "Temperatura podniesiona do {{t}}°C.",
-      "tempDown": "Temperatura obniżona do {{t}}°C."
+      "setTemp": "Temperatura $t(assistant.room.{{roomId}}) ustawiona na {{t}}°C.",
+      "tempUp": "Temperatura $t(assistant.room.{{roomId}}) podniesiona do {{t}}°C.",
+      "tempDown": "Temperatura $t(assistant.room.{{roomId}}) obniżona do {{t}}°C.",
+      "blindsOpen": "Rolety $t(assistant.room.{{roomId}}) otwarte.",
+      "blindsClose": "Rolety $t(assistant.room.{{roomId}}) zamknięte."
     },
     "scene": {
       "goodnight": "Dobranoc — światła zgaszone, bojler wyłączony, inwerter w trybie auto.",
       "morning": "Dzień dobry — światła włączone, temperatura 21°C.",
       "away": "Wychodzisz — tryb poza domem, światła i bojler wyłączone.",
-      "home": "Witaj w domu — tryb w domu, światła włączone."
+      "home": "Witaj w domu — tryb w domu, światła włączone.",
+      "allLightsOff": "Wszystkie światła zgaszone.",
+      "allLightsOn": "Wszystkie światła włączone."
     },
     "room": {
       "salon": "w salonie",

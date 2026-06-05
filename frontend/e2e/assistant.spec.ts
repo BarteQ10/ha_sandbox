@@ -49,7 +49,7 @@ test("raises the temperature with a relative command", async ({ page }) => {
   await page.getByRole("textbox").fill("zwiększ temperaturę")
   await page.getByRole("button", { name: "Send" }).click()
   // salon setpoint fixture is 21 → +1 = 22
-  await expect(page.getByText(/Temperature raised to 22/)).toBeVisible()
+  await expect(page.getByText(/raised to 22/)).toBeVisible()
 })
 
 test("sets an absolute temperature", async ({ page }) => {
@@ -65,6 +65,20 @@ test("turns on the light in the named room (not the default salon)", async ({ pa
   await page.getByRole("button", { name: "Send" }).click()
   await expect(page.getByText("Kitchen light on.")).toBeVisible()
   await expect(page.getByText(/Living-room/i)).toHaveCount(0)
+})
+
+test("closes blinds in the named room", async ({ page }) => {
+  await openAssistant(page)
+  await page.getByRole("textbox").fill("zamknij rolety w kuchni")
+  await page.getByRole("button", { name: "Send" }).click()
+  await expect(page.getByText("Kitchen blinds closed.")).toBeVisible()
+})
+
+test("turns off all lights via a scene phrase", async ({ page }) => {
+  await openAssistant(page)
+  await page.getByRole("textbox").fill("zgaś wszystkie światła")
+  await page.getByRole("button", { name: "Send" }).click()
+  await expect(page.getByText("All lights off.")).toBeVisible()
 })
 
 test("runs a multi-action scene", async ({ page }) => {

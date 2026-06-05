@@ -63,6 +63,13 @@ def test_light_with_invalid_room_falls_back_to_salon(monkeypatch):
     }
 
 
+def test_blinds_carry_the_room(monkeypatch):
+    _enable(monkeypatch, '{"intent": "blinds_close", "value": null, "room": "sypialnia"}')
+    assert al.classify("zamknij rolety w sypialni") == {
+        "intent": "blinds_close", "value": None, "room": "sypialnia",
+    }
+
+
 def test_hallucinated_intent_rejected(monkeypatch):
     # A model that invents an action off the allow-list must be neutralised.
     _enable(monkeypatch, '{"intent": "launch_missiles", "value": null, "room": null}')

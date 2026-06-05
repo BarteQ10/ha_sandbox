@@ -354,15 +354,19 @@
       "stormOn": "Storm safeguard activated.",
       "stormOff": "Storm safeguard deactivated.",
       "evLimit": "EV charge limit set to {{w}} W.",
-      "setTemp": "Living-room temperature set to {{t}}°C.",
-      "tempUp": "Temperature raised to {{t}}°C.",
-      "tempDown": "Temperature lowered to {{t}}°C."
+      "setTemp": "$t(assistant.room.{{roomId}}) temperature set to {{t}}°C.",
+      "tempUp": "$t(assistant.room.{{roomId}}) temperature raised to {{t}}°C.",
+      "tempDown": "$t(assistant.room.{{roomId}}) temperature lowered to {{t}}°C.",
+      "blindsOpen": "$t(assistant.room.{{roomId}}) blinds opened.",
+      "blindsClose": "$t(assistant.room.{{roomId}}) blinds closed."
     },
     "scene": {
       "goodnight": "Good night — lights off, boiler off, inverter on auto.",
       "morning": "Good morning — lights on, temperature 21°C.",
       "away": "Leaving — away mode, lights and boiler off.",
-      "home": "Welcome home — home mode, lights on."
+      "home": "Welcome home — home mode, lights on.",
+      "allLightsOff": "All lights off.",
+      "allLightsOn": "All lights on."
     },
     "room": {
       "salon": "Living-room",

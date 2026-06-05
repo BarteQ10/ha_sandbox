@@ -35,8 +35,12 @@ INTENTS = (
     "storm_on", "storm_off",
     "set_ev",
     "set_temp", "temp_up", "temp_down",
+    "blinds_open", "blinds_close",
     "unknown",
 )
+
+# Intents that target a specific room (the model must fill the `room` slot).
+ROOM_INTENTS = ("light_on", "light_off", "blinds_open", "blinds_close")
 
 EV_MIN_W, EV_MAX_W = 0, 7400
 TEMP_MIN_C, TEMP_MAX_C = 16, 30
@@ -55,14 +59,16 @@ SYSTEM_PROMPT = (
     "(w domu / poza domem / urlop)\n"
     "- storm_on/storm_off: zabezpieczenie sztormowe (burzowe) baterii\n"
     "- set_ev: ustaw limit mocy ladowania samochodu elektrycznego; value = waty (0-7400)\n"
-    "- set_temp: ustaw temperature w salonie na KONKRETNA wartosc; value = stopnie Celsjusza (16-30)\n"
-    "- temp_up: podnies/zwieksz temperature, ma byc cieplej; value = null\n"
-    "- temp_down: obniz/zmniejsz temperature, ma byc chlodniej/zimniej; value = null\n"
+    "- set_temp: ustaw temperature na KONKRETNA wartosc; value = stopnie Celsjusza (16-30); podaj room\n"
+    "- temp_up: podnies/zwieksz temperature, ma byc cieplej; value = null; podaj room\n"
+    "- temp_down: obniz/zmniejsz temperature, ma byc chlodniej/zimniej; value = null; podaj room\n"
+    "- blinds_open: otworz/podnies/rozsun rolety lub zaluzje; podaj room; value = null\n"
+    "- blinds_close: zamknij/opusc/zasun rolety lub zaluzje; podaj room; value = null\n"
     "- unknown: nic nie pasuje\n"
     "Wskazowki: 'cieplej'/'zimno mi'/'podnies o stopien' => temp_up; "
     "'chlodniej'/'za goraco' => temp_down; 'ustaw 22 stopnie'/'na 21' => set_temp z value.\n"
     "value: waty dla set_ev, stopnie dla set_temp, w kazdym innym wypadku null. "
-    "room: nazwa pokoju dla light_on/light_off, w kazdym innym wypadku null. "
+    "room: nazwa pokoju dla swiatel, rolet i temperatury, w kazdym innym wypadku null. "
     "Odpowiedz wylacznie JSON."
 )
 
@@ -156,8 +162,9 @@ def classify(text: str) -> dict:
         except (TypeError, ValueError):
             return {"intent": "unknown", "value": None, "room": None}
 
-    room = parsed.get("room") if intent in ("light_on", "light_off") else None
+    room = parsed.get("room")
     if room not in ROOMS:
-        room = "salon" if intent in ("light_on", "light_off") else None
+        # Lights/blinds must target a room → default to salon; others stay null.
+        room = "salon" if intent in ROOM_INTENTS else None
 
     return {"intent": intent, "value": value, "room": room}
