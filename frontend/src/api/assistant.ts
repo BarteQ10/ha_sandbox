@@ -6,6 +6,7 @@ const SIM_URL = import.meta.env.VITE_SIM_URL || "http://localhost:8088"
 export interface RemoteIntent {
   intent: string
   value: number | null
+  room: string | null
   enabled: boolean   // false when the simulator has no LLM configured
 }
 
@@ -23,6 +24,7 @@ export async function classifyRemote(text: string): Promise<RemoteIntent | null>
     return {
       intent: data.intent,
       value: typeof data.value === "number" ? data.value : null,
+      room: typeof data.room === "string" ? data.room : null,
       enabled: Boolean(data.enabled),
     }
   } catch {

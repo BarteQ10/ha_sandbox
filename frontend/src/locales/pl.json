@@ -344,8 +344,8 @@
     "done": {
       "boilerOn": "Bojler włączony.",
       "boilerOff": "Bojler wyłączony.",
-      "lightOn": "Światło w salonie włączone.",
-      "lightOff": "Światło w salonie wyłączone.",
+      "lightOn": "Światło $t(assistant.room.{{roomId}}) włączone.",
+      "lightOff": "Światło $t(assistant.room.{{roomId}}) wyłączone.",
       "inverterAuto": "Inwerter ustawiony na Auto.",
       "inverterCharge": "Inwerter ustawiony na wymuszone ładowanie.",
       "inverterDischarge": "Inwerter ustawiony na wymuszone rozładowanie.",
@@ -364,6 +364,13 @@
       "morning": "Dzień dobry — światła włączone, temperatura 21°C.",
       "away": "Wychodzisz — tryb poza domem, światła i bojler wyłączone.",
       "home": "Witaj w domu — tryb w domu, światła włączone."
+    },
+    "room": {
+      "salon": "w salonie",
+      "kuchnia": "w kuchni",
+      "sypialnia": "w sypialni",
+      "lazienka": "w łazience",
+      "ogrod": "w ogrodzie"
     }
   },
   "settings": {

@@ -343,8 +343,8 @@
     "done": {
       "boilerOn": "Boiler turned on.",
       "boilerOff": "Boiler turned off.",
-      "lightOn": "Living-room light on.",
-      "lightOff": "Living-room light off.",
+      "lightOn": "$t(assistant.room.{{roomId}}) light on.",
+      "lightOff": "$t(assistant.room.{{roomId}}) light off.",
       "inverterAuto": "Inverter set to Auto.",
       "inverterCharge": "Inverter set to Force Charge.",
       "inverterDischarge": "Inverter set to Force Discharge.",
@@ -363,6 +363,13 @@
       "morning": "Good morning — lights on, temperature 21°C.",
       "away": "Leaving — away mode, lights and boiler off.",
       "home": "Welcome home — home mode, lights on."
+    },
+    "room": {
+      "salon": "Living-room",
+      "kuchnia": "Kitchen",
+      "sypialnia": "Bedroom",
+      "lazienka": "Bathroom",
+      "ogrod": "Garden"
     }
   },
   "settings": {

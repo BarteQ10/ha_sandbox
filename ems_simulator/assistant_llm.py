@@ -40,13 +40,15 @@ INTENTS = (
 
 EV_MIN_W, EV_MAX_W = 0, 7400
 TEMP_MIN_C, TEMP_MAX_C = 16, 30
+ROOMS = ("salon", "kuchnia", "sypialnia", "lazienka", "ogrod")
 
 SYSTEM_PROMPT = (
     "Jestes klasyfikatorem intencji dla systemu EMS smart home. Zmapuj polecenie "
     "uzytkownika na DOKLADNIE jedna intencje i wartosc liczbowa (value).\n"
     "Znaczenie intencji:\n"
     "- boiler_on/boiler_off: bojler, grzalka, podgrzewanie/grzanie wody\n"
-    "- light_on/light_off: swiatlo lub lampa w salonie\n"
+    "- light_on/light_off: swiatlo lub lampa; podaj pokoj w polu 'room' "
+    "(salon/kuchnia/sypialnia/lazienka/ogrod), domyslnie salon\n"
     "- inverter_auto/inverter_charge/inverter_discharge: tryb falownika/inwertera "
     "(auto / wymuszone ladowanie / wymuszone rozladowanie baterii)\n"
     "- presence_home/presence_away/presence_vacation: tryb obecnosci "
@@ -60,6 +62,7 @@ SYSTEM_PROMPT = (
     "Wskazowki: 'cieplej'/'zimno mi'/'podnies o stopien' => temp_up; "
     "'chlodniej'/'za goraco' => temp_down; 'ustaw 22 stopnie'/'na 21' => set_temp z value.\n"
     "value: waty dla set_ev, stopnie dla set_temp, w kazdym innym wypadku null. "
+    "room: nazwa pokoju dla light_on/light_off, w kazdym innym wypadku null. "
     "Odpowiedz wylacznie JSON."
 )
 
@@ -73,8 +76,9 @@ _SCHEMA = {
             "properties": {
                 "intent": {"type": "string", "enum": list(INTENTS)},
                 "value": {"type": ["integer", "null"]},
+                "room": {"type": ["string", "null"], "enum": [*ROOMS, None]},
             },
-            "required": ["intent", "value"],
+            "required": ["intent", "value", "room"],
             "additionalProperties": False,
         },
     },
@@ -123,21 +127,21 @@ def classify(text: str) -> dict:
     """
     text = (text or "").strip()
     if not text or not enabled():
-        return {"intent": "unknown", "value": None}
+        return {"intent": "unknown", "value": None, "room": None}
 
     raw = _call_llm(text)
     if not raw:
-        return {"intent": "unknown", "value": None}
+        return {"intent": "unknown", "value": None, "room": None}
 
     try:
         parsed = json.loads(raw)
     except ValueError:
         log.warning("[ASSISTANT] LLM returned non-JSON: %r", raw[:120])
-        return {"intent": "unknown", "value": None}
+        return {"intent": "unknown", "value": None, "room": None}
 
     intent = parsed.get("intent")
     if intent not in INTENTS:
-        return {"intent": "unknown", "value": None}
+        return {"intent": "unknown", "value": None, "room": None}
 
     value = None
     if intent == "set_ev":
@@ -145,11 +149,15 @@ def classify(text: str) -> dict:
             value = max(EV_MIN_W, min(EV_MAX_W, int(parsed.get("value"))))
         except (TypeError, ValueError):
             # set_ev without a usable number is not actionable.
-            return {"intent": "unknown", "value": None}
+            return {"intent": "unknown", "value": None, "room": None}
     elif intent == "set_temp":
         try:
             value = max(TEMP_MIN_C, min(TEMP_MAX_C, int(parsed.get("value"))))
         except (TypeError, ValueError):
-            return {"intent": "unknown", "value": None}
+            return {"intent": "unknown", "value": None, "room": None}
 
-    return {"intent": intent, "value": value}
+    room = parsed.get("room") if intent in ("light_on", "light_off") else None
+    if room not in ROOMS:
+        room = "salon" if intent in ("light_on", "light_off") else None
+
+    return {"intent": intent, "value": value, "room": room}

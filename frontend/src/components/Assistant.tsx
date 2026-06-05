@@ -102,7 +102,7 @@ export function Assistant() {
     const remote = await classifyRemote(trimmed)
     setBusy(false)
     const rcmd = remote && remote.intent !== "unknown"
-      ? intentToCommand(remote.intent, remote.value, ctx)
+      ? intentToCommand(remote.intent, remote.value, ctx, remote.room)
       : null
     if (rcmd) { await execute(rcmd); return }
     botSay(t("assistant.unknown"), false)

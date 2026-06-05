@@ -40,6 +40,40 @@ const TEMP_MAX = 30
 const TEMP_DEFAULT = 21
 const TEMP_ENTITY = "input_number.wirtualne_ustawienie_temp_salon"
 
+// Per-room main lights. roomId is also the i18n key under `assistant.room.*`.
+export const ROOM_IDS = ["salon", "kuchnia", "sypialnia", "lazienka", "ogrod"] as const
+const ROOM_LIGHT: Record<string, string> = {
+  salon: "input_boolean.wirtualne_swiatlo_salon_glowne",
+  kuchnia: "input_boolean.wirtualne_swiatlo_kuchnia_glowne",
+  sypialnia: "input_boolean.wirtualne_swiatlo_sypialnia_glowne",
+  lazienka: "input_boolean.wirtualne_swiatlo_lazienka_glowne",
+  ogrod: "input_boolean.wirtualne_swiatlo_ogrod_glowne",
+}
+const ROOM_MATCH: [string, RegExp][] = [
+  ["kuchnia", /(kuchni|kitchen)/],
+  ["sypialnia", /(sypialn|bedroom)/],
+  ["lazienka", /(lazienk|bathroom)/],
+  ["ogrod", /(ogrod|ogrodzie|garden)/],
+  ["salon", /(salon|living|wypoczynk)/],
+]
+
+/** Detect a room mentioned in the (normalised) text, or null when none named. */
+function detectRoom(t: string): string | null {
+  for (const [id, re] of ROOM_MATCH) if (re.test(t)) return id
+  return null
+}
+
+function lightCmd(roomId: string, on: boolean): ParsedCommand {
+  const room = ROOM_LIGHT[roomId] ? roomId : "salon"
+  return {
+    domain: "input_boolean",
+    service: on ? "turn_on" : "turn_off",
+    data: { entity_id: ROOM_LIGHT[room] },
+    key: on ? "assistant.done.lightOn" : "assistant.done.lightOff",
+    params: { roomId: room },
+  }
+}
+
 const clampTemp = (v: number) => Math.max(TEMP_MIN, Math.min(TEMP_MAX, Math.round(v * 2) / 2))
 
 function setTemp(value: number, key: string): ParsedCommand {
@@ -56,8 +90,9 @@ export function intentToCommand(
   intent: string,
   value?: number | null,
   ctx?: AssistantCtx,
+  room?: string | null,
 ): ParsedCommand | null {
-  const cmd = buildCommand(intent, value, ctx)
+  const cmd = buildCommand(intent, value, ctx, room)
   return cmd ? { ...cmd, intent } : null
 }
 
@@ -65,13 +100,14 @@ function buildCommand(
   intent: string,
   value?: number | null,
   ctx?: AssistantCtx,
+  room?: string | null,
 ): ParsedCommand | null {
   const curTemp = ctx?.salonTemp ?? TEMP_DEFAULT
   switch (intent) {
     case "boiler_on":  return bool("input_boolean.wirtualny_bojler", true, "assistant.done.boilerOn")
     case "boiler_off": return bool("input_boolean.wirtualny_bojler", false, "assistant.done.boilerOff")
-    case "light_on":   return bool("input_boolean.wirtualne_swiatlo_salon_glowne", true, "assistant.done.lightOn")
-    case "light_off":  return bool("input_boolean.wirtualne_swiatlo_salon_glowne", false, "assistant.done.lightOff")
+    case "light_on":   return lightCmd(room ?? "salon", true)
+    case "light_off":  return lightCmd(room ?? "salon", false)
     case "storm_on":   return bool("input_boolean.ems_storm_safeguard", true, "assistant.done.stormOn")
     case "storm_off":  return bool("input_boolean.ems_storm_safeguard", false, "assistant.done.stormOff")
     case "inverter_auto":      return invSel("Auto", "assistant.done.inverterAuto")
@@ -109,8 +145,8 @@ function norm(s: string): string {
     .trim()
 }
 
-const ON = /\b(on|enable|start|wlacz|zalacz|aktywuj)\b/
-const OFF = /\b(off|disable|stop|wylacz|deaktywuj|dezaktywuj)\b/
+const ON = /\b(on|enable|start|wlacz|zalacz|aktywuj|zapal|zaswiec)\b/
+const OFF = /\b(off|disable|stop|wylacz|deaktywuj|dezaktywuj|zgas|gas)\b/
 
 function onOff(text: string): "on" | "off" | null {
   if (OFF.test(text)) return "off"
@@ -165,9 +201,10 @@ export function parseCommand(raw: string, ctx?: AssistantCtx): ParseResult {
     return intentToCommand((onOff(t) ?? "on") === "on" ? "boiler_on" : "boiler_off")
   }
 
-  // ── Living-room light ──
+  // ── Lights (room-aware): "zapal światło w kuchni", "zgaś lampę w sypialni" ──
   if (/(light|swiatl|lamp)/.test(t)) {
-    return intentToCommand((onOff(t) ?? "on") === "on" ? "light_on" : "light_off")
+    const room = detectRoom(t) ?? "salon"
+    return intentToCommand((onOff(t) ?? "on") === "on" ? "light_on" : "light_off", null, ctx, room)
   }
 
   return null

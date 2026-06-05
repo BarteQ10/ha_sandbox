@@ -59,6 +59,14 @@ test("sets an absolute temperature", async ({ page }) => {
   await expect(page.getByText(/set to 24°C/)).toBeVisible()
 })
 
+test("turns on the light in the named room (not the default salon)", async ({ page }) => {
+  await openAssistant(page)
+  await page.getByRole("textbox").fill("zapal światło w kuchni")
+  await page.getByRole("button", { name: "Send" }).click()
+  await expect(page.getByText("Kitchen light on.")).toBeVisible()
+  await expect(page.getByText(/Living-room/i)).toHaveCount(0)
+})
+
 test("runs a multi-action scene", async ({ page }) => {
   await openAssistant(page)
   await page.getByRole("textbox").fill("dobranoc")

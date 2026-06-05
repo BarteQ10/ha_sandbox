@@ -49,6 +49,24 @@ describe("parseCommand", () => {
     })
   })
 
+  it("controls the light in the named room", () => {
+    expect(parseCommand("zapal światło w kuchni")).toMatchObject({
+      domain: "input_boolean", service: "turn_on",
+      data: { entity_id: "input_boolean.wirtualne_swiatlo_kuchnia_glowne" },
+      key: "assistant.done.lightOn", params: { roomId: "kuchnia" }, intent: "light_on",
+    })
+    expect(parseCommand("zgaś światło w sypialni")).toMatchObject({
+      service: "turn_off",
+      data: { entity_id: "input_boolean.wirtualne_swiatlo_sypialnia_glowne" },
+      params: { roomId: "sypialnia" },
+    })
+    // no room named → defaults to the living room
+    expect(parseCommand("włącz światło")).toMatchObject({
+      data: { entity_id: "input_boolean.wirtualne_swiatlo_salon_glowne" },
+      params: { roomId: "salon" },
+    })
+  })
+
   it("toggles the living-room light", () => {
     expect(parseCommand("włącz światło")).toMatchObject({
       data: { entity_id: "input_boolean.wirtualne_swiatlo_salon_glowne" },

@@ -3,7 +3,7 @@ import ems_simulator.assistant_llm as al
 
 def test_disabled_returns_unknown(monkeypatch):
     monkeypatch.setattr(al, "LLM_URL", "")
-    assert al.classify("turn on the boiler") == {"intent": "unknown", "value": None}
+    assert al.classify("turn on the boiler") == {"intent": "unknown", "value": None, "room": None}
 
 
 def test_enabled_reflects_url(monkeypatch):
@@ -20,46 +20,60 @@ def _enable(monkeypatch, raw):
 
 
 def test_empty_text_short_circuits(monkeypatch):
-    _enable(monkeypatch, '{"intent": "boiler_on", "value": null}')
-    assert al.classify("   ") == {"intent": "unknown", "value": None}
+    _enable(monkeypatch, '{"intent": "boiler_on", "value": null, "room": null}')
+    assert al.classify("   ") == {"intent": "unknown", "value": None, "room": None}
 
 
 def test_valid_intent_passes_through(monkeypatch):
-    _enable(monkeypatch, '{"intent": "boiler_on", "value": null}')
-    assert al.classify("wlacz grzanie wody") == {"intent": "boiler_on", "value": None}
+    _enable(monkeypatch, '{"intent": "boiler_on", "value": null, "room": null}')
+    assert al.classify("wlacz grzanie wody") == {"intent": "boiler_on", "value": None, "room": None}
 
 
 def test_set_ev_clamps_value(monkeypatch):
-    _enable(monkeypatch, '{"intent": "set_ev", "value": 99999}')
-    assert al.classify("naladuj auto do oporu") == {"intent": "set_ev", "value": 7400}
+    _enable(monkeypatch, '{"intent": "set_ev", "value": 99999, "room": null}')
+    assert al.classify("naladuj auto do oporu") == {"intent": "set_ev", "value": 7400, "room": None}
 
 
 def test_set_ev_without_number_is_unknown(monkeypatch):
-    _enable(monkeypatch, '{"intent": "set_ev", "value": null}')
-    assert al.classify("ustaw ladowanie ev") == {"intent": "unknown", "value": None}
+    _enable(monkeypatch, '{"intent": "set_ev", "value": null, "room": null}')
+    assert al.classify("ustaw ladowanie ev") == {"intent": "unknown", "value": None, "room": None}
 
 
 def test_set_temp_clamps_to_range(monkeypatch):
-    _enable(monkeypatch, '{"intent": "set_temp", "value": 99}')
-    assert al.classify("ustaw 99 stopni") == {"intent": "set_temp", "value": 30}
+    _enable(monkeypatch, '{"intent": "set_temp", "value": 99, "room": null}')
+    assert al.classify("ustaw 99 stopni") == {"intent": "set_temp", "value": 30, "room": None}
 
 
 def test_relative_temp_has_no_value(monkeypatch):
-    _enable(monkeypatch, '{"intent": "temp_up", "value": null}')
-    assert al.classify("zrob cieplej") == {"intent": "temp_up", "value": None}
+    _enable(monkeypatch, '{"intent": "temp_up", "value": null, "room": null}')
+    assert al.classify("zrob cieplej") == {"intent": "temp_up", "value": None, "room": None}
+
+
+def test_light_carries_the_room(monkeypatch):
+    _enable(monkeypatch, '{"intent": "light_on", "value": null, "room": "kuchnia"}')
+    assert al.classify("zapal swiatlo w kuchni") == {
+        "intent": "light_on", "value": None, "room": "kuchnia",
+    }
+
+
+def test_light_with_invalid_room_falls_back_to_salon(monkeypatch):
+    _enable(monkeypatch, '{"intent": "light_on", "value": null, "room": "garaz"}')
+    assert al.classify("zapal swiatlo gdzies") == {
+        "intent": "light_on", "value": None, "room": "salon",
+    }
 
 
 def test_hallucinated_intent_rejected(monkeypatch):
     # A model that invents an action off the allow-list must be neutralised.
-    _enable(monkeypatch, '{"intent": "launch_missiles", "value": null}')
-    assert al.classify("odpal rakiety") == {"intent": "unknown", "value": None}
+    _enable(monkeypatch, '{"intent": "launch_missiles", "value": null, "room": null}')
+    assert al.classify("odpal rakiety") == {"intent": "unknown", "value": None, "room": None}
 
 
 def test_non_json_response_is_unknown(monkeypatch):
     _enable(monkeypatch, "sure! here is the answer")
-    assert al.classify("cokolwiek") == {"intent": "unknown", "value": None}
+    assert al.classify("cokolwiek") == {"intent": "unknown", "value": None, "room": None}
 
 
 def test_llm_failure_is_unknown(monkeypatch):
     _enable(monkeypatch, None)  # _call_llm returns None on transport error
-    assert al.classify("wlacz bojler") == {"intent": "unknown", "value": None}
+    assert al.classify("wlacz bojler") == {"intent": "unknown", "value": None, "room": None}
