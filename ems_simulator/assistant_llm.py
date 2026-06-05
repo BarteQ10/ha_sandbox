@@ -41,6 +41,8 @@ INTENTS = (
     "ev_override_on", "ev_override_off",
     "pv_curtail_on", "pv_curtail_off",
     "grid_normal", "grid_blackout", "grid_instability",
+    "media_play", "media_pause", "media_stop", "media_next", "media_prev",
+    "media_vol_up", "media_vol_down", "media_mute", "media_unmute", "media_set_volume",
     "unknown",
 )
 
@@ -74,6 +76,10 @@ SYSTEM_PROMPT = (
     "- ev_override_on/ev_override_off: wymuszone ladowanie auta na maksa / powrot do auto\n"
     "- pv_curtail_on/pv_curtail_off: ograniczenie eksportu PV (zero-export) wlacz/wylacz\n"
     "- grid_normal/grid_blackout/grid_instability: status sieci (normalny / blackout / fluktuacje)\n"
+    "- media_play/media_pause/media_stop/media_next/media_prev: sterowanie odtwarzaczem "
+    "(graj / pauza / stop / nastepny / poprzedni utwor)\n"
+    "- media_vol_up/media_vol_down/media_mute/media_unmute: glosniej / ciszej / wycisz / odcisz\n"
+    "- media_set_volume: ustaw glosnosc na konkretny poziom; value = procent (0-100)\n"
     "- unknown: nic nie pasuje\n"
     "Wskazowki: 'cieplej'/'zimno mi'/'podnies o stopien' => temp_up; "
     "'chlodniej'/'za goraco' => temp_down; 'ustaw 22 stopnie'/'na 21' => set_temp z value.\n"
@@ -169,6 +175,11 @@ def classify(text: str) -> dict:
     elif intent == "set_temp":
         try:
             value = max(TEMP_MIN_C, min(TEMP_MAX_C, int(parsed.get("value"))))
+        except (TypeError, ValueError):
+            return {"intent": "unknown", "value": None, "room": None}
+    elif intent == "media_set_volume":
+        try:
+            value = max(0, min(100, int(parsed.get("value"))))
         except (TypeError, ValueError):
             return {"intent": "unknown", "value": None, "room": None}
 

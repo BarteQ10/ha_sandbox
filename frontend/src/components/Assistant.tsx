@@ -2,7 +2,7 @@ import { useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { useHA, useEntityNum } from "@/hooks/useHA"
+import { useHA, useEntityNum, useEntitiesByDomain } from "@/hooks/useHA"
 import {
   parseCommand, intentToCommand, disambiguate, matchScene, resolveFollowUp,
   type ParsedCommand,
@@ -37,7 +37,12 @@ export function Assistant() {
   const tSalon = useEntityNum("input_number.wirtualne_ustawienie_temp_salon", 21)
   const tKuchnia = useEntityNum("input_number.wirtualne_ustawienie_temp_kuchnia", 21)
   const tSypialnia = useEntityNum("input_number.wirtualne_ustawienie_temp_sypialnia", 21)
-  const ctx = { temps: { salon: tSalon, kuchnia: tKuchnia, sypialnia: tSypialnia }, salonTemp: tSalon }
+  const mediaPlayer = useEntitiesByDomain("media_player")[0]
+  const ctx = {
+    temps: { salon: tSalon, kuchnia: tKuchnia, sypialnia: tSypialnia },
+    salonTemp: tSalon,
+    mediaPlayer,
+  }
 
   const examples: string[] = t("assistant.examples", { returnObjects: true }) as unknown as string[]
 

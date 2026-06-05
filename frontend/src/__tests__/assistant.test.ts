@@ -159,6 +159,39 @@ describe("parseCommand", () => {
       key: "assistant.done.gridBlackout",
     })
   })
+
+  it("controls the media player", () => {
+    expect(parseCommand("zatrzymaj muzykę")).toMatchObject({
+      domain: "media_player", service: "media_stop", key: "assistant.done.mediaStop",
+    })
+    expect(parseCommand("następny utwór")).toMatchObject({ service: "media_next_track" })
+    expect(parseCommand("ścisz")).toMatchObject({ service: "volume_down" })
+    expect(parseCommand("ustaw głośność na 40%")).toMatchObject({
+      service: "volume_set", data: { volume_level: 0.4 }, params: { v: 40 },
+    })
+    expect(parseCommand("wycisz muzykę")).toMatchObject({
+      service: "volume_mute", data: { is_volume_muted: true },
+    })
+  })
+
+  it("targets the configured media player from ctx", () => {
+    expect(parseCommand("graj muzykę", { mediaPlayer: "media_player.sonos" })).toMatchObject({
+      service: "media_play", data: { entity_id: "media_player.sonos" },
+    })
+  })
+
+  it("controls named light fixtures", () => {
+    expect(parseCommand("zapal lampkę nocną")).toMatchObject({
+      domain: "input_boolean", service: "turn_on",
+      data: { entity_id: "input_boolean.wirtualne_swiatlo_sypialnia_lampka" },
+      key: "assistant.done.deviceOn", params: { fix: "nocna" },
+    })
+    expect(parseCommand("wyłącz kinkiet")).toMatchObject({
+      service: "turn_off",
+      data: { entity_id: "input_boolean.wirtualne_swiatlo_sypialnia_kinkiet" },
+      params: { fix: "kinkiet" },
+    })
+  })
 })
 
 describe("disambiguate", () => {

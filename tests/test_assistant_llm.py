@@ -80,6 +80,18 @@ def test_grid_intent_passes_through(monkeypatch):
     assert al.classify("odlacz siec") == {"intent": "grid_blackout", "value": None, "room": None}
 
 
+def test_media_intent_passes_through(monkeypatch):
+    _enable(monkeypatch, '{"intent": "media_pause", "value": null, "room": null}')
+    assert al.classify("wstrzymaj muzyke") == {"intent": "media_pause", "value": None, "room": None}
+
+
+def test_media_volume_clamps(monkeypatch):
+    _enable(monkeypatch, '{"intent": "media_set_volume", "value": 250, "room": null}')
+    assert al.classify("ustaw glosnosc maksymalnie") == {
+        "intent": "media_set_volume", "value": 100, "room": None,
+    }
+
+
 def test_hallucinated_intent_rejected(monkeypatch):
     # A model that invents an action off the allow-list must be neutralised.
     _enable(monkeypatch, '{"intent": "launch_missiles", "value": null, "room": null}')

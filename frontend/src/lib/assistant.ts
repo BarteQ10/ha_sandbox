@@ -34,6 +34,8 @@ export type Intent =
   | "ev_override_on" | "ev_override_off"
   | "pv_curtail_on" | "pv_curtail_off"
   | "grid_normal" | "grid_blackout" | "grid_instability"
+  | "media_play" | "media_pause" | "media_stop" | "media_next" | "media_prev"
+  | "media_vol_up" | "media_vol_down" | "media_mute" | "media_unmute" | "media_set_volume"
 
 /** Live state the mapping may need (e.g. current setpoints for relative temp). */
 export interface AssistantCtx {
@@ -41,6 +43,8 @@ export interface AssistantCtx {
   temps?: Record<string, number>
   /** @deprecated kept for back-compat; prefer temps.salon */
   salonTemp?: number
+  /** The media_player.* entity media commands target (first discovered). */
+  mediaPlayer?: string
 }
 
 const EV_MAX = 7400
@@ -138,6 +142,7 @@ function buildCommand(
 ): ParsedCommand | null {
   const tempRoom = room && ROOM_SETPOINT[room] ? room : "salon"
   const curTemp = ctx?.temps?.[tempRoom] ?? ctx?.salonTemp ?? TEMP_DEFAULT
+  const mp = ctx?.mediaPlayer ?? DEFAULT_MEDIA
   switch (intent) {
     case "boiler_on":  return bool("input_boolean.wirtualny_bojler", true, "assistant.done.boilerOn")
     case "boiler_off": return bool("input_boolean.wirtualny_bojler", false, "assistant.done.boilerOff")
@@ -176,6 +181,24 @@ function buildCommand(
     case "grid_normal":      return sel(GRID_ENTITY, "Normal", "assistant.done.gridNormal")
     case "grid_blackout":    return sel(GRID_ENTITY, "Blackout", "assistant.done.gridBlackout")
     case "grid_instability": return sel(GRID_ENTITY, "Fluktuacje", "assistant.done.gridInstability")
+    case "media_play":  return media(mp, "media_play", "assistant.done.mediaPlay")
+    case "media_pause": return media(mp, "media_pause", "assistant.done.mediaPause")
+    case "media_stop":  return media(mp, "media_stop", "assistant.done.mediaStop")
+    case "media_next":  return media(mp, "media_next_track", "assistant.done.mediaNext")
+    case "media_prev":  return media(mp, "media_previous_track", "assistant.done.mediaPrev")
+    case "media_vol_up":   return media(mp, "volume_up", "assistant.done.mediaVolUp")
+    case "media_vol_down": return media(mp, "volume_down", "assistant.done.mediaVolDown")
+    case "media_mute":
+      return { domain: "media_player", service: "volume_mute",
+        data: { entity_id: mp, is_volume_muted: true }, key: "assistant.done.mediaMute" }
+    case "media_unmute":
+      return { domain: "media_player", service: "volume_mute",
+        data: { entity_id: mp, is_volume_muted: false }, key: "assistant.done.mediaUnmute" }
+    case "media_set_volume": {
+      const v = Math.max(0, Math.min(100, Math.round(value ?? 0)))
+      return { domain: "media_player", service: "volume_set",
+        data: { entity_id: mp, volume_level: v / 100 }, key: "assistant.done.mediaVolume", params: { v } }
+    }
     default: return null
   }
 }
@@ -194,6 +217,28 @@ function sel(entity_id: string, option: string, key: string): ParsedCommand {
 
 const HP_ENTITY = "input_select.ems_tryb_pompy_ciepla"
 const GRID_ENTITY = "input_select.ems_status_sieci"
+const DEFAULT_MEDIA = "media_player.salon"
+
+function media(entity_id: string, service: string, key: string): ParsedCommand {
+  return { domain: "media_player", service, data: { entity_id }, key }
+}
+
+// Named light fixtures (room-independent), matched before the generic room light.
+const LIGHT_FIXTURES: [RegExp, string, string][] = [
+  [/(lampka nocna|lampki nocne|nocna lampka|\bnocna\b)/, "input_boolean.wirtualne_swiatlo_sypialnia_lampka", "nocna"],
+  [/(lampa stojaca|\bstojaca\b)/, "input_boolean.wirtualne_swiatlo_salon_lampa", "stojaca"],
+  [/(kinkiet)/, "input_boolean.wirtualne_swiatlo_sypialnia_kinkiet", "kinkiet"],
+  [/(lustr)/, "input_boolean.wirtualne_swiatlo_lazienka_lustro", "lustro"],
+  [/(wysp)/, "input_boolean.wirtualne_swiatlo_kuchnia_wyspa", "wyspa"],
+]
+
+function fixtureCmd(entity_id: string, on: boolean, fix: string): ParsedCommand {
+  return {
+    domain: "input_boolean", service: on ? "turn_on" : "turn_off",
+    data: { entity_id }, key: on ? "assistant.done.deviceOn" : "assistant.done.deviceOff",
+    params: { fix },
+  }
+}
 
 // Normalise: lowercase + strip Polish diacritics so patterns stay ASCII.
 function norm(s: string): string {
@@ -282,6 +327,21 @@ export function parseCommand(raw: string, ctx?: AssistantCtx): ParseResult {
   if (/(fluktuacj|niestabiln|wahania)/.test(t)) return intentToCommand("grid_instability")
   if (/(siec normaln|przywroc siec|siec ok|normalna praca)/.test(t)) return intentToCommand("grid_normal")
 
+  // ── Media player ──
+  if (/(muzyk|odtwarz|\bgraj\b|spotify|piosenk|utwor|glosn|volume|scisz|przycisz|podglos|glosniej|ciszej|pauz|wstrzymaj|wycisz|odcisz|zatrzymaj muzyk|nastepny utwor|nastepna piosenk|poprzedni utwor|\bpusc\b)/.test(t)) {
+    if (/(wycisz|mute)/.test(t)) return intentToCommand(/(odcisz|unmute|wlacz dzwiek)/.test(t) ? "media_unmute" : "media_mute", null, ctx)
+    if (/(pauz|wstrzymaj)/.test(t)) return intentToCommand("media_pause", null, ctx)
+    if (/(stop|zatrzymaj)/.test(t)) return intentToCommand("media_stop", null, ctx)
+    if (/(nastepn|kolejn|next|dalej)/.test(t)) return intentToCommand("media_next", null, ctx)
+    if (/(poprzedn|wczesniejsz|previous|cofnij)/.test(t)) return intentToCommand("media_prev", null, ctx)
+    const vol = t.match(/(\d{1,3})\s*(%|proc)/)
+    if (vol) return intentToCommand("media_set_volume", parseInt(vol[1], 10), ctx)
+    if (/(podglos|glosniej|louder|zwieksz glosn|volume up)/.test(t)) return intentToCommand("media_vol_up", null, ctx)
+    if (/(scisz|przycisz|ciszej|zmniejsz glosn|volume down)/.test(t)) return intentToCommand("media_vol_down", null, ctx)
+    if (/(graj|odtwarz|wlacz muzyk|play|pusc)/.test(t)) return intentToCommand("media_play", null, ctx)
+    if (OFF.test(t)) return intentToCommand("media_stop", null, ctx)
+  }
+
   // ── EV charge limit: "set EV to 5000", "limit ladowania ev 6000" ──
   if (/(ev|samochod|car|elektryk|ladowark)/.test(t)) {
     const m = t.match(/(\d{2,5})/)
@@ -300,10 +360,14 @@ export function parseCommand(raw: string, ctx?: AssistantCtx): ParseResult {
     if (/(zamknij|zasun|opusc|zaslon|zaciemnij|close|down)/.test(t)) return intentToCommand("blinds_close", null, ctx, room)
   }
 
-  // ── Lights (room-aware): "zapal światło w kuchni", "zgaś lampę w sypialni" ──
-  if (/(light|swiatl|lamp)/.test(t)) {
+  // ── Lights: named fixtures first, then room-aware main light ──
+  if (/(light|swiatl|lamp|kinkiet|lustr|wysp|\bnocna\b)/.test(t)) {
+    const on = (onOff(t) ?? "on") === "on"
+    for (const [re, entity, fix] of LIGHT_FIXTURES) {
+      if (re.test(t)) return fixtureCmd(entity, on, fix)
+    }
     const room = detectRoom(t) ?? "salon"
-    return intentToCommand((onOff(t) ?? "on") === "on" ? "light_on" : "light_off", null, ctx, room)
+    return intentToCommand(on ? "light_on" : "light_off", null, ctx, room)
   }
 
   return null

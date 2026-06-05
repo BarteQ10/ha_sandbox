@@ -371,7 +371,26 @@
       "pvCurtailOff": "Eksport PV przywrócony.",
       "gridNormal": "Sieć ustawiona na Normalną.",
       "gridBlackout": "Sieć ustawiona na Blackout (tryb wyspowy).",
-      "gridInstability": "Sieć ustawiona na Fluktuacje."
+      "gridInstability": "Sieć ustawiona na Fluktuacje.",
+      "deviceOn": "Włączono: $t(assistant.fixture.{{fix}}).",
+      "deviceOff": "Wyłączono: $t(assistant.fixture.{{fix}}).",
+      "mediaPlay": "Odtwarzam.",
+      "mediaPause": "Wstrzymano.",
+      "mediaStop": "Zatrzymano.",
+      "mediaNext": "Następny utwór.",
+      "mediaPrev": "Poprzedni utwór.",
+      "mediaVolUp": "Głośniej.",
+      "mediaVolDown": "Ciszej.",
+      "mediaMute": "Wyciszono.",
+      "mediaUnmute": "Wyłączono wyciszenie.",
+      "mediaVolume": "Głośność ustawiona na {{v}}%."
+    },
+    "fixture": {
+      "nocna": "lampka nocna",
+      "stojaca": "lampa stojąca",
+      "kinkiet": "kinkiet",
+      "lustro": "światło przy lustrze",
+      "wyspa": "światło nad wyspą"
     },
     "scene": {
       "goodnight": "Dobranoc — światła zgaszone, bojler wyłączony, inwerter w trybie auto.",

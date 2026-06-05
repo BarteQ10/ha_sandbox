@@ -67,6 +67,20 @@ test("turns on the light in the named room (not the default salon)", async ({ pa
   await expect(page.getByText(/Living-room/i)).toHaveCount(0)
 })
 
+test("controls the media player", async ({ page }) => {
+  await openAssistant(page)
+  await page.getByRole("textbox").fill("zatrzymaj muzykę")
+  await page.getByRole("button", { name: "Send" }).click()
+  await expect(page.getByText("Stopped.")).toBeVisible()
+})
+
+test("turns on a named light fixture", async ({ page }) => {
+  await openAssistant(page)
+  await page.getByRole("textbox").fill("zapal lampkę nocną")
+  await page.getByRole("button", { name: "Send" }).click()
+  await expect(page.getByText(/night lamp/i)).toBeVisible()
+})
+
 test("sets the heat-pump mode", async ({ page }) => {
   await openAssistant(page)
   await page.getByRole("textbox").fill("ustaw pompę ciepła na boost")

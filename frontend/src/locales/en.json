@@ -370,7 +370,26 @@
       "pvCurtailOff": "PV export restored.",
       "gridNormal": "Grid set to Normal.",
       "gridBlackout": "Grid set to Blackout (island mode).",
-      "gridInstability": "Grid set to Fluctuations."
+      "gridInstability": "Grid set to Fluctuations.",
+      "deviceOn": "Turned on: $t(assistant.fixture.{{fix}}).",
+      "deviceOff": "Turned off: $t(assistant.fixture.{{fix}}).",
+      "mediaPlay": "Playing.",
+      "mediaPause": "Paused.",
+      "mediaStop": "Stopped.",
+      "mediaNext": "Next track.",
+      "mediaPrev": "Previous track.",
+      "mediaVolUp": "Volume up.",
+      "mediaVolDown": "Volume down.",
+      "mediaMute": "Muted.",
+      "mediaUnmute": "Unmuted.",
+      "mediaVolume": "Volume set to {{v}}%."
+    },
+    "fixture": {
+      "nocna": "night lamp",
+      "stojaca": "floor lamp",
+      "kinkiet": "wall light",
+      "lustro": "mirror light",
+      "wyspa": "island light"
     },
     "scene": {
       "goodnight": "Good night — lights off, boiler off, inverter on auto.",
