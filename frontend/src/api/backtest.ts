@@ -1,7 +1,8 @@
 // Backtest API — talks to the simulator's health/metrics HTTP server (port 8088),
 // a different origin than HA. The server sends CORS headers (Access-Control-Allow-Origin).
 
-const SIM_URL = import.meta.env.VITE_SIM_URL || "http://localhost:8088"
+import { SIM_BASE } from "./base"
+const SIM_URL = SIM_BASE
 
 export interface BacktestStrategy {
   name: string

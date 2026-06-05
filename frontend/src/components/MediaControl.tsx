@@ -7,8 +7,7 @@ import { useCommittedSlider } from "@/hooks/useCommittedSlider"
 import {
   Music, Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, MonitorSpeaker,
 } from "lucide-react"
-
-const HA_URL = import.meta.env.VITE_HA_URL || "http://localhost:8123"
+import { HA_BASE as HA_URL } from "@/api/base"
 
 // media_player supported_features bit flags
 const FEAT = {

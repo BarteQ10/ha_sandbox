@@ -7,8 +7,9 @@ import {
   type HassEntities,
   type HassEntity,
 } from "home-assistant-js-websocket"
+import { HA_BASE } from "./base"
 
-const HA_URL = import.meta.env.VITE_HA_URL || "http://localhost:8123"
+const HA_URL = HA_BASE
 // SECURITY: VITE_HA_TOKEN is bundled into client-side JS at build time.
 // Keep this app behind your home network / VPN — never expose it publicly.
 // Use a dedicated HA user with minimal permissions; see frontend/.env.example.

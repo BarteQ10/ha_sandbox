@@ -1,6 +1,7 @@
 // Event log API — talks to the simulator's health server (/events, port 8088).
 
-const SIM_URL = import.meta.env.VITE_SIM_URL || "http://localhost:8088"
+import { SIM_BASE } from "./base"
+const SIM_URL = SIM_BASE
 
 export type EventCategory = "anomaly" | "rule" | "security" | "energy" | "media" | "grid"
 export type EventSeverity = "info" | "warning" | "critical"

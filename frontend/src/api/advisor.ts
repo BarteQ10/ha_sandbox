@@ -1,5 +1,6 @@
 // "Best time to run" advisor — talks to the simulator's /advisor endpoint (:8088).
-const SIM_URL = import.meta.env.VITE_SIM_URL || "http://localhost:8088"
+import { SIM_BASE } from "./base"
+const SIM_URL = SIM_BASE
 
 export interface AdvHour { hour: number; price_gr: number; pv_w: number }
 export interface AdvRec {

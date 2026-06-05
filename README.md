@@ -56,6 +56,53 @@ The `ems-simulator` service builds from the local `Dockerfile` and reaches Influ
 
 The simulator handles **SIGTERM** (sent by `docker stop` / `docker compose down` / systemd) just like Ctrl+C: it flushes the final InfluxDB writes and stops the Modbus server cleanly. `stop_grace_period: 15s` gives it time to finish, so a normal stop loses no telemetry.
 
+## Multi-device & remote access (nginx + Tailscale)
+
+To use the dashboard on a computer, a wall tablet and a phone — **including over
+cellular, off the home Wi-Fi** — serve it behind the bundled nginx reverse proxy
+and expose it privately with Tailscale. One origin, real HTTPS, no open ports.
+
+Why HTTPS matters: the **voice assistant mic, browser notifications and PWA
+install only work in a secure context** (HTTPS) on anything other than
+`localhost`. Tailscale provides a valid cert, so these work on every device.
+
+```
+phone / tablet / PC  (home Wi-Fi or cellular)
+   └─ HTTPS (tailscale serve cert)
+        └─ Tailscale → nginx :8080 ─┬─ /      → React build (frontend/dist, PWA)
+                                    ├─ /ha/   → Home Assistant (REST + WebSocket)
+                                    └─ /sim/  → simulator :8088 (/assistant, /advisor…)
+```
+
+The proxy build is **same-origin**: HA under `/ha`, the simulator under `/sim`,
+with the origin resolved at runtime — so one build works on localhost, a LAN IP,
+or a Tailscale hostname without rebuilding (`frontend/src/api/base.ts`).
+
+**Setup**
+
+```bash
+# 1. Build the frontend in proxy mode (put VITE_HA_TOKEN in frontend/.env first)
+cd frontend && npm run build:proxy && cd ..
+
+# 2. Bring up the stack — now includes the nginx service on :8080
+docker compose up -d --build
+
+# 3. Expose it privately with Tailscale (install on the server + each device)
+tailscale up
+tailscale serve --bg 8080          # HTTPS on https://<host>.<tailnet>.ts.net
+tailscale serve status             # shows the URL
+
+# 4. On phone/tablet: install Tailscale, log into the same tailnet, open that
+#    https URL, then "Add to Home Screen" for a full-screen PWA.
+```
+
+To reach a host-side local LLM (LM Studio/Ollama) from the simulator container,
+set `EMS_LLM_URL=http://host.docker.internal:1234/v1` (the compose file already
+maps `host.docker.internal`).
+
+> If Home Assistant logs proxy warnings, add to `configuration.yaml`:
+> `http: { use_x_forwarded_for: true, trusted_proxies: [172.16.0.0/12] }`.
+
 ## File Structure
 
 ```

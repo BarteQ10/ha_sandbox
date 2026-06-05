@@ -2,8 +2,9 @@
 // Lets the layout follow the user across browsers/devices instead of living only
 // in localStorage.
 import type { PlanLayout } from "@/lib/floorplan"
+import { SIM_BASE } from "./base"
 
-const SIM_URL = import.meta.env.VITE_SIM_URL || "http://localhost:8088"
+const SIM_URL = SIM_BASE
 
 function isLayout(d: unknown): d is PlanLayout {
   return !!d && Array.isArray((d as PlanLayout).rooms) && Array.isArray((d as PlanLayout).devices)

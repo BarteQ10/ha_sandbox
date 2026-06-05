@@ -1,7 +1,8 @@
 // Layer-2 assistant: when the local rule parser can't match a command, ask the
 // simulator's /assistant endpoint, which proxies a locally-hosted LLM
 // (LM Studio / Ollama). Same origin convention as advisor/backtest (:8088).
-const SIM_URL = import.meta.env.VITE_SIM_URL || "http://localhost:8088"
+import { SIM_BASE } from "./base"
+const SIM_URL = SIM_BASE
 
 export interface RemoteIntent {
   intent: string

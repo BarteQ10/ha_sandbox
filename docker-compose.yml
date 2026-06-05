@@ -62,8 +62,27 @@ services:
       EMS_WEBHOOK_URL: "${EMS_WEBHOOK_URL:-}"          # generic webhook for alerts
       EMS_TELEGRAM_TOKEN: "${EMS_TELEGRAM_TOKEN:-}"    # Telegram bot token
       EMS_TELEGRAM_CHAT_ID: "${EMS_TELEGRAM_CHAT_ID:-}"  # Telegram chat ID
+      # Local LLM for the NL assistant. From a container, reach LM Studio/Ollama
+      # on the host via host.docker.internal (see extra_hosts).
+      EMS_LLM_URL: "${EMS_LLM_URL:-}"                   # e.g. http://host.docker.internal:1234/v1
+      EMS_LLM_MODEL: "${EMS_LLM_MODEL:-bielik-11b-v3.0-instruct}"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped
     stop_grace_period: 15s  # allow main() to flush InfluxDB on SIGTERM
     depends_on:
       - influxdb
       - mosquitto
+
+  nginx:
+    container_name: ems_nginx_dev
+    image: nginx:alpine
+    ports:
+      - "8080:80"   # single entry point — point `tailscale serve` here
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./frontend/dist:/usr/share/nginx/html:ro   # built with: npm run build:proxy
+    restart: unless-stopped
+    depends_on:
+      - homeassistant
+      - ems-simulator

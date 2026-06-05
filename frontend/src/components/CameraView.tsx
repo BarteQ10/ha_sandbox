@@ -2,8 +2,7 @@ import { useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useEntity, useEntityState } from "@/hooks/useHA"
 import { Camera, CameraOff, Image as ImageIcon, Video, Maximize2 } from "lucide-react"
-
-const HA_URL = import.meta.env.VITE_HA_URL || "http://localhost:8123"
+import { HA_BASE as HA_URL } from "@/api/base"
 
 interface CameraViewProps {
   entityId: string
