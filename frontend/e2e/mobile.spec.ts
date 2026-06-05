@@ -22,3 +22,13 @@ test("navigation works on a mobile viewport", async ({ page }) => {
 test("connection badge is visible on mobile", async ({ page }) => {
   await expect(page.getByText("HA OK")).toBeVisible()
 })
+
+test("Home view has no horizontal overflow on a phone", async ({ page }) => {
+  // Regression: the rooms-tab grid used to overflow (~566px on a 390px screen)
+  // because an overflow-x-auto sub-tab bar expanded its grid column.
+  await page.waitForTimeout(800)
+  const overflow = await page.evaluate(
+    () => document.body.scrollWidth - document.documentElement.clientWidth,
+  )
+  expect(overflow).toBeLessThanOrEqual(1)
+})
