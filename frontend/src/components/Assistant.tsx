@@ -4,10 +4,11 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useHA, useEntityNum, useEntitiesByDomain } from "@/hooks/useHA"
 import {
-  parseCommand, intentToCommand, disambiguate, matchScene, resolveFollowUp,
+  parseCommand, intentToCommand, disambiguate, matchScene, resolveFollowUp, parseQuery, QUERIES,
   type ParsedCommand,
 } from "@/lib/assistant"
 import { classifyRemote } from "@/api/assistant"
+import { getEntitySnapshot } from "@/api/haClient"
 import { Bot, Send, User, Mic, Sparkles, Loader2, Volume2, VolumeX } from "lucide-react"
 
 interface Msg { role: "user" | "bot"; text: string; ok?: boolean; choices?: ParsedCommand[] }
@@ -74,11 +75,34 @@ export function Assistant() {
     botSay(t(c.key, c.params))
   }
 
+  function fmtNum(entity: string, digits = 0): string {
+    const s = getEntitySnapshot(entity)?.state
+    const n = Number(s)
+    if (s == null || Number.isNaN(n)) return "—"
+    return digits ? n.toFixed(digits) : String(Math.round(n))
+  }
+
+  // Answer a question about current state (read-only — no service call).
+  function answerQuery(intent: string, room?: string) {
+    if (intent === "query_temp") {
+      const r = room ?? "salon"
+      botSay(t("assistant.answer.temp", { roomId: r, v: fmtNum(`input_number.wirtualna_temp_${r}`, 1) }))
+      return
+    }
+    const def = QUERIES[intent]
+    if (!def) { botSay(t("assistant.unknown"), false); return }
+    botSay(t(def.key, { v: fmtNum(def.entity, def.digits ?? 0) }))
+  }
+
   async function run(text: string) {
     const trimmed = text.trim()
     if (!trimmed || busy) return
     setInput("")
     setLog((l) => [...l, { role: "user", text: trimmed }])
+
+    // Questions about state → answer, don't execute.
+    const q = parseQuery(trimmed)
+    if (q) { answerQuery(q.intent, q.room); return }
 
     // Scenes: one phrase → several actions.
     const scene = matchScene(trimmed, ctx)
@@ -108,10 +132,11 @@ export function Assistant() {
     setBusy(true)
     const remote = await classifyRemote(trimmed)
     setBusy(false)
-    const rcmd = remote && remote.intent !== "unknown"
-      ? intentToCommand(remote.intent, remote.value, ctx, remote.room)
-      : null
-    if (rcmd) { await execute(rcmd); return }
+    if (remote && remote.intent !== "unknown") {
+      if (remote.intent.startsWith("query_")) { answerQuery(remote.intent, remote.room ?? undefined); return }
+      const rcmd = intentToCommand(remote.intent, remote.value, ctx, remote.room)
+      if (rcmd) { await execute(rcmd); return }
+    }
     botSay(t("assistant.unknown"), false)
   }
 

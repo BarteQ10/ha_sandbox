@@ -53,6 +53,8 @@ const _LIST: HassEntity[] = [
   ent("input_boolean.wirtualne_swiatlo_lazienka_lustro", "off", { friendly_name: "Mirror Light" }),
   ent("input_boolean.wirtualne_swiatlo_kuchnia_wyspa", "off", { friendly_name: "Island Light" }),
   ent("input_number.wirtualna_temp_salon", "21.5", { unit_of_measurement: "°C" }),
+  ent("input_number.wirtualna_temp_kuchnia", "20.5", { unit_of_measurement: "°C" }),
+  ent("input_number.wirtualna_temp_sypialnia", "19.0", { unit_of_measurement: "°C" }),
   ent("input_number.wirtualne_ustawienie_temp_salon", "21", { min: 16, max: 30, step: 0.5 }),
   ent("input_number.wirtualne_ustawienie_temp_kuchnia", "20", { min: 16, max: 30, step: 0.5 }),
   ent("input_number.wirtualne_ustawienie_temp_sypialnia", "19", { min: 16, max: 30, step: 0.5 }),

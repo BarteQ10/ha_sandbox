@@ -409,6 +409,43 @@ export function disambiguate(raw: string, ctx?: AssistantCtx): ParsedCommand[] {
   return []
 }
 
+// ── Queries: questions about state (answered, not executed) ─────────────────────
+// Maps a query intent → the entity to read + the i18n answer key. query_temp is
+// special (entity depends on the room). digits = decimals to show.
+export const QUERIES: Record<string, { entity: string; key: string; digits?: number }> = {
+  query_pv:      { entity: "sensor.sztuczna_produkcja_pv",     key: "assistant.answer.pv" },
+  query_soc:     { entity: "sensor.sztuczny_stan_baterii_soc", key: "assistant.answer.soc" },
+  query_load:    { entity: "sensor.ems_pobor_domu_bazowy",     key: "assistant.answer.load" },
+  query_price:   { entity: "sensor.ems_biezaca_cena_energii",  key: "assistant.answer.price" },
+  query_balance: { entity: "sensor.ems_moc_netto_bilans",      key: "assistant.answer.balance" },
+  query_cost:    { entity: "sensor.ems_bilans_finansowy_dzis", key: "assistant.answer.cost", digits: 2 },
+}
+
+const QUERY_TOPICS: [RegExp, string][] = [
+  [/(pv|produkcj|fotowolt|panele|sloneczn)/, "query_pv"],
+  [/(bateri|naladowan|\bsoc\b|akumulator)/, "query_soc"],
+  [/(pobor|pobier|zuzyci|zuzyw|obciazeni|load)/, "query_load"],
+  [/(cena|kosztuje|stawka|taryf|price)/, "query_price"],
+  [/(bilans mocy|moc netto|\bnetto\b|balance)/, "query_balance"],
+  [/(koszt|wydal|zarobi|bilans|rachunek|cost)/, "query_cost"],
+]
+
+/** Detect a question about state. Returns the query intent (+ room for temp). */
+export function parseQuery(raw: string): { intent: string; room?: string } | null {
+  const t = norm(raw)
+  if (!t) return null
+  const isQ = /(\bile\b|jaka|jaki|jakie|wynosi|podaj|pokaz|sprawdz|what|how much|how many|status|\?)/.test(t)
+
+  // Temperature question — must not collide with "set temperature" commands.
+  if (/(temperatur|stopni|cieplo|zimno)/.test(t) && isQ
+      && !/(ustaw|zmien|zwieksz|zmniejsz|podnies|obniz|na \d)/.test(t)) {
+    return { intent: "query_temp", room: detectRoom(t) ?? "salon" }
+  }
+  if (!isQ) return null
+  for (const [re, intent] of QUERY_TOPICS) if (re.test(t)) return { intent }
+  return null
+}
+
 // ── Scenes: one phrase → several actions ───────────────────────────────────────
 interface SceneStep { intent: Intent; value?: number; room?: string }
 interface SceneDef { match: RegExp; key: string; steps: SceneStep[] }

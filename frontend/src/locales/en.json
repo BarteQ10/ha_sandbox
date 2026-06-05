@@ -391,6 +391,15 @@
       "lustro": "mirror light",
       "wyspa": "island light"
     },
+    "answer": {
+      "pv": "PV is producing {{v}} W right now.",
+      "soc": "The battery is at {{v}}%.",
+      "load": "The house is drawing {{v}} W.",
+      "price": "Energy costs {{v}} gr/kWh right now.",
+      "balance": "Net power balance is {{v}} W.",
+      "cost": "Today's balance is {{v}} PLN.",
+      "temp": "$t(assistant.room.{{roomId}}) is {{v}}°C."
+    },
     "scene": {
       "goodnight": "Good night — lights off, boiler off, inverter on auto.",
       "morning": "Good morning — lights on, temperature 21°C.",

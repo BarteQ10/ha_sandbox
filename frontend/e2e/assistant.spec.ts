@@ -67,6 +67,21 @@ test("turns on the light in the named room (not the default salon)", async ({ pa
   await expect(page.getByText(/Living-room/i)).toHaveCount(0)
 })
 
+test("answers a question about state (PV production)", async ({ page }) => {
+  await openAssistant(page)
+  await page.getByRole("textbox").fill("ile produkuje PV?")
+  await page.getByRole("button", { name: "Send" }).click()
+  // mock PV fixture is 2450 W
+  await expect(page.getByText(/2450 W/)).toBeVisible()
+})
+
+test("answers a room temperature question", async ({ page }) => {
+  await openAssistant(page)
+  await page.getByRole("textbox").fill("jaka temperatura w salonie")
+  await page.getByRole("button", { name: "Send" }).click()
+  await expect(page.getByText(/21\.5°C/)).toBeVisible()
+})
+
 test("controls the media player", async ({ page }) => {
   await openAssistant(page)
   await page.getByRole("textbox").fill("zatrzymaj muzykę")

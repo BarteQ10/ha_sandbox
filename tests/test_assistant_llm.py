@@ -92,6 +92,18 @@ def test_media_volume_clamps(monkeypatch):
     }
 
 
+def test_query_intent_passes_through(monkeypatch):
+    _enable(monkeypatch, '{"intent": "query_pv", "value": null, "room": null}')
+    assert al.classify("ile produkuje pv") == {"intent": "query_pv", "value": None, "room": None}
+
+
+def test_query_temp_carries_room(monkeypatch):
+    _enable(monkeypatch, '{"intent": "query_temp", "value": null, "room": "kuchnia"}')
+    assert al.classify("jaka temperatura w kuchni") == {
+        "intent": "query_temp", "value": None, "room": "kuchnia",
+    }
+
+
 def test_hallucinated_intent_rejected(monkeypatch):
     # A model that invents an action off the allow-list must be neutralised.
     _enable(monkeypatch, '{"intent": "launch_missiles", "value": null, "room": null}')

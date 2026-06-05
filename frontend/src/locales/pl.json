@@ -392,6 +392,15 @@
       "lustro": "światło przy lustrze",
       "wyspa": "światło nad wyspą"
     },
+    "answer": {
+      "pv": "PV produkuje teraz {{v}} W.",
+      "soc": "Bateria jest naładowana w {{v}}%.",
+      "load": "Dom pobiera teraz {{v}} W.",
+      "price": "Prąd kosztuje teraz {{v}} gr/kWh.",
+      "balance": "Bilans mocy to {{v}} W.",
+      "cost": "Dzisiejszy bilans to {{v}} zł.",
+      "temp": "Temperatura $t(assistant.room.{{roomId}}) to {{v}}°C."
+    },
     "scene": {
       "goodnight": "Dobranoc — światła zgaszone, bojler wyłączony, inwerter w trybie auto.",
       "morning": "Dzień dobry — światła włączone, temperatura 21°C.",

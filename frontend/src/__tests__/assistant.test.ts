@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest"
 import {
-  parseCommand, intentToCommand, disambiguate, matchScene, resolveFollowUp,
+  parseCommand, intentToCommand, disambiguate, matchScene, resolveFollowUp, parseQuery,
 } from "@/lib/assistant"
 
 describe("parseCommand", () => {
@@ -279,4 +279,24 @@ describe("resolveFollowUp", () => {
 
 it("attaches the resolved intent to a parsed command", () => {
   expect(parseCommand("włącz bojler")).toMatchObject({ intent: "boiler_on" })
+})
+
+describe("parseQuery", () => {
+  it("recognises state questions", () => {
+    expect(parseQuery("ile produkuje PV?")).toEqual({ intent: "query_pv" })
+    expect(parseQuery("jaki jest stan baterii")).toEqual({ intent: "query_soc" })
+    expect(parseQuery("ile dom pobiera teraz")).toEqual({ intent: "query_load" })
+    expect(parseQuery("jaka cena prądu")).toEqual({ intent: "query_price" })
+    expect(parseQuery("ile dziś wydałem")).toEqual({ intent: "query_cost" })
+  })
+
+  it("answers temperature questions with the room", () => {
+    expect(parseQuery("jaka temperatura w kuchni")).toEqual({ intent: "query_temp", room: "kuchnia" })
+    expect(parseQuery("ile stopni w sypialni")).toEqual({ intent: "query_temp", room: "sypialnia" })
+  })
+
+  it("does not treat commands as questions", () => {
+    expect(parseQuery("ustaw temperaturę na 22")).toBeNull()
+    expect(parseQuery("włącz bojler")).toBeNull()
+  })
 })

@@ -43,11 +43,13 @@ INTENTS = (
     "grid_normal", "grid_blackout", "grid_instability",
     "media_play", "media_pause", "media_stop", "media_next", "media_prev",
     "media_vol_up", "media_vol_down", "media_mute", "media_unmute", "media_set_volume",
+    "query_pv", "query_soc", "query_load", "query_price", "query_balance", "query_cost",
+    "query_temp",
     "unknown",
 )
 
 # Intents that target a specific room (the model must fill the `room` slot).
-ROOM_INTENTS = ("light_on", "light_off", "blinds_open", "blinds_close")
+ROOM_INTENTS = ("light_on", "light_off", "blinds_open", "blinds_close", "query_temp")
 
 EV_MIN_W, EV_MAX_W = 0, 7400
 TEMP_MIN_C, TEMP_MAX_C = 16, 30
@@ -80,6 +82,14 @@ SYSTEM_PROMPT = (
     "(graj / pauza / stop / nastepny / poprzedni utwor)\n"
     "- media_vol_up/media_vol_down/media_mute/media_unmute: glosniej / ciszej / wycisz / odcisz\n"
     "- media_set_volume: ustaw glosnosc na konkretny poziom; value = procent (0-100)\n"
+    "PYTANIA o stan (uzytkownik PYTA, nie wydaje polecenia):\n"
+    "- query_pv: ile produkuje PV / fotowoltaika\n"
+    "- query_soc: jaki poziom naladowania baterii\n"
+    "- query_load: ile dom pobiera / zuzywa\n"
+    "- query_price: jaka cena pradu\n"
+    "- query_balance: bilans mocy netto\n"
+    "- query_cost: dzisiejszy koszt / bilans finansowy\n"
+    "- query_temp: jaka temperatura (podaj room)\n"
     "- unknown: nic nie pasuje\n"
     "Wskazowki: 'cieplej'/'zimno mi'/'podnies o stopien' => temp_up; "
     "'chlodniej'/'za goraco' => temp_down; 'ustaw 22 stopnie'/'na 21' => set_temp z value.\n"
