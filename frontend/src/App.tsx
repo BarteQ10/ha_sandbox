@@ -9,6 +9,7 @@ import { ToastProvider } from "@/hooks/useToast"
 import { AlarmProvider } from "@/hooks/useAlarms"
 import { AlarmBanner } from "@/components/AlarmBanner"
 import { usePersistentState } from "@/hooks/usePersistentState"
+import { useKiosk } from "@/hooks/useKiosk"
 import { Rooms } from "@/components/Rooms"
 import { Flow } from "@/components/Flow"
 import { Controls } from "@/components/Controls"
@@ -139,6 +140,9 @@ function AppContent() {
   const [monitorTab, setMonitorTab] = usePersistentState("ems.monitorTab", "cameras")
   const [analyticsTab, setAnalyticsTab] = usePersistentState("ems.analyticsTab", "reports")
   const { t } = useTranslation()
+
+  // Wall-tablet kiosk mode (?kiosk=1): keep screen awake + return Home when idle.
+  useKiosk(() => { setTab("rooms"); setRoomTab("day") })
 
   // Jump from a home KPI tile straight to the right section + sub-tab.
   const goTo = (target: string) => {

@@ -96,6 +96,10 @@ tailscale serve status             # shows the URL
 #    https URL, then "Add to Home Screen" for a full-screen PWA.
 ```
 
+**Wall tablet (kiosk mode):** open the dashboard with `…ts.net/?kiosk=1` before
+adding it to the home screen. Kiosk mode keeps the screen awake (Wake Lock) and
+returns to the Home view after a few minutes idle. `?kiosk=0` turns it off.
+
 To reach a host-side local LLM (LM Studio/Ollama) from the simulator container,
 set `EMS_LLM_URL=http://host.docker.internal:1234/v1` (the compose file already
 maps `host.docker.internal`).

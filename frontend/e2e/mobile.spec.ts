@@ -23,6 +23,13 @@ test("connection badge is visible on mobile", async ({ page }) => {
   await expect(page.getByText("HA OK")).toBeVisible()
 })
 
+test("kiosk mode loads and stays usable", async ({ page }) => {
+  await page.goto("/?kiosk=1")
+  await expect(page.getByRole("heading", { name: "Smart Home" })).toBeVisible()
+  await page.getByRole("tab", { name: "Energy", exact: true }).click()
+  await expect(page.getByRole("tab", { name: "Energy", exact: true })).toHaveAttribute("data-state", "active")
+})
+
 test("Home view has no horizontal overflow on a phone", async ({ page }) => {
   // Regression: the rooms-tab grid used to overflow (~566px on a 390px screen)
   // because an overflow-x-auto sub-tab bar expanded its grid column.
