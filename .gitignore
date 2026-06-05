@@ -2,6 +2,10 @@
 *.pyc
 __pycache__/
 
+# Node (stray root-level installs / tool caches)
+node_modules/
+.vite/
+
 # Home Assistant - generated/runtime files (not source code)
 config/.cache/
 config/.cloud/
