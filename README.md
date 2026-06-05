@@ -100,6 +100,19 @@ tailscale serve status             # shows the URL
 adding it to the home screen. Kiosk mode keeps the screen awake (Wake Lock) and
 returns to the Home view after a few minutes idle. `?kiosk=0` turns it off.
 
+**Web Push (alerts when the app is closed):** optional, needs a VAPID keypair.
+
+```bash
+python -m ems_simulator.push --gen-keys     # prints EMS_VAPID_PUBLIC / _PRIVATE
+# add both to .env, then: docker compose up -d
+```
+
+The simulator exposes the public key at `/sim/push/key`; the dashboard's
+**Settings → Web Push → Enable** subscribes this device. Edge-triggered alerts
+(blackout, motion, rules…) then arrive as push notifications even when the app
+is closed. Requires HTTPS (Tailscale) and is a no-op until the VAPID keys are
+set. `POST /sim/push/test` sends a test push.
+
 To reach a host-side local LLM (LM Studio/Ollama) from the simulator container,
 set `EMS_LLM_URL=http://host.docker.internal:1234/v1` (the compose file already
 maps `host.docker.internal`).

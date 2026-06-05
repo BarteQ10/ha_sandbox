@@ -42,6 +42,9 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // Custom Web Push handlers (push + notificationclick) live in
+        // public/push-sw.js and are pulled into the generated SW.
+        importScripts: ['push-sw.js'],
         // Pre-cache the entire app shell on install.
         globPatterns: ['**/*.{js,css,html,svg,woff,woff2}'],
         // Don't cache HA API / WS calls — they must always go to the network.

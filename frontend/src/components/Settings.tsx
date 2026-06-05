@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { useEntityNum, useEntityState, useHA } from "@/hooks/useHA"
 import { useToast } from "@/hooks/useToast"
 import { useAlarms } from "@/hooks/useAlarms"
+import { subscribePush } from "@/api/push"
 import {
   Settings2, Battery, Sun, Zap, MapPin, Clock,
   Bell, Webhook, Send, CheckCircle2, XCircle,
@@ -209,6 +210,26 @@ function NotificationsCard() {
             label={t("settings.notifTelegram")}
             configured={telegram}
           />
+        </div>
+
+        {/* Web Push — receive alerts even when the app is closed */}
+        <div className="flex items-center justify-between gap-2 border-t pt-3">
+          <div className="min-w-0">
+            <p className="text-sm font-medium">{t("settings.pushTitle")}</p>
+            <p className="text-xs text-muted-foreground">{t("settings.pushDesc")}</p>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className="shrink-0"
+            onClick={async () => {
+              const r = await subscribePush()
+              if (r.ok) toast(t("settings.pushOk"), "success")
+              else toast(t(`settings.push_${r.reason}`), r.reason === "denied" ? "error" : undefined)
+            }}
+          >
+            {t("settings.pushEnable")}
+          </Button>
         </div>
 
         {/* Per-category alert switches */}

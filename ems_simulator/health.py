@@ -144,6 +144,22 @@ class _Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = urlparse(self.path).path.rstrip("/") or "/"
+        if path in ("/push/subscribe", "/push/test"):
+            try:
+                import ems_simulator.push as push
+                length = int(self.headers.get("Content-Length", "0"))
+                body = self.rfile.read(length).decode("utf-8") if length else ""
+                if path == "/push/test":
+                    sent = push.send("EMS", "Test notification ✅", tag="ems-test")
+                    self._send_json(200, {"sent": sent, "enabled": push.enabled()})
+                else:
+                    sub = json.loads(body) if body else {}
+                    count = push.add_subscription(sub)
+                    self._send_json(200, {"ok": True, "count": count})
+            except Exception as e:
+                log.warning("[HEALTH] POST %s failed: %s", path, e)
+                self._send_json(200, {"ok": False})
+            return
         if path == "/assistant":
             try:
                 import ems_simulator.assistant_llm as assistant_llm
@@ -273,6 +289,10 @@ class _Handler(BaseHTTPRequestHandler):
                 "triggered": ok, "type": kind,
                 "valid": ["smoke", "co", "leak"],
             })
+
+        elif path == "/push/key":
+            import ems_simulator.push as push
+            self._send_json(200, {"publicKey": push.VAPID_PUBLIC, "enabled": push.enabled()})
 
         else:
             self._send_json(404, {"error": "not found",

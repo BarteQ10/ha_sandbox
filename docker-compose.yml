@@ -66,6 +66,11 @@ services:
       # on the host via host.docker.internal (see extra_hosts).
       EMS_LLM_URL: "${EMS_LLM_URL:-}"                   # e.g. http://host.docker.internal:1234/v1
       EMS_LLM_MODEL: "${EMS_LLM_MODEL:-bielik-11b-v3.0-instruct}"
+      # Web Push (optional) — generate keys: python -m ems_simulator.push --gen-keys
+      EMS_VAPID_PUBLIC: "${EMS_VAPID_PUBLIC:-}"
+      EMS_VAPID_PRIVATE: "${EMS_VAPID_PRIVATE:-}"
+      EMS_VAPID_SUBJECT: "${EMS_VAPID_SUBJECT:-mailto:admin@example.com}"
+      PUSH_SUBS_PATH: /data/push_subs.json
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped

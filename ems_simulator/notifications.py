@@ -105,6 +105,17 @@ def send(message: str, severity: str = "info", category: str | None = None) -> N
     log.info("[NOTIFY] %s — %s", severity.upper(), message)
     _send_webhook(message, severity)
     _send_telegram(message, severity)
+    _send_push(message, severity, category)
+
+
+def _send_push(message: str, severity: str, category: str | None) -> None:
+    """Best-effort Web Push fan-out (no-op when VAPID keys aren't configured)."""
+    try:
+        import ems_simulator.push as push
+        if push.enabled():
+            push.send(f"EMS · {severity.upper()}", message, tag=category or "ems")
+    except Exception as e:  # noqa: BLE001 - push must never break notifications
+        log.warning("[NOTIFY] push failed: %s", e)
 
 
 def send_test() -> dict[str, bool]:

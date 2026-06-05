@@ -4,6 +4,7 @@ requests==2.34.2          # Open-Meteo + PSE API calls (weather.py, pricing.py)
 influxdb-client==1.50.0   # Telemetry writes/reads (influx_writer.py)
 python-dotenv>=1.0        # Load .env at startup (run.py; optional, import is guarded)
 paho-mqtt>=1.6,<3         # MQTT bridge → HA autodiscovery (mqtt_bridge.py)
+pywebpush>=1.14          # Web Push notifications (push.py; optional, guarded)
 
 # ML forecast (ml_forecast.py) — not needed to run the simulator itself
 numpy==2.4.6
