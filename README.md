@@ -355,6 +355,26 @@ Add these secrets to GitHub repo → Settings → Secrets and variables → Acti
 
 Or deploy manually: `./deploy.sh /path/to/project`
 
+## Backup & migration (moving servers)
+
+All persistent state lives in bind-mounted volumes. `./migrate.sh` bundles every
+database and data dir into one archive and restores it on a fresh host:
+
+```bash
+./migrate.sh backup                 # → ems-migrate-<timestamp>.tgz
+# copy the .tgz to the new server, in the project root, then:
+./migrate.sh restore ems-migrate-<timestamp>.tgz
+docker compose restart
+```
+
+It moves InfluxDB telemetry (`influx backup`/`restore` — hot-safe and
+version-portable), the Home Assistant recorder DB, the floor-plan layout,
+Web Push subscriptions, the RL Q-table, and retained MQTT messages. The InfluxDB
+container must be running. For a guaranteed-clean Home Assistant DB copy, stop HA
+before `backup` (`docker compose stop homeassistant`). Restoring **replaces** the
+target InfluxDB bucket. Override `INFLUX_CONTAINER`/`INFLUX_BUCKET`/`INFLUX_ORG`
+via env vars if you changed the defaults.
+
 ## InfluxDB Measurements
 
 | Measurement | Description | Unit |
