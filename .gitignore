@@ -39,3 +39,6 @@ forecast_feature_importance.png
 
 # Simulator runtime data (floor-plan layout)
 simulator_data/
+
+# Tailscale container node state (keys) — keep serve.json, ignore state
+tailscale/state/

@@ -96,6 +96,18 @@ tailscale serve status             # shows the URL
 #    https URL, then "Add to Home Screen" for a full-screen PWA.
 ```
 
+**Tailscale in a container (Linux/Pi)** — instead of installing Tailscale on the
+host, run it as a compose sidecar. Put a reusable `TS_AUTHKEY` (admin console →
+Settings → Keys) in `.env`, then:
+
+```bash
+docker compose --profile tailscale up -d
+```
+
+It joins the tailnet as `ems.<tailnet>.ts.net` and serves HTTPS → the nginx
+container (declarative `tailscale/serve.json`). Needs `/dev/net/tun` + `NET_ADMIN`,
+so it's Linux-only in practice — on Windows keep Tailscale on the host.
+
 **Wall tablet (kiosk mode):** open the dashboard with `…ts.net/?kiosk=1` before
 adding it to the home screen. Kiosk mode keeps the screen awake (Wake Lock) and
 returns to the Home view after a few minutes idle. `?kiosk=0` turns it off.
