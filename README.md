@@ -2,8 +2,34 @@
 
 Modbus TCP simulator + Home Assistant config for Energy Management System development.
 
+### 🔴 [Live demo →](https://barteq10.github.io/ha_sandbox/)
+
+The full React dashboard running on **synthetic data** (in-browser Home Assistant
+mock) — no real home, no login required. Explore rooms, energy flow, charts,
+reports and the natural-language assistant. The same codebase powers a private,
+real-home deployment behind Tailscale (see *Deployment* below).
+
+**Stack:** Python (Modbus/asyncio) · Home Assistant · InfluxDB · MQTT ·
+React 19 + TypeScript + Vite + Tailwind · PWA · Docker. Tested with pytest,
+vitest and Playwright; CI via GitHub Actions.
+
 > Planning to move to real hardware? See **[MIGRATION.md](MIGRATION.md)** for how
 > the control intelligence transfers ~1:1 and what HA takes on.
+
+## Public demo vs. private home (two builds, one codebase)
+
+| | Public portfolio demo | Private real-home instance |
+|---|---|---|
+| Build | `npm run build:demo` (`VITE_HA_MOCK=1`) | `npm run build:proxy` (`VITE_PROXY=1`) |
+| Backend | none — in-browser HA mock | real Home Assistant + simulator |
+| Secrets / HA token | none (safe to publish) | bundled — **keep private** |
+| Hosting | GitHub Pages (auto-deploy) | nginx + Tailscale (tailnet only) |
+| Audience | recruiters, anyone | just you |
+
+The SPA bundles the HA token at build time, so the **real** build must never be
+exposed publicly — only the mock (`demo`) build is. The public demo is deployed
+automatically by `.github/workflows/pages.yml` on every push that touches
+`frontend/` (enable once via repo *Settings → Pages → Source = GitHub Actions*).
 
 ## Quick Start
 

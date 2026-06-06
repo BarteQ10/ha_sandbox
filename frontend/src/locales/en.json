@@ -1,4 +1,9 @@
 {
+  "demo": {
+    "title": "Live demo",
+    "subtitle": "synthetic data — not connected to a real home.",
+    "source": "Source on GitHub"
+  },
   "nav": {
     "title": "Smart Home",
     "rooms": "Home",

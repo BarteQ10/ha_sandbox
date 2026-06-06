@@ -28,6 +28,7 @@ import { FloorPlan } from "@/components/FloorPlan"
 import { Timeline } from "@/components/Timeline"
 import { Advisor } from "@/components/Advisor"
 import { AssistantFab } from "@/components/AssistantFab"
+import { DemoBanner } from "@/components/DemoBanner"
 import { DashboardSummary } from "@/components/DashboardSummary"
 import { CostForecast } from "@/components/CostForecast"
 import {
@@ -167,6 +168,8 @@ function AppContent() {
       >
         Skip to main content
       </a>
+
+      <DemoBanner />
 
       <header className="sticky top-0 z-50 border-b bg-card text-card-foreground backdrop-blur-xl">
         <div className="mx-auto max-w-7xl px-3 sm:px-4">
