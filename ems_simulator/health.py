@@ -23,6 +23,20 @@ HEALTH_PORT = int(os.environ.get("HEALTH_PORT", "8088"))
 # browsers/devices. Put it on a mounted volume so it survives container rebuilds.
 _FLOORPLAN_PATH = os.environ.get("FLOORPLAN_PATH", "/data/floorplan.json")
 
+# CORS allow-list. The dashboard is cross-origin only in local dev (Vite on
+# :5173); behind the nginx proxy it is same-origin (/sim) and needs no CORS at
+# all. Restricting to an allow-list (instead of "*") stops an arbitrary web page
+# the user happens to visit from reading /metrics or POSTing cross-origin.
+# Override via HEALTH_CORS_ORIGINS (comma-separated); set it to "*" to restore
+# the previous open behaviour.
+_CORS_ORIGINS = [
+    o.strip()
+    for o in os.environ.get(
+        "HEALTH_CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"
+    ).split(",")
+    if o.strip()
+]
+
 # Shared state — written by the main loop, read by the HTTP handler.
 _metrics: dict = {}
 _started_at: float = time.monotonic()
@@ -124,20 +138,38 @@ class _Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):  # silence access log
         pass
 
+    def _cors_origin(self):
+        """Resolve the Access-Control-Allow-Origin value for this request.
+
+        Echoes the request Origin when it is allow-listed (or "*" when the list
+        is the wildcard); returns None otherwise, so no CORS header is sent.
+        """
+        if "*" in _CORS_ORIGINS:
+            return "*"
+        origin = self.headers.get("Origin")
+        return origin if origin and origin in _CORS_ORIGINS else None
+
+    def _send_cors(self):
+        """Emit CORS headers for the resolved origin, if any."""
+        origin = self._cors_origin()
+        if origin:
+            self.send_header("Access-Control-Allow-Origin", origin)
+            if origin != "*":
+                # Responses vary by Origin — keep caches from reusing the header.
+                self.send_header("Vary", "Origin")
+
     def _send_json(self, code, body):
         data = json.dumps(body, indent=2).encode()
         self.send_response(code)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(data)))
-        # CORS — allow the React dev/prod app (separate origin) to read these.
-        # Dev tool on a trusted home network; see README security note.
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self._send_cors()
         self.end_headers()
         self.wfile.write(data)
 
     def do_OPTIONS(self):  # CORS preflight
         self.send_response(204)
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self._send_cors()
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()

@@ -22,7 +22,9 @@ http:
     - ::1
   cors_allowed_origins:
     - http://localhost:5173
-    - https://bartek.tail879c2a.ts.net
+    # Real tailnet hostname kept out of the public repo. Set it in
+    # config/secrets.yaml (gitignored); see config/secrets.yaml.example.
+    - !secret dashboard_cors_origin
 
 frontend:
   themes: !include_dir_merge_named themes
