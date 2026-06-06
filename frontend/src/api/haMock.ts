@@ -65,11 +65,22 @@ const _LIST: HassEntity[] = [
   ent("input_number.wirtualne_rolety_lazienka", "100", { min: 0, max: 100, step: 1 }),
 
   // Climate + cover
-  ent("climate.salon", "heat", {
-    temperature: 21, current_temperature: 20.5, min_temp: 16, max_temp: 30,
-    friendly_name: "Salon Thermostat",
+  // The entity id must match what the room cards (Rooms.tsx) and HA's MQTT
+  // discovery use, and friendly_name must be set — otherwise the card falls back
+  // to rendering the raw entity id ("climate.ems_simulator_living_room_trv").
+  ent("climate.ems_simulator_living_room_trv", "heat", {
+    temperature: 21, current_temperature: 20.5, min_temp: 7, max_temp: 30,
+    friendly_name: "EMS Simulator Living Room TRV",
   }),
   ent("cover.salon_rolety", "open", { current_position: 80, friendly_name: "Salon Blinds" }),
+
+  // Contact sensors referenced by the Wspólne room cards (Rooms.tsx).
+  ent("binary_sensor.ems_simulator_living_window", "off", {
+    device_class: "window", friendly_name: "EMS Simulator Living Window",
+  }),
+  ent("binary_sensor.ems_simulator_kitchen_leak", "off", {
+    device_class: "moisture", friendly_name: "EMS Simulator Kitchen Leak",
+  }),
 
   // EMS controls
   ent("input_boolean.wirtualny_bojler", "off", { friendly_name: "Boiler" }),

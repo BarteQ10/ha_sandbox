@@ -20,6 +20,12 @@ import type { HassEntity } from "home-assistant-js-websocket"
 // Living Window"), which overflows the compact chips/cards. Strip that prefix
 // for display; the full name stays available via a `title` tooltip.
 function displayName(n: string): string {
+  // No friendly_name → callers fall back to the raw entity id like
+  // "climate.ems_simulator_living_room_trv". Humanise it instead of showing the
+  // raw token (drop the domain, underscores → spaces, title-case).
+  if (/^[a-z0-9_]+\.[a-z0-9_]+$/.test(n)) {
+    n = n.slice(n.indexOf(".") + 1).replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+  }
   return n.replace(/^EMS Simulator\s+/i, "")
 }
 
