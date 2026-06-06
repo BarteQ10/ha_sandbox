@@ -75,8 +75,8 @@ export function Advisor() {
                 <span className="flex items-center gap-1"><Banknote className="h-3.5 w-3.5 text-amber-500" />{t("advisor.price")}</span>
                 <span className="flex items-center gap-1"><Sun className="h-3.5 w-3.5 text-green-500" />{t("advisor.pv")}</span>
               </div>
-              <div className="h-56 w-full">
-                <ResponsiveContainer>
+              <div className="w-full">
+                <ResponsiveContainer width="100%" height={224}>
                   <ComposedChart data={data.hours} margin={{ top: 5, right: 8, bottom: 0, left: -8 }}>
                     <XAxis dataKey="hour" tickFormatter={(h) => `${h}`} tick={{ fontSize: 10 }} minTickGap={16} />
                     <YAxis yAxisId="pv" tick={{ fontSize: 10 }} width={40} />
