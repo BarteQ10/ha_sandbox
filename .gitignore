@@ -30,6 +30,10 @@ grafana/
 mosquitto/data/
 mosquitto/log/
 
+# Zigbee2MQTT runtime data — contains the Zigbee network key + paired-device DB.
+# Keep only configuration.example.yaml in git.
+zigbee2mqtt/data/
+
 # RL agent Q-table (trained model — large binary)
 rl/qtable.npy
 

@@ -815,6 +815,23 @@ Publishes the simulator as a single HA device via the MQTT discovery protocol (r
 - **Setup in HA**: Settings → Devices & Services → Add Integration → MQTT, host `mosquitto`, port `1883`, no auth (broker uses `allow_anonymous`)
 - Graceful fallback: bridge disables itself if `paho-mqtt` is missing or `MQTT_HOST` is empty
 
+### Real Zigbee devices (Zigbee2MQTT, optional)
+
+Real sensors (door/window contacts, temp/humidity…) can join the same broker via
+a USB Zigbee coordinator (e.g. CC2652P stick) and the bundled `zigbee2mqtt`
+compose service (profile `zigbee`):
+
+```bash
+cp zigbee2mqtt/configuration.example.yaml zigbee2mqtt/data/configuration.yaml
+ls -l /dev/serial/by-id/        # find the dongle → update `devices:` in docker-compose.yml
+docker compose --profile zigbee up -d
+```
+
+Pairing UI on `:8099` (Permit join → press the sensor's reset button). Devices
+appear in HA through the same MQTT autodiscovery the simulator uses — no clash
+(separate topics). `zigbee2mqtt/data/` is gitignored: it holds the Zigbee
+network key and the paired-device database.
+
 ## Health / Metrics Endpoint (`health.py`)
 
 Lightweight HTTP server on port 8088 (daemon thread):

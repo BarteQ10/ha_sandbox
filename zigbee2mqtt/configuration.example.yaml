@@ -1,0 +1,26 @@
+# Zigbee2MQTT starter config for this stack.
+# Copy to zigbee2mqtt/data/configuration.yaml BEFORE the first start:
+#   cp zigbee2mqtt/configuration.example.yaml zigbee2mqtt/data/configuration.yaml
+# zigbee2mqtt/data/ is gitignored on purpose — Zigbee2MQTT writes the Zigbee
+# network key and the paired-device database there (secrets, keep private).
+
+homeassistant:
+  enabled: true            # MQTT autodiscovery → devices appear in HA automatically
+
+mqtt:
+  server: mqtt://mosquitto:1883   # the broker from docker-compose (same one the simulator uses)
+
+serial:
+  port: /dev/ttyUSB0       # container-side path mapped in docker-compose `devices:`
+  adapter: zstack          # CC2652P coordinator (TI Z-Stack). ZBDongle-E would be `ember`.
+
+frontend:
+  enabled: true
+  port: 8080               # published on the host as :8099 (8080 is taken by nginx)
+
+permit_join: false         # enable pairing from the frontend when needed, never permanently
+
+advanced:
+  # Pick the channel BEFORE pairing the first device (changing it later forces
+  # re-pairing everything). 25 avoids the most-used WiFi channels (1/6/11).
+  channel: 25

@@ -94,6 +94,35 @@ services:
       - homeassistant
       - ems-simulator
 
+  # Optional: Zigbee2MQTT — bridges real Zigbee devices (door/window sensors,
+  # temp/humidity, etc.) into the same Mosquitto broker via a USB coordinator
+  # (CC2652P / ZBDongle). Enable on the host that has the dongle plugged in:
+  #   1. cp zigbee2mqtt/configuration.example.yaml zigbee2mqtt/data/configuration.yaml
+  #   2. find the dongle: ls -l /dev/serial/by-id/  → update `devices:` below
+  #   3. docker compose --profile zigbee up -d
+  # Frontend (pairing UI) on :8099. zigbee2mqtt/data/ is gitignored — Z2M stores
+  # the Zigbee network key and the device database there.
+  zigbee2mqtt:
+    container_name: ems_zigbee2mqtt
+    image: koenkk/zigbee2mqtt:latest
+    profiles: ["zigbee"]
+    restart: unless-stopped
+    volumes:
+      - ./zigbee2mqtt/data:/app/data
+      - /run/udev:/run/udev:ro
+    ports:
+      - "8099:8080"   # Z2M frontend (host 8080 is taken by nginx)
+    environment:
+      TZ: Europe/Warsaw
+    devices:
+      # Windows + Docker Desktop (usbipd attach --wsl): the stick lands at /dev/ttyUSB0
+      # in the shared WSL kernel (run `modprobe cp210x` in docker-desktop after attach).
+      # On a Linux server prefer the stable by-id path instead, e.g.:
+      #   - /dev/serial/by-id/usb-Silicon_Labs_CP2102N_..._-if00-port0:/dev/ttyUSB0
+      - /dev/ttyUSB0:/dev/ttyUSB0
+    depends_on:
+      - mosquitto
+
   # Optional: Tailscale in a container (HTTPS + private remote access), instead of
   # running tailscale on the host. Enable on a Linux server / Raspberry Pi with:
   #   docker compose --profile tailscale up -d
