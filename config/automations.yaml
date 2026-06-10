@@ -1070,3 +1070,49 @@
         Wykryto ruch wewnetrzny! Tryb obecnosci:
         {{ states('input_select.ems_tryb_obecnosci') }}. Godzina: {{ now().strftime('%H:%M') }}.
   mode: single
+
+- id: 'ems_wled_blackout_alarm'
+  alias: 'EMS: Blackout - WLED alarm swietlny'
+  description: >
+    Gdy siec przechodzi w Blackout (reg 14 = 1), zapisuje aktualny stan
+    tasmy WLED jako scene-snapshot i wlacza czerwony pulsujacy alarm.
+    Stan sprzed alarmu przywraca ems_wled_grid_recovery.
+  triggers:
+  - entity_id: sensor.ems_status_sieci
+    trigger: state
+    to: '1'
+  conditions: []
+  actions:
+  - action: scene.create
+    data:
+      scene_id: wled_przed_alarmem
+      snapshot_entities:
+      - light.wled
+  - action: light.turn_on
+    target:
+      entity_id: light.wled
+    data:
+      rgb_color: [255, 0, 0]
+      brightness_pct: 100
+      effect: "Breathe"
+  mode: single
+
+- id: 'ems_wled_grid_recovery'
+  alias: 'EMS: Powrot sieci - WLED przywroc stan'
+  description: >
+    Gdy siec wraca do Normal (reg 14 = 0), przywraca stan tasmy WLED
+    sprzed alarmu (scena wled_przed_alarmem). Jesli alarmu nie bylo
+    (brak sceny), nic nie robi.
+  triggers:
+  - entity_id: sensor.ems_status_sieci
+    trigger: state
+    to: '0'
+  conditions:
+  - condition: template
+    value_template: >
+      {{ states('scene.wled_przed_alarmem') not in ['unknown', 'unavailable'] }}
+  actions:
+  - action: scene.turn_on
+    target:
+      entity_id: scene.wled_przed_alarmem
+  mode: single
