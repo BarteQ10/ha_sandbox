@@ -10,6 +10,19 @@ from ems_simulator.config import GRID_BLACKOUT, GRID_NORMAL
 
 # Heat-pump electrical power per mode (W): 1 = Comfort, 2 = Boost.
 _HP_POWER = {1: 1500, 2: 3000}
+
+
+def step_hours(samples) -> float:
+    """Hours covered by one sample of a 24-hour forecast array.
+
+    The forecast arrays always span one day, so 24 samples are hourly and 96 are
+    quarter-hourly. Every conversion from power (W) to energy (kWh) has to be
+    scaled by this — and it is exactly the step that goes missing when the
+    resolution changes: summing 96 quarter-hour samples as though each covered
+    an hour reports four times the energy that actually flowed.
+    """
+    n = len(samples)
+    return 24.0 / n if n else 1.0
 _BOILER_POWER = 3000
 
 

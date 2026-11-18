@@ -29,6 +29,7 @@ def validate() -> None:
     _check("MODBUS_PORT", c.MODBUS_PORT, min=1, max=65535)
     _check("NUM_REGISTERS", c.NUM_REGISTERS, min=1)
     _check("TICK_S", c.TICK_S, positive=True)
+    _check("MAX_CONSECUTIVE_TICK_ERRORS", c.MAX_CONSECUTIVE_TICK_ERRORS, min=1)
 
     # Location
     _check("LAT", c.LAT, min=-90, max=90)
@@ -98,6 +99,9 @@ def validate() -> None:
             raise ValueError(f"SCHEDULED_APPLIANCES[{name!r}] power must be > 0")
         if duration <= 0:
             raise ValueError(f"SCHEDULED_APPLIANCES[{name!r}] duration must be > 0")
+
+    # Web Push
+    _check("PUSH_MAX_SUBSCRIPTIONS", c.PUSH_MAX_SUBSCRIPTIONS, min=1)
 
     # InfluxDB env vars — warn if defaults are used (not an error, but helpful)
     _warn_default("INFLUX_URL", "http://localhost:8086")

@@ -1,4 +1,52 @@
 
+# ── InfluxDB connection — the only env-backed settings in this file ──────────
+# Read once here instead of in every module that talks to InfluxDB.
+# influx_writer.py, forecasting.py and backtest.py each used to re-read these
+# four with their own copy of the defaults; backtest.py's comment even claimed
+# it "matches influx_writer.py", with nothing enforcing that. Now there is one
+# owner, and tests/test_env_config.py fails if a second reader appears.
+# config_validator warns when the dev defaults are still in use.
+import os
+
+INFLUX_URL = os.environ.get("INFLUX_URL", "http://localhost:8086")
+INFLUX_TOKEN = os.environ.get("INFLUX_TOKEN", "ems-token")
+INFLUX_ORG = os.environ.get("INFLUX_ORG", "home")
+INFLUX_BUCKET = os.environ.get("INFLUX_BUCKET", "ems")
+
+# ── Which simulated devices to publish to Home Assistant ─────────────────────
+# The simulator publishes ~37 virtual devices over MQTT autodiscovery, grouped
+# below (the groups are defined in mqtt_bridge._GROUPS). Drop a group once real
+# hardware takes over that job: the simulator then actively REMOVES those
+# entities from Home Assistant, instead of leaving them behind as permanently
+# unavailable ghosts — every discovery config it publishes is retained by the
+# broker, so simply switching a device off is not enough to make HA forget it.
+#
+# An empty list retires every virtual device, which is the "simulator off"
+# setting for the MQTT side. Note it does not touch the Modbus-based entities
+# declared in config/configuration.yaml — those are HA-side YAML.
+#
+# Each entry is a group name ("security"), a single device id ("smoke"), or
+# either of those prefixed with "-" to take it back out again. Removals are
+# applied after additions, and a list of only removals starts from everything —
+# so this is how a migration reads as hardware arrives:
+#
+#   EMS_SIM_DEVICES=                       every simulated device (the default)
+#   EMS_SIM_DEVICES=-window_living,-door_entrance    all but those two
+#   EMS_SIM_DEVICES=security,-smoke,-co    only security, minus the real detectors
+#   EMS_SIM_DEVICES=energy,trv_living      one group plus one single device
+#   EMS_SIM_DEVICES=none                   retire the lot
+#
+# mqtt_bridge.enabled_ids() resolves these against its device catalogue.
+_ALL_SIM_DEVICE_GROUPS = ["energy", "house", "security", "air", "meters", "appliances"]
+_sim_devices_env = os.environ.get("EMS_SIM_DEVICES", "").strip()
+
+if not _sim_devices_env:
+    SIM_DEVICES = list(_ALL_SIM_DEVICE_GROUPS)
+elif _sim_devices_env.lower() in ("none", "off", "0"):
+    SIM_DEVICES = []
+else:
+    SIM_DEVICES = [t.strip() for t in _sim_devices_env.split(",") if t.strip()]
+
 # Modbus
 MODBUS_HOST = "0.0.0.0"
 MODBUS_PORT = 5020
@@ -8,6 +56,10 @@ TICK_S = 5
 # Derived timing constants (60× simulated speed, TICK_S=5s → 5 simulated minutes per tick)
 STEPS_PER_HOUR = 12    # ticks per simulated hour
 STEPS_PER_DAY = 288    # ticks per simulated day
+
+# Loop resilience: consecutive failed ticks tolerated before main() gives up and
+# exits, so a supervisor (docker `restart: unless-stopped`) can restart it cleanly.
+MAX_CONSECUTIVE_TICK_ERRORS = 10
 
 # Location (Open-Meteo, no API key)
 LAT = 52.23
@@ -140,6 +192,12 @@ STANDBY_DEVICES = [
 # Smart-socket cut parameters
 STANDBY_CUT_AFTER_TICKS    = 2   # consecutive standby ticks before cutting (10 sim-min)
 STANDBY_RESTORE_AFTER_TICKS = 72  # ticks until auto-restore (6 sim-hours)
+
+# Web Push — cap on stored browser subscriptions. POST /push/subscribe is
+# reachable by anything that can talk to the health server, and every stored
+# entry is a URL this process will POST to later, so the list must not grow
+# without bound.
+PUSH_MAX_SUBSCRIPTIONS = 50
 
 # Price bands: (hour_start, hour_end, min_gr, max_gr)
 PRICE_BANDS = [

@@ -9,6 +9,7 @@ from ems_simulator.loop_logic import (
     island_shed,
     resolve_force,
     self_consumption_shed,
+    step_hours,
     tick_cost_pln,
 )
 
@@ -177,3 +178,12 @@ def test_island_shed_keeps_v2g_in_balance():
 def test_instability_constant_imported():
     # guard against accidental rename of the grid-status constant
     assert GRID_INSTABILITY == 2
+
+
+def test_step_hours_maps_sample_count_to_duration():
+    """24 samples a day are hourly, 96 are quarter-hourly. Every power-to-energy
+    conversion scales by this, and forgetting it is a silent 4x error."""
+    assert step_hours([0] * 24) == 1.0
+    assert step_hours([0] * 96) == 0.25
+    assert step_hours([0] * 48) == 0.5
+    assert step_hours([]) == 1.0          # no samples: nothing to scale

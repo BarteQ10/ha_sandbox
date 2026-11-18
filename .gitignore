@@ -46,3 +46,9 @@ simulator_data/
 
 # Tailscale container node state (keys) — keep serve.json, ignore state
 tailscale/state/
+
+# Coverage artifacts (pytest-cov)
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml

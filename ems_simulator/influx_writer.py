@@ -1,6 +1,5 @@
 import datetime
 import logging
-import os
 import re
 import time
 from typing import Any
@@ -8,12 +7,12 @@ from typing import Any
 from influxdb_client import InfluxDBClient, Point
 from influxdb_client.client.write_api import SYNCHRONOUS
 
-log = logging.getLogger(__name__)
+from ems_simulator.config import INFLUX_BUCKET as BUCKET
+from ems_simulator.config import INFLUX_ORG as ORG
+from ems_simulator.config import INFLUX_TOKEN as TOKEN
+from ems_simulator.config import INFLUX_URL as URL
 
-URL = os.environ.get("INFLUX_URL", "http://localhost:8086")
-TOKEN = os.environ.get("INFLUX_TOKEN", "ems-token")
-ORG = os.environ.get("INFLUX_ORG", "home")
-BUCKET = os.environ.get("INFLUX_BUCKET", "ems")
+log = logging.getLogger(__name__)
 
 # How long (real seconds) to wait between reconnect attempts after a failure,
 # so a down database is not hammered on every tick.
