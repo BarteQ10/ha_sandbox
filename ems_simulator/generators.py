@@ -230,15 +230,24 @@ class EVProfile:
     def __init__(self):
         self._energy_delivered_today = 0.0
         self._ev_soc_kwh = EV_BATTERY_KWH * 0.2  # start at 20% SoC (just arrived)
-        self._last_reset_day = -1
+        self._prev_day_step = -1
 
     def tick(self, day_step, hour, ev_override_active):
-        sim_day = day_step // 288
-        if sim_day != self._last_reset_day:
+        # main()'s day_step is already wrapped (`% STEPS_PER_DAY`), so it never
+        # leaves one day and a new simulated day shows up as the counter going
+        # BACKWARDS. This used to watch `day_step // 288` for a change, which is
+        # therefore always 0: the reset below ran once on the very first tick and
+        # never again, so `_energy_delivered_today` kept the first day's total,
+        # `energy_still_needed` pinned itself to 0 and the EV silently stopped
+        # charging for the rest of the run. Not firing on the first tick also
+        # stops it from wiping the SoC and the energy restore_energy() just
+        # loaded, and dropping the literal 288 keeps this correct if
+        # STEPS_PER_DAY ever changes.
+        if 0 <= day_step < self._prev_day_step:
             self._energy_delivered_today = 0.0
             # EV departs with the energy it accumulated; reset SoC to low on next arrival
             self._ev_soc_kwh = max(0.0, self._ev_soc_kwh - EV_DAILY_KWH_NEEDED)
-            self._last_reset_day = sim_day
+        self._prev_day_step = day_step
         is_home = hour >= EV_ARRIVAL_HOUR or hour < EV_DEPARTURE_HOUR
         is_plugged = is_home and not ev_override_active
         energy_still_needed = max(0.0, EV_DAILY_KWH_NEEDED - self._energy_delivered_today)

@@ -102,6 +102,24 @@ services:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped
     stop_grace_period: 15s  # allow main() to flush InfluxDB on SIGTERM
+    # /health exists for this. It answers 503 once the loop has not pushed an
+    # update for 30 s, which is the failure `restart: unless-stopped` cannot
+    # see: that only reacts to the process exiting, so a simulator that is
+    # alive but wedged went on serving stale telemetry for ever. urlopen()
+    # raises on a 503, so a non-zero exit needs no extra plumbing (and the
+    # base image has no curl). Port 8088 matches HEALTH_PORT's default above.
+    #
+    # NOTE: this reports the state, it does not act on it -- Compose has no
+    # "restart when unhealthy". `docker compose ps` and anything watching the
+    # health status will show it; automatic recovery needs an autoheal sidecar
+    # or an external supervisor.
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8088/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
     depends_on:
       - influxdb
       - mosquitto

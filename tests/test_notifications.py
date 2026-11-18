@@ -1,3 +1,5 @@
+import logging
+
 import ems_simulator.notifications as notify
 
 
@@ -183,3 +185,106 @@ def test_send_if_changed_respects_category(monkeypatch):
     notify.set_muted(notify.CATEGORY_BITS["security"])
     notify.send_if_changed("motion", "motion!", condition=True, category="security")
     assert sent == []  # rising edge but category muted
+
+
+# ── delivery failures: visible in the log, and never leaking the credential ───
+
+class _Resp:
+    """Minimal stand-in for requests.Response."""
+
+    def __init__(self, status_code=200, text=""):
+        self.status_code = status_code
+        self.text = text
+        self.ok = 200 <= status_code < 300
+
+
+def _telegram_configured(monkeypatch, token="123456:SECRET-TOKEN"):
+    monkeypatch.setattr(notify, "_TELEGRAM_TOKEN", token)
+    monkeypatch.setattr(notify, "_TELEGRAM_CHAT_ID", "42")
+    return token
+
+
+def test_a_delivered_webhook_logs_no_warning(monkeypatch, caplog):
+    monkeypatch.setattr(notify, "_WEBHOOK_URL", "https://hooks.example.com/abc")
+    monkeypatch.setattr(notify.requests, "post", lambda *a, **k: _Resp(200, "ok"))
+
+    with caplog.at_level(logging.WARNING):
+        notify._send_webhook("Blackout", "critical")
+
+    assert caplog.text == ""
+
+
+def test_a_rejected_webhook_is_logged(monkeypatch, caplog):
+    """requests does not raise on 4xx/5xx, so the status has to be checked.
+
+    Without the check a rejected alert looked exactly like a delivered one:
+    nothing in the log, and status() still reporting the channel as working.
+    """
+    monkeypatch.setattr(notify, "_WEBHOOK_URL", "https://hooks.example.com/abc")
+    monkeypatch.setattr(notify.requests, "post", lambda *a, **k: _Resp(401, "unauthorized"))
+
+    with caplog.at_level(logging.WARNING):
+        notify._send_webhook("Blackout", "critical")
+
+    assert "HTTP 401" in caplog.text
+
+
+def test_a_rejected_webhook_does_not_log_its_url(monkeypatch, caplog):
+    """A Slack/Discord webhook URL is itself the secret."""
+    url = "https://hooks.slack.com/services/T000/B000/XXXXSECRET"
+    monkeypatch.setattr(notify, "_WEBHOOK_URL", url)
+    monkeypatch.setattr(notify.requests, "post", lambda *a, **k: _Resp(404, f"no such {url}"))
+
+    with caplog.at_level(logging.WARNING):
+        notify._send_webhook("Blackout", "critical")
+
+    assert url not in caplog.text
+    assert "<redacted>" in caplog.text
+
+
+def test_a_rejected_telegram_is_logged_without_the_token(monkeypatch, caplog):
+    token = _telegram_configured(monkeypatch)
+    monkeypatch.setattr(notify.requests, "post",
+                        lambda *a, **k: _Resp(404, f'{{"description":"Not Found: bot{token}"}}'))
+
+    with caplog.at_level(logging.WARNING):
+        notify._send_telegram("Blackout", "critical")
+
+    assert "HTTP 404" in caplog.text
+    assert "Not Found" in caplog.text   # Telegram's own explanation survives
+    assert token not in caplog.text
+
+
+def test_a_telegram_transport_error_does_not_leak_the_token(monkeypatch, caplog):
+    """requests puts the request URL in its exception messages, token and all."""
+    token = _telegram_configured(monkeypatch)
+
+    def _boom(*_a, **_k):
+        raise RuntimeError(
+            f"Max retries exceeded with url: https://api.telegram.org/bot{token}/sendMessage"
+        )
+
+    monkeypatch.setattr(notify.requests, "post", _boom)
+
+    with caplog.at_level(logging.WARNING):
+        notify._send_telegram("Blackout", "critical")
+
+    assert "Telegram failed" in caplog.text
+    assert token not in caplog.text
+
+
+def test_telegram_escapes_html_in_the_message(monkeypatch):
+    """parse_mode=HTML rejects a bare "<" or "&" with a 400 and drops the alert."""
+    _telegram_configured(monkeypatch)
+    sent: dict = {}
+
+    def _capture(_url, json=None, timeout=None):
+        sent.update(json or {})
+        return _Resp()
+
+    monkeypatch.setattr(notify.requests, "post", _capture)
+
+    notify._send_telegram("load < 500 W & rising", "info")
+
+    assert "&lt; 500 W &amp; rising" in sent["text"]
+    assert "<b>EMS Alert</b>" in sent["text"]   # our own markup is still markup

@@ -93,29 +93,40 @@ def self_consumption_shed(load: int, balance: float, soc: float, grid_status: in
     """Shed one non-essential load (EV → HP → boiler priority) on low SoC + deficit.
 
     Fires only when grid-connected, SoC < 20% and there's a power deficit, to
-    prevent deep discharge / expensive import. Returns
-    ``(load, balance, shed)`` where ``shed`` is ``None`` or a ``(device, watts)``
-    tuple for the caller to log.
+    prevent deep discharge / expensive import.
+
+    Returns ``(boiler_eff, hp_eff, ev_eff, load, balance, shed)`` -- the same
+    shape as ``island_shed`` -- where ``shed`` is a list of ``(device, watts)``
+    tuples for the caller to log. The device that was shed comes back switched
+    OFF. This used to subtract its watts from ``load`` and leave ``*_eff``
+    alone, so registers 3/4/5, MQTT and InfluxDB all went on reporting it at
+    full power while the total load no longer included it -- the dashboard's
+    own numbers stopped adding up -- and its anti-chatter timer was never
+    reset, so the device it had just switched off still counted as running.
     """
     if not (grid_status == GRID_NORMAL and balance < 0 and soc < 20):
-        return load, balance, None
+        return boiler_eff, hp_eff, ev_eff, load, balance, []
+    # The `shed_w == 0` guards are the original fall-through: an HP in an
+    # unknown mode contributes 0 W, and the boiler is then considered instead.
     shed_w = 0
-    shed = None
+    device = None
     if ev_eff > 0:
-        shed_w = ev_eff
-        shed = ("EV", ev_eff)
+        shed_w, device = ev_eff, "EV"
     if shed_w == 0 and hp_eff > 0:
-        shed_w = _HP_POWER.get(hp_eff, 0)
-        shed = ("HP", shed_w)
+        shed_w, device = _HP_POWER.get(hp_eff, 0), "HP"
     if shed_w == 0 and boiler_eff > 0:
-        shed_w = _BOILER_POWER
-        shed = ("boiler", _BOILER_POWER)
-    if shed_w > 0:
-        load -= shed_w
-        balance = compute_balance(pv, v2g_power, load)
+        shed_w, device = _BOILER_POWER, "boiler"
+    if shed_w <= 0:
+        return boiler_eff, hp_eff, ev_eff, load, balance, []
+    load -= shed_w
+    if device == "EV":
+        ev_eff = 0
+    elif device == "HP":
+        hp_eff = 0
     else:
-        shed = None
-    return load, balance, shed
+        boiler_eff = 0
+    balance = compute_balance(pv, v2g_power, load)
+    return boiler_eff, hp_eff, ev_eff, load, balance, [(device, shed_w)]
 
 
 def island_shed(boiler_eff: int, hp_eff: int, ev_eff: int, load: int, balance: float,

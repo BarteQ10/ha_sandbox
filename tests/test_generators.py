@@ -1,7 +1,23 @@
 import random
 
-from ems_simulator.config import EV_CHARGE_MAX_W, HP_COP_CURVE
-from ems_simulator.generators import DeviceTimer, StandbyDevice, controllable_load, hp_cop
+import pytest
+
+from ems_simulator.config import (
+    EV_ARRIVAL_HOUR,
+    EV_CHARGE_MAX_W,
+    EV_DAILY_KWH_NEEDED,
+    HP_COP_CURVE,
+    STEPS_PER_DAY,
+    STEPS_PER_HOUR,
+    TICK_S,
+)
+from ems_simulator.generators import (
+    DeviceTimer,
+    EVProfile,
+    StandbyDevice,
+    controllable_load,
+    hp_cop,
+)
 from ems_simulator.presence import PRESENCE_AWAY, PRESENCE_HOME
 
 
@@ -126,3 +142,70 @@ def test_standby_device_active_resets_standby_counter(monkeypatch):
     # After active → back to standby; counter starts fresh, should not cut yet
     w, cut = d.tick(10.0, PRESENCE_AWAY)
     assert cut is False   # only 1 standby tick, need 2
+
+
+# ── EVProfile ─────────────────────────────────────────────────────────────────
+
+def _run_sim_day(ev, day_step):
+    """Advance one simulated day exactly the way main()'s loop does.
+
+    main() keeps `day_step = (day_step + 1) % STEPS_PER_DAY`, so the counter it
+    hands to EVProfile.tick() never leaves a single day — which is the whole
+    point of the tests below. Returns (day_step, kWh charged during that day).
+    """
+    tick_kwh = EV_CHARGE_MAX_W * TICK_S * 60.0 / (3600.0 * 1000.0)
+    charged = 0.0
+    for _ in range(STEPS_PER_DAY):
+        day_step = (day_step + 1) % STEPS_PER_DAY
+        plugged, needed = ev.tick(day_step, day_step / STEPS_PER_HOUR, 0)
+        if plugged and needed > 1.0:
+            step = min(tick_kwh, needed)
+            ev.add_energy(step)
+            charged += step
+    return day_step, charged
+
+
+def test_ev_profile_charges_on_every_simulated_day():
+    """The EV has to keep charging after the first simulated day.
+
+    The daily reset used to be derived from `day_step // 288`, which is a
+    constant 0 for the wrapped counter main() passes: it fired once on the first
+    tick and never again, so `energy_delivered_today` kept the first day's total,
+    `energy_still_needed` stuck at 0 and the car was never charged again for the
+    life of the process.
+    """
+    ev = EVProfile()
+    day_step = 0
+    charged = []
+    for _ in range(3):
+        day_step, kwh = _run_sim_day(ev, day_step)
+        charged.append(kwh)
+
+    assert all(k > EV_DAILY_KWH_NEEDED * 0.5 for k in charged), charged
+
+
+def test_ev_profile_resets_today_when_day_step_wraps():
+    """A wrap of the counter (23:55 -> 00:00) is what starts a new day here."""
+    ev = EVProfile()
+    ev.tick(STEPS_PER_DAY - 1, 23.9, 0)
+    ev.add_energy(EV_DAILY_KWH_NEEDED)
+    assert ev.energy_delivered_today == pytest.approx(EV_DAILY_KWH_NEEDED)
+
+    ev.tick(0, 0.0, 0)
+    assert ev.energy_delivered_today == 0.0
+
+
+def test_ev_profile_keeps_restored_energy_through_the_first_tick():
+    """main() restores today's EV energy from InfluxDB before the loop starts.
+
+    The reset must not fire on that first tick, or the restore is discarded and
+    the EV's SoC is drained for a departure that never happened.
+    """
+    ev = EVProfile()
+    ev.restore_energy(6.0)
+    soc_before = ev.ev_soc_pct
+
+    ev.tick(int(EV_ARRIVAL_HOUR * STEPS_PER_HOUR), float(EV_ARRIVAL_HOUR), 0)
+
+    assert ev.energy_delivered_today == pytest.approx(6.0)
+    assert ev.ev_soc_pct == pytest.approx(soc_before)

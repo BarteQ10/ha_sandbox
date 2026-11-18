@@ -13,6 +13,27 @@ MODE_FORCE_DISCHARGE = 2
 FORCE_RATE_W = 5000  # 5 kW charge/discharge
 
 
+def throughput_kwh(delta_soc_pct: float) -> float:
+    """Energy moved through the pack by a SoC change of `delta_soc_pct` percent.
+
+    Always positive: charging and discharging both wear the cells, and soh()
+    wants a cumulative magnitude.
+    """
+    return abs(delta_soc_pct) * BATTERY_KWH / 100.0
+
+
+def equivalent_cycles(kwh_throughput: float) -> float:
+    """Full-cycle equivalents for a cumulative throughput.
+
+    One full cycle is BATTERY_KWH in plus BATTERY_KWH out, so the divisor is
+    2 * BATTERY_KWH. main() used to spell this conversion (and the one above)
+    with a literal 15.0 in three places, which silently disagreed with soh()
+    the moment the configured capacity changed -- so both live here now, next
+    to the only other code that knows the pack size.
+    """
+    return kwh_throughput / (2.0 * BATTERY_KWH)
+
+
 def soh(calendar_days: float, kwh_throughput: float) -> float:
     """State of Health combining calendar and cycle degradation.
 
@@ -30,7 +51,7 @@ def soh(calendar_days: float, kwh_throughput: float) -> float:
     After BATTERY_CYCLE_LIFE full cycles, cycle_fade reaches 0.20 (20%).
     """
     calendar_fade = calendar_days * CALENDAR_AGING_PCT_PER_YEAR / 100.0 / 365.0
-    cycle_fade = (kwh_throughput / (2.0 * BATTERY_KWH)) / BATTERY_CYCLE_LIFE * 0.20
+    cycle_fade = equivalent_cycles(kwh_throughput) / BATTERY_CYCLE_LIFE * 0.20
     return max(0.70, 1.0 - calendar_fade - cycle_fade)
 
 

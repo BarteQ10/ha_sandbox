@@ -77,7 +77,20 @@ _MAX_BACKTEST_DAYS = 90
 def _auth_ok(peer_ip: str, presented: str) -> bool:
     """Authorize a state-changing or expensive request (see _TOKEN above)."""
     if _TOKEN:
-        return hmac.compare_digest(presented, _TOKEN)
+        # Compared as bytes, because compare_digest REFUSES str arguments that
+        # hold any non-ASCII character -- it raises TypeError. Header values
+        # reach us latin-1-decoded (that is what http.client does to them), so
+        # latin-1 recovers the exact bytes the client put on the wire, while
+        # the token from the environment is a real str and encodes as UTF-8 --
+        # which is what a client sends for it. Comparing the two strs meant a
+        # single byte >= 0x80 in the presented token raised out of here, and
+        # the request died with a traceback and a dropped connection instead of
+        # a 401; a HEALTH_TOKEN with a Polish character in it broke every
+        # authenticated request the same way.
+        return hmac.compare_digest(
+            presented.encode("latin-1", "replace"),
+            _TOKEN.encode("utf-8", "surrogateescape"),
+        )
     return peer_ip in _LOOPBACK
 
 
@@ -188,6 +201,14 @@ def _snapshot():
 
 
 class _Handler(BaseHTTPRequestHandler):
+    # A client that connects and then stalls -- never finishing its request
+    # line, or claiming a Content-Length it does not send -- otherwise pins one
+    # ThreadingHTTPServer thread for as long as it keeps the socket open, and
+    # nothing caps the thread count. socketserver puts this on the connection,
+    # so a stalled read raises instead of blocking forever and the handler
+    # closes the connection.
+    timeout = 15
+
     def log_message(self, fmt, *args):  # silence access log
         pass
 
@@ -397,8 +418,14 @@ class _Handler(BaseHTTPRequestHandler):
                 code = 200 if "error" not in result else 503
                 self._send_json(code, result)
             except Exception as e:
+                # The cause stays in the log, exactly like POST /floorplan
+                # below: an InfluxDB or import error carries the server URL and
+                # a filesystem path, and neither belongs in an HTTP response.
+                # `detail` stays in the body because the dashboard shows it
+                # (api/backtest.ts), so it is a fixed string, not the exception.
                 log.warning("[HEALTH] /backtest failed: %s", e)
-                self._send_json(500, {"error": "backtest_failed", "detail": str(e)})
+                self._send_json(500, {"error": "backtest_failed",
+                                      "detail": "see the simulator log for the cause"})
 
         elif path == "/events":
             import ems_simulator.events as events
@@ -495,6 +522,10 @@ class _Server(threading.Thread):
 
     def stop(self):
         self._httpd.shutdown()
+        # shutdown() only ends serve_forever(); the listening socket stays open
+        # without this, so a restart inside one process leaks the descriptor and
+        # can fail to rebind the port.
+        self._httpd.server_close()
 
 
 _server: _Server | None = None

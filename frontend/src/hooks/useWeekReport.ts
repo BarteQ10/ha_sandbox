@@ -20,8 +20,19 @@ export const WEEK_ENTITIES = [
   "sensor.ems_bilans_finansowy_dzis",
 ]
 
+/**
+ * Local calendar date as YYYY-MM-DD.
+ *
+ * Deliberately not `toISOString().slice(0, 10)`: a report row is a *local* day —
+ * that is what its label says, and what the `*_dzis` sensors reset on — and east
+ * of UTC local midnight falls on the previous UTC date. Keying rows by a UTC
+ * date made every row show the day before the one it was labelled with, and the
+ * current day read nothing at all.
+ */
 export function isoDate(d: Date) {
-  return d.toISOString().slice(0, 10)
+  const month = String(d.getMonth() + 1).padStart(2, "0")
+  const day = String(d.getDate()).padStart(2, "0")
+  return `${d.getFullYear()}-${month}-${day}`
 }
 
 export function addDays(d: Date, n: number) {
@@ -37,12 +48,24 @@ export function weekStart(ref: Date): Date {
   return d
 }
 
-/** Last numeric state per calendar date (YYYY-MM-DD) */
-function lastPerDay(series: Array<{ state: string; last_changed: string }>): Map<string, number> {
+/**
+ * Last numeric state per local calendar date, keyed exactly like isoDate().
+ *
+ * Home Assistant stamps `last_changed` in UTC, so the string's own date prefix
+ * is a UTC date and does not line up with the local-day keys the rows are
+ * looked up with — parse it and bucket the reading by the local day it belongs
+ * to. Exported so a test can pin that pairing down.
+ */
+export function lastPerDay(
+  series: Array<{ state: string; last_changed: string }>
+): Map<string, number> {
   const m = new Map<string, number>()
   for (const r of series) {
     const v = parseFloat(r.state)
-    if (!isNaN(v)) m.set(r.last_changed.slice(0, 10), v)
+    if (isNaN(v)) continue
+    const at = new Date(r.last_changed)
+    if (isNaN(at.getTime())) continue
+    m.set(isoDate(at), v)
   }
   return m
 }

@@ -8,6 +8,7 @@ Configure via environment variables:
 Notifications are edge-triggered: send_if_changed() only fires when a condition
 transitions from False to True, so a sustained alert is not spammed every tick.
 """
+import html
 import logging
 import os
 
@@ -145,29 +146,68 @@ def send_if_changed(
     _edge[key] = bool(condition)
 
 
+def _redact(text: object) -> str:
+    """Strip channel secrets out of anything bound for the log.
+
+    requests puts the full request URL into its exception messages, and for
+    Telegram that URL carries the bot token -- while a Slack/Discord webhook URL
+    *is* the credential. Logging a raw connection error therefore wrote the
+    secret into the log on every failure.
+    """
+    s = str(text)
+    for secret in (_TELEGRAM_TOKEN, _WEBHOOK_URL):
+        if secret:
+            s = s.replace(secret, "<redacted>")
+    return s
+
+
+def _report_rejection(channel: str, response) -> None:
+    """Log a 4xx/5xx, which requests does not raise for.
+
+    Without this a rejected alert looked exactly like a delivered one: nothing
+    in the log, `status()` still reporting the channel as configured, and the
+    `[NOTIFY] <SEVERITY>` line already written by send(). The body is worth
+    keeping -- Telegram explains itself there (bad token, unknown chat).
+    """
+    try:
+        detail = _redact(response.text)[:200]
+    except Exception:  # noqa: BLE001 - a body we cannot read must not mask the status
+        detail = "<unreadable body>"
+    log.warning("[NOTIFY] %s rejected the alert (HTTP %s): %s",
+                channel, response.status_code, detail)
+
+
 def _send_webhook(message: str, severity: str) -> None:
     if not _WEBHOOK_URL:
         return
     try:
-        requests.post(
+        r = requests.post(
             _WEBHOOK_URL,
             json={"text": f"[EMS {severity.upper()}] {message}", "severity": severity},
             timeout=_TIMEOUT_S,
         )
+        if not r.ok:
+            _report_rejection("Webhook", r)
     except Exception as e:
-        log.warning("[NOTIFY] Webhook failed: %s", e)
+        log.warning("[NOTIFY] Webhook failed: %s", _redact(e))
 
 
 def _send_telegram(message: str, severity: str) -> None:
     if not _TELEGRAM_TOKEN or not _TELEGRAM_CHAT_ID:
         return
     emoji = _EMOJIS.get(severity, "ℹ️")
-    text = f"{emoji} <b>EMS Alert</b>\n{message}"
+    # parse_mode=HTML means the text has to be escaped: a bare "<" or "&" in an
+    # alert made Telegram answer 400 and the alert vanished without a trace.
+    text = f"{emoji} <b>EMS Alert</b>\n{html.escape(message)}"
     try:
-        requests.post(
+        r = requests.post(
             f"https://api.telegram.org/bot{_TELEGRAM_TOKEN}/sendMessage",
             json={"chat_id": _TELEGRAM_CHAT_ID, "text": text, "parse_mode": "HTML"},
             timeout=_TIMEOUT_S,
         )
+        if not r.ok:
+            # Deliberately not raise_for_status(): its message embeds the
+            # request URL, and that URL contains the bot token.
+            _report_rejection("Telegram", r)
     except Exception as e:
-        log.warning("[NOTIFY] Telegram failed: %s", e)
+        log.warning("[NOTIFY] Telegram failed: %s", _redact(e))

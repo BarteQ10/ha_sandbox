@@ -19,13 +19,33 @@ PERIODS_PER_HOUR = 4
 PERIODS_PER_DAY = 24 * PERIODS_PER_HOUR
 
 _price_cache: list = []
+# The day _price_cache holds. It holds exactly ONE day, and yesterday's values
+# are not None -- so without this check every reader served them as today's and
+# the synthetic fallback never ran. A single failed fetch at midnight (PSE 5xx,
+# or the new business date not published yet) was enough to bill a whole day,
+# and rank every charge window, against the wrong curve.
+_cache_date: datetime.date | None = None
 _last_refresh = -1
 
 
+def _fresh_cache() -> list:
+    """Today's prices, or an empty list once the cached day has rolled over."""
+    return _price_cache if _cache_date == datetime.date.today() else []
+
+
 def fetch():
-    global _price_cache
+    global _cache_date, _price_cache
+    today_d = datetime.date.today()
+    if _cache_date is not None and _cache_date != today_d:
+        # Drop the stale day BEFORE the attempt, so that a fetch which fails
+        # leaves readers with nothing -- and therefore with the synthetic
+        # fallback -- instead of yesterday's curve dressed up as today's.
+        log.info("[PRICES] Date rolled over to %s \u2014 dropping the cache for %s",
+                 today_d, _cache_date)
+        _price_cache = []
+        _cache_date = None
     try:
-        today = datetime.date.today().isoformat()
+        today = today_d.isoformat()
         raw = get_json(
             PSE_URL,
             params={"$filter": f"business_date eq '{today}'"},
@@ -46,6 +66,7 @@ def fetch():
             # discard the spread *within* an hour, which is where a lot of the
             # arbitrage sits — and it is the resolution the market bills at.
             _price_cache = quarters
+            _cache_date = today_d
             valid = [v for v in quarters if v is not None]
             log.info("[PRICES] Fetched RCE for %s — %d/%d quarter-hour periods",
                      today, len(valid), PERIODS_PER_DAY)
@@ -75,9 +96,10 @@ def period_index(hour) -> int:
 
 def get(hour):
     """Price in gr/kWh for the quarter-hour period containing `hour`."""
+    cache = _fresh_cache()
     idx = period_index(hour)
-    if idx < len(_price_cache) and _price_cache[idx] is not None:
-        return _price_cache[idx] / 10.0
+    if idx < len(cache) and cache[idx] is not None:
+        return cache[idx] / 10.0
     return None
 
 
@@ -89,7 +111,7 @@ def hour_average(hour):
     happened to land on.
     """
     h = int(hour) % 24
-    row = _price_cache[h * PERIODS_PER_HOUR:(h + 1) * PERIODS_PER_HOUR]
+    row = _fresh_cache()[h * PERIODS_PER_HOUR:(h + 1) * PERIODS_PER_HOUR]
     valid = [v for v in row if v is not None]
     if not valid:
         return None
@@ -106,7 +128,7 @@ def needs_refresh(hour, day_step):
 
 
 def max_today():
-    valid = [v for v in _price_cache if v is not None]
+    valid = [v for v in _fresh_cache() if v is not None]
     if valid:
         return max(valid) / 10.0
     return max(hi_p for _, _, _, hi_p in PRICE_BANDS)

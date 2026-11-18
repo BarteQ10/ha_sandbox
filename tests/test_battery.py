@@ -1,5 +1,6 @@
 import math
 
+from ems_simulator import battery
 from ems_simulator.battery import (
     FORCE_RATE_W,
     MODE_AUTO,
@@ -7,7 +8,9 @@ from ems_simulator.battery import (
     MODE_FORCE_DISCHARGE,
     clamp,
     delta,
+    equivalent_cycles,
     soh,
+    throughput_kwh,
 )
 from ems_simulator.config import (
     BATTERY_CYCLE_LIFE,
@@ -76,3 +79,29 @@ def test_soh_decreases_with_usage():
     fresh = soh(0.0, 0.0)
     used = soh(100.0, 5000.0)
     assert used < fresh
+
+
+# ── capacity conversions (one owner for the pack size) ───────────────────────
+
+def test_throughput_kwh_ignores_the_direction():
+    # charging and discharging both wear the cells
+    assert throughput_kwh(10.0) == throughput_kwh(-10.0)
+    assert math.isclose(throughput_kwh(10.0), BATTERY_KWH * 0.1)
+
+
+def test_equivalent_cycles_counts_a_full_charge_plus_discharge():
+    assert math.isclose(equivalent_cycles(2.0 * BATTERY_KWH), 1.0)
+    assert equivalent_cycles(0.0) == 0.0
+
+
+def test_capacity_conversions_follow_config(monkeypatch):
+    """Both helpers have to track BATTERY_KWH rather than a literal.
+
+    main() used to spell the pack size as 15.0 in three places, so changing
+    BATTERY_KWH left its throughput and cycle counts disagreeing with soh().
+    Patch the name bound in battery, not in config -- it imported it by value.
+    """
+    monkeypatch.setattr(battery, "BATTERY_KWH", 30.0)
+
+    assert math.isclose(battery.throughput_kwh(100.0), 30.0)   # a full pass of the pack
+    assert math.isclose(battery.equivalent_cycles(60.0), 1.0)  # 30 in + 30 out

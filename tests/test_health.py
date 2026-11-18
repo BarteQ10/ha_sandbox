@@ -268,3 +268,135 @@ def test_the_preflight_allows_the_auth_header_and_is_cacheable(server, monkeypat
         headers = res.headers
     assert "Authorization" in headers.get("Access-Control-Allow-Headers", "")
     assert int(headers.get("Access-Control-Max-Age", "0")) > 0
+
+
+# ── a failure must not hand the client the server's internals ────────────────
+
+def test_a_backtest_failure_does_not_hand_the_client_the_exception(server, monkeypatch):
+    """Same policy as POST /floorplan: an InfluxDB error carries the server URL
+    and a filesystem path, and `detail` used to be str(e) verbatim."""
+    import backtest as backtest_mod
+
+    secret = r"C:\srv\ems\influx token=super-secret"
+
+    def _boom(_days):
+        raise RuntimeError(secret)
+
+    monkeypatch.setattr(health, "_TOKEN", "")
+    monkeypatch.setattr(backtest_mod, "run_backtest", _boom)
+
+    code, body = _call(f"{server}/backtest?days=3")
+
+    assert (code, body["error"]) == (500, "backtest_failed")
+    # `detail` stays in the body because the dashboard renders it, but it is a
+    # fixed string now -- nothing from the exception may cross the wire.
+    assert "super-secret" not in json.dumps(body)
+    assert "influx" not in json.dumps(body)
+
+
+# ── a stalled client must not own a thread for ever ──────────────────────────
+
+def test_the_handler_ships_a_finite_request_timeout():
+    """The test below patches the timeout to keep itself quick, so pin the
+    shipped value too: StreamRequestHandler defaults to None, which means the
+    read blocks for ever and the thread is never given back.
+    """
+    assert isinstance(health._Handler.timeout, int | float)
+    assert 0 < health._Handler.timeout <= 60
+
+
+def test_a_stalled_client_is_disconnected(server, monkeypatch):
+    """Without _Handler.timeout a client that connects and sends an unfinished
+    request pins one ThreadingHTTPServer thread for as long as it stays
+    connected, and nothing caps the thread count."""
+    monkeypatch.setattr(health._Handler, "timeout", 0.3)
+    host, port = urlsplit(server).netloc.split(":")
+
+    with socket.create_connection((host, int(port)), timeout=10) as s:
+        s.sendall(b"GET /health HTTP/1.0\r\n")   # no blank line: never completes
+        s.settimeout(10)
+        try:
+            leftover = s.recv(100)
+        except OSError:
+            leftover = b""                        # reset counts as closed too
+
+    assert leftover == b""     # the server hung up instead of waiting for ever
+
+
+def _free_port() -> int:
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        return int(s.getsockname()[1])
+
+
+def test_stop_closes_the_listening_socket(monkeypatch):
+    """shutdown() only ends serve_forever(). Without server_close() the socket
+    stays open, so a restart inside one process leaks the descriptor."""
+    monkeypatch.setattr(health, "HEALTH_PORT", _free_port())
+
+    health.start()
+    srv = health._server
+    assert srv is not None
+    try:
+        health.stop()
+        assert srv._httpd.socket.fileno() == -1   # closed, not merely unserved
+        assert health._server is None
+    finally:
+        if health._server is not None:            # a failed assert must not leak it
+            health.stop()
+
+
+# ── a non-ASCII token is answered, not crashed on ────────────────────────────
+
+TOKEN_PL = "poufny-token-ąćęłń"
+
+
+def _on_the_wire(token: str) -> str:
+    """The header value a client sends for `token`.
+
+    Clients put UTF-8 bytes on the wire; the server's header parser hands them
+    back latin-1-decoded, which is the str _auth_ok() actually receives.
+    """
+    return token.encode("utf-8").decode("latin-1")
+
+
+def test_a_non_ascii_token_is_rejected_rather_than_raising(monkeypatch):
+    """compare_digest raises TypeError on non-ASCII str arguments.
+
+    So this used to blow up inside the auth check: the request died with a
+    traceback and a dropped connection instead of a 401, which anything that
+    could reach the port could trigger without a credential.
+    """
+    monkeypatch.setattr(health, "_TOKEN", TOKEN)
+    assert health._auth_ok("100.64.0.7", _on_the_wire("tokeń")) is False
+    assert health._auth_ok("100.64.0.7", "\u00ff\u00fe") is False
+
+
+def test_a_non_ascii_token_still_authorises_when_it_matches(monkeypatch):
+    """A HEALTH_TOKEN with a Polish character has to work, not just not crash."""
+    monkeypatch.setattr(health, "_TOKEN", TOKEN_PL)
+    assert health._auth_ok("100.64.0.7", _on_the_wire(TOKEN_PL)) is True
+    assert health._auth_ok("100.64.0.7", _on_the_wire(TOKEN_PL + "x")) is False
+
+
+def test_a_non_ascii_token_header_gets_a_401_over_a_real_socket(server, monkeypatch):
+    """The end of the story: a 401, not a connection reset.
+
+    _call only catches HTTPError, so a dropped connection fails this test
+    instead of passing it.
+    """
+    monkeypatch.setattr(health, "_TOKEN", TOKEN)
+
+    code, body = _call(f"{server}/metrics",
+                       header=("X-EMS-Token", _on_the_wire("tokeń")))
+
+    assert (code, body["error"]) == (401, "unauthorized")
+
+
+def test_a_matching_non_ascii_token_header_is_accepted(server, monkeypatch):
+    monkeypatch.setattr(health, "_TOKEN", TOKEN_PL)
+
+    code, _ = _call(f"{server}/metrics",
+                    header=("X-EMS-Token", _on_the_wire(TOKEN_PL)))
+
+    assert code == 200

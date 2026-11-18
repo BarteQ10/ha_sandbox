@@ -96,22 +96,39 @@ def _simulate(soc0, pv_w, load_w, price_gr, schedule, bat_kwh=BATTERY_KWH, step_
         action = schedule[h]
         price = float(price_gr[h])
 
+        deficit_kwh = (float(load_w[h]) - float(pv_w[h])) / 1000.0 * step_h
+
         if action == MODE_FORCE_CHARGE:
-            # Charge at CHARGE_KW from grid (in addition to PV surplus).
-            # Grid import = load + charge_kw - pv (if positive).
-            bat_in_kwh = CHARGE_KW * step_h * EFFICIENCY
-            delta_soc = bat_in_kwh / bat_kwh * 100.0
-            grid_import_kwh = max(0.0, (float(load_w[h]) / 1000.0 + CHARGE_KW
-                                        - float(pv_w[h]) / 1000.0) * step_h)
-            soc = min(SOC_MAX, soc + delta_soc)
+            # Charge at CHARGE_KW from the grid, on top of any PV surplus --
+            # but only as much as the pack can still take. Billing the full
+            # CHARGE_KW while clamping SoC at SOC_MAX overstated the cost of a
+            # top-up near full, which is the conservative direction, but it is
+            # the same error as the discharge branch below and just as wrong.
+            headroom_kwh = max(0.0, (SOC_MAX - soc) / 100.0 * bat_kwh)
+            bat_in_kwh = min(CHARGE_KW * step_h * EFFICIENCY, headroom_kwh)
+            # What the meter sees: the charge plus its conversion loss.
+            from_grid_kwh = bat_in_kwh / EFFICIENCY
+            grid_import_kwh = max(0.0, deficit_kwh + from_grid_kwh)
+            soc = min(SOC_MAX, soc + bat_in_kwh / bat_kwh * 100.0)
 
         elif action == MODE_FORCE_DISCHARGE:
-            # Discharge at DISCHARGE_KW to offset load / export.
-            bat_out_kwh = DISCHARGE_KW * step_h / EFFICIENCY
-            delta_soc = -bat_out_kwh / bat_kwh * 100.0
-            net_import_w = float(load_w[h]) - float(pv_w[h]) - DISCHARGE_KW * 1000.0
-            grid_import_kwh = max(0.0, net_import_w / 1000.0 * step_h)
-            soc = max(SOC_MIN, soc + delta_soc)
+            # Discharge at DISCHARGE_KW to offset load / export -- capped by
+            # what is actually in the pack above SOC_MIN.
+            #
+            # This used to clamp SoC at SOC_MIN while billing the step as
+            # though the full DISCHARGE_KW had flowed for its whole length, so
+            # a discharge the battery could not sustain came out FREE: at 31%
+            # SoC a one-hour 5 kW discharge needs ~36% of a 15 kWh pack, and
+            # the model charged 0 PLN for the 3.4 kWh that really had to be
+            # imported. solve() accepts a move on the cost it is quoted, so
+            # every `savings` figure that reached InfluxDB and the dashboard
+            # was inflated by exactly that gap.
+            available_kwh = max(0.0, (soc - SOC_MIN) / 100.0 * bat_kwh)
+            bat_out_kwh = min(DISCHARGE_KW * step_h / EFFICIENCY, available_kwh)
+            # What reaches the house: the draw minus its conversion loss.
+            delivered_kwh = bat_out_kwh * EFFICIENCY
+            grid_import_kwh = max(0.0, deficit_kwh - delivered_kwh)
+            soc = max(SOC_MIN, soc - bat_out_kwh / bat_kwh * 100.0)
 
         else:  # MODE_AUTO
             balance_kwh = balance_w / 1000.0 * step_h

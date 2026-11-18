@@ -1,17 +1,24 @@
 import { describe, it, expect } from "vitest"
-import { addDays, isoDate, weekStart, weekTotals, type DayReport } from "@/hooks/useWeekReport"
+import {
+  addDays,
+  isoDate,
+  lastPerDay,
+  weekStart,
+  weekTotals,
+  type DayReport,
+} from "@/hooks/useWeekReport"
 
 describe("addDays", () => {
   it("adds positive days", () => {
-    const d = new Date("2026-05-31T00:00:00Z")
+    const d = new Date(2026, 4, 31)
     expect(isoDate(addDays(d, 1))).toBe("2026-06-01")
   })
   it("subtracts with negative days", () => {
-    const d = new Date("2026-05-31T00:00:00Z")
+    const d = new Date(2026, 4, 31)
     expect(isoDate(addDays(d, -1))).toBe("2026-05-30")
   })
   it("does not mutate the input", () => {
-    const d = new Date("2026-05-31T00:00:00Z")
+    const d = new Date(2026, 4, 31)
     addDays(d, 5)
     expect(isoDate(d)).toBe("2026-05-31")
   })
@@ -53,5 +60,51 @@ describe("weekTotals", () => {
     const t = weekTotals([])
     expect(t.totalPv).toBe(0)
     expect(t.avgSelf).toBe(0)
+  })
+})
+
+describe("isoDate / lastPerDay", () => {
+  // The hook looks a row up by isoDate(local midnight) in a map lastPerDay()
+  // built from Home Assistant's UTC `last_changed` stamps. If the two disagree
+  // on where a day starts, every row silently shows the previous day and the
+  // current one reads nothing — which is what a UTC isoDate() used to do east
+  // of UTC. These cases are timezone-independent: both sides stay local.
+  const localDay = (y: number, m: number, d: number) => new Date(y, m, d)
+  const stampedAt = (y: number, m: number, d: number, h: number) =>
+    new Date(y, m, d, h).toISOString()
+
+  it("formats a local date without shifting it", () => {
+    expect(isoDate(localDay(2026, 0, 1))).toBe("2026-01-01")
+    expect(isoDate(localDay(2026, 10, 16))).toBe("2026-11-16")
+  })
+
+  it("finds a reading stamped late in a local day under that day's key", () => {
+    const map = lastPerDay([{ state: "12.5", last_changed: stampedAt(2026, 10, 16, 23) }])
+    expect(map.get(isoDate(localDay(2026, 10, 16)))).toBe(12.5)
+  })
+
+  it("keeps consecutive local days in separate buckets", () => {
+    const map = lastPerDay([
+      { state: "1", last_changed: stampedAt(2026, 10, 16, 23) },
+      { state: "2", last_changed: stampedAt(2026, 10, 17, 23) },
+    ])
+    expect(map.get(isoDate(localDay(2026, 10, 16)))).toBe(1)
+    expect(map.get(isoDate(localDay(2026, 10, 17)))).toBe(2)
+  })
+
+  it("keeps the last reading of each day", () => {
+    const map = lastPerDay([
+      { state: "1", last_changed: stampedAt(2026, 10, 16, 8) },
+      { state: "9", last_changed: stampedAt(2026, 10, 16, 23) },
+    ])
+    expect(map.get(isoDate(localDay(2026, 10, 16)))).toBe(9)
+  })
+
+  it("skips unparseable states and timestamps", () => {
+    const map = lastPerDay([
+      { state: "unavailable", last_changed: stampedAt(2026, 10, 16, 8) },
+      { state: "3", last_changed: "not-a-date" },
+    ])
+    expect(map.size).toBe(0)
   })
 })

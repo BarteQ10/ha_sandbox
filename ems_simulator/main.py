@@ -13,9 +13,12 @@ from ems_simulator.battery import MODE_AUTO, MODE_FORCE_CHARGE, MODE_FORCE_DISCH
 from ems_simulator.battery import MODE_AUTO as _MODE_AUTO
 from ems_simulator.battery import clamp as batt_clamp
 from ems_simulator.battery import delta as batt_delta
+from ems_simulator.battery import equivalent_cycles as batt_cycles
 from ems_simulator.battery import soh as batt_soh
+from ems_simulator.battery import throughput_kwh as batt_throughput
 from ems_simulator.charge_scheduler import compute_charge_window
 from ems_simulator.config import (
+    EV_CHARGE_MAX_W,
     GRID_BLACKOUT,
     GRID_INSTABILITY,
     MAX_CONSECUTIVE_TICK_ERRORS,
@@ -207,6 +210,22 @@ def main():
     timer_boiler = DeviceTimer()
     timer_hp = DeviceTimer()
     timer_ev = DeviceTimer()
+
+    def _forget_timer(device: str) -> None:
+        """Clear the anti-chatter timer of a device the loop has just shed.
+
+        Both shed paths need this: the device is off now, and a timer that still
+        believes it is running would hold it in the wrong state for the next
+        hour. Only the island path used to do it.
+        """
+        nonlocal timer_boiler, timer_ev, timer_hp
+        if device == "boiler":
+            timer_boiler = DeviceTimer()
+        elif device == "EV":
+            timer_ev = DeviceTimer()
+        elif device == "HP":
+            timer_hp = DeviceTimer()
+
     ev_profile = EVProfile()
     appliances = make_scheduled_appliances()
 
@@ -234,7 +253,7 @@ def main():
     if kwh_tp_from_db is not None:
         _kwh_throughput = float(kwh_tp_from_db)
         log.info("[STATE] Restored battery kWh throughput: %.1f kWh (%.1f eq. cycles)",
-                 _kwh_throughput, _kwh_throughput / (2 * 15.0))
+                 _kwh_throughput, batt_cycles(_kwh_throughput))
 
     # Mark same-day appliances done if their time window has already passed
     for _appl in appliances:
@@ -253,15 +272,22 @@ def main():
     _mpc_action = _MODE_AUTO  # MPC recommended action for current hour
     _prev_media_state = "idle"  # for media-transition event logging
     _tick_errors = 0  # consecutive failed ticks, reset by every clean tick
+    _next_tick = time.monotonic()  # deadline for the next tick (see the sleep below)
 
     try:
         while True:
             try:
                 regs = srv_read()
                 if not regs:
-                    _tick_errors = 0
-                    time.sleep(TICK_S)
-                    continue
+                    # A read that comes back empty is a failed tick, not a quiet
+                    # one. This used to CLEAR the counter, so a data bank that
+                    # stopped answering spun here forever instead of tripping
+                    # MAX_CONSECUTIVE_TICK_ERRORS and letting the supervisor
+                    # restart us from a clean slate -- and an empty read
+                    # interleaved with a raising tick reset the count and hid
+                    # the give-up path as well. Raise instead, and let the one
+                    # place that counts failures below deal with it.
+                    raise RuntimeError("Modbus read returned no registers")
 
                 soc          = regs[1]
                 force        = regs[2]
@@ -331,11 +357,20 @@ def main():
                     ev_eff = 3700
                 elif ev_plugged and ev_needed <= 1.0:
                     ev_eff = 0
-                if ev_eff > 0 and ev_plugged:
-                    tick_energy = ev_eff * TICK_S * 60.0 / (3600.0 * 1000.0)
-                    ev_profile.add_energy(tick_energy)
-                    if ev_needed < tick_energy:
-                        ev_eff = 0
+                # Register 5 is HA-written and unvalidated, while
+                # controllable_load() caps the load the EV may contribute at
+                # EV_CHARGE_MAX_W. Cap the figure itself, or the load, register
+                # 5 and the energy banked below each describe a different
+                # charge rate: a reg-5 write of 65535 put 7400 W into the load
+                # and credited the car 5.5 kWh for the same tick.
+                ev_eff = min(ev_eff, EV_CHARGE_MAX_W)
+                if ev_plugged and ev_eff > 0:
+                    # Never draw more than the car still needs. A 5-minute tick
+                    # at 3.7 kW cannot overshoot, but TICK_S is configurable and
+                    # a longer tick can.
+                    _full_tick_kwh = ev_eff * TICK_S * 60.0 / (3600.0 * 1000.0)
+                    if _full_tick_kwh > ev_needed:
+                        ev_eff = int(ev_needed * (3600.0 * 1000.0) / (TICK_S * 60.0))
 
                 # V2G: EV discharges to house when plugged, V2G mode active, and balance negative
                 v2g_power = 0
@@ -476,25 +511,30 @@ def main():
                 else:
                     notify.send_if_changed("indoor_motion", "", False, severity="warning", category="security")
 
-                load, balance, _prio_shed = self_consumption_shed(
+                boiler_eff, hp_eff, ev_eff, load, balance, _prio_shed = self_consumption_shed(
                     load, balance, soc, grid_status, ev_eff, hp_eff, boiler_eff, pv, v2g_power)
-                if _prio_shed is not None:
-                    log.info(f"[PRIO] Shed {_prio_shed[0]} {_prio_shed[1]}W "
+                for _dev, _w in _prio_shed:
+                    log.info(f"[PRIO] Shed {_dev} {_w}W "
                              f"(SoC={soc:.0f}%, balance={balance:.0f}W)")
+                    _forget_timer(_dev)
 
                 # Island mode: load shed on critical SoC (bypasses timers — emergency)
                 boiler_eff, hp_eff, ev_eff, load, balance, _island_shed = island_shed(
                     boiler_eff, hp_eff, ev_eff, load, balance, soc, grid_status, pv, v2g_power)
                 for _dev, _w in _island_shed:
                     log.info(f"[ISLAND] Shed {_dev} {_w}W (SoC={soc:.0f}%)")
-                    if _dev == "boiler":
-                        timer_boiler = DeviceTimer()
-                    elif _dev == "EV":
-                        timer_ev = DeviceTimer()
-                    elif _dev == "HP":
-                        timer_hp = DeviceTimer()
+                    _forget_timer(_dev)
                 if _island_shed and balance < 0:
                     log.info(f"[ISLAND] After shed: still deficit {balance:.0f}W")
+
+                # The EV banks its energy only once BOTH shed stages have had
+                # their say. Crediting it up front handed the car a tick of
+                # energy whose load was then taken back out of the total, so
+                # energy_delivered_today (and sensor.ems_ev_energy_today) grew
+                # with nothing in the balance, the cost or the battery paying
+                # for it.
+                if ev_plugged and ev_eff > 0:
+                    ev_profile.add_energy(ev_eff * TICK_S * 60.0 / (3600.0 * 1000.0))
 
                 dt_h = TICK_S * 60.0 / 3600.0
                 running_cost_pln += tick_cost_pln(balance, price, p_dist_rate(hour), dt_h, grid_status)
@@ -513,15 +553,17 @@ def main():
                 actual_force = resolve_force(force, _rl_action, _mpc_action,
                                              bool(storm_safe), grid_status)
 
-                _total_sim_days += 1.0 / 288.0
+                _total_sim_days += 1.0 / STEPS_PER_DAY
                 aging_factor = batt_soh(_total_sim_days, _kwh_throughput)
                 batt_delta_val = batt_delta(balance, actual_force, aging_factor)
-                # Accumulate throughput: SoC-% change → kWh (BATTERY_KWH / 100 per %)
-                _kwh_throughput += abs(batt_delta_val) * 15.0 / 100.0
+                # SoC-% change -> kWh. Both this and the eq.-cycle count below
+                # used to spell the pack size as a literal 15.0, which silently
+                # disagreed with batt_soh() as soon as BATTERY_KWH changed.
+                _kwh_throughput += batt_throughput(batt_delta_val)
                 if day_step % (STEPS_PER_HOUR * 5) == 0 and aging_factor < 0.995:
                     log.info("[SOH] Battery SoH: %.1f%%  calendar: %.1fd  cycles: %.1f eq.",
                              aging_factor * 100, _total_sim_days,
-                             _kwh_throughput / (2 * 15.0))
+                             batt_cycles(_kwh_throughput))
                 delta = batt_delta_val
                 new_soc = batt_clamp(soc + delta)
 
@@ -658,7 +700,24 @@ def main():
             else:
                 _tick_errors = 0
 
-            time.sleep(TICK_S)
+            # Sleep to the next deadline, not for a fixed TICK_S. A flat sleep
+            # put the tick's own work on top of every interval -- the hourly
+            # forecast refit and MPC solve, plus the synchronous InfluxDB
+            # writes -- so the real period was TICK_S + work and the simulated
+            # clock fell steadily behind the real one that
+            # forecasting._weather_future_df() and weather.get() index from.
+            # Once they diverge, index 0 of the forecast is no longer the step
+            # being simulated and the PV curve describes a different hour.
+            #
+            # A tick that overran its slot is not slept off at all, and the
+            # deadline restarts from now rather than being made up in a burst
+            # of back-to-back ticks.
+            _next_tick += TICK_S
+            _now = time.monotonic()
+            if _next_tick > _now:
+                time.sleep(_next_tick - _now)
+            else:
+                _next_tick = _now
 
     except KeyboardInterrupt:
         log.info("[EMS] Shutdown requested")

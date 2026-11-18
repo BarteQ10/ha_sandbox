@@ -136,11 +136,21 @@ def test_a_two_tariff_night_rate_is_arbitraged():
 
     charging = [h for h in range(24) if result.schedule[h] == MODE_FORCE_CHARGE]
     assert charging, "nothing scheduled on a tariff built around cheap night energy"
-    # Charges only where the *effective* price — energy plus that hour's
-    # distribution rate — is in the cheap tier. That includes the 13:00-15:00
-    # distribution dip, which the energy price alone cannot see.
+    # The cheap tier is where the energy has to come from. "Cheap" is the
+    # *effective* price — energy plus that hour's distribution rate — so it
+    # also covers the 13:00-15:00 distribution dip, which the energy price
+    # alone cannot see.
     effective = [price[h] + distribution_rate(h) for h in range(24)]
-    assert all(effective[h] <= min(effective) + 40 for h in charging)
+    assert any(effective[h] == min(effective) for h in charging), \
+        "nothing scheduled in the cheap tier"
+    assert result.savings > 0
+    # This used to assert that NO charge hour sat above the cheap tier. It can
+    # now, legitimately: once the pack is nearly full a force-charge costs only
+    # what still fits (_simulate caps it by the headroom), so the step is in
+    # effect "hold, do not discharge into this hour" — a real strategy ahead of
+    # a long peak, and one the cost model prices correctly. The guard that
+    # matters is that the plan is cheaper than doing nothing, which is asserted
+    # above and, for every curve, by test_it_never_returns_a_schedule_worse...
     assert result.savings > 0
 
 
@@ -243,8 +253,18 @@ def test_the_quarterly_plan_holds_up_against_real_prices():
     steps (PASSES_PER_24_STEPS); at three sweeps the quarterly plan was still
     half-built and cost more than the hourly one.
     """
+    # A spike-and-dip hour: 03:00-03:15 is nearly free, the rest of hour 3 is
+    # dear, and the hour's AVERAGE comes out the most expensive of the night —
+    # so an hourly planner avoids the very hour holding the cheapest energy of
+    # the day and settles for flat-60 hour 5 instead.
+    #
+    # The curve used to be a single cheap quarter on an otherwise flat 100.
+    # That does not actually separate the two resolutions: a lone cheap quarter
+    # drags its own hour's average down, so the hourly plan charges that hour
+    # anyway and captures the dip too. Both plans then cost exactly the same.
     quarter_price = [100.0] * 96
-    quarter_price[12] = 1.0                       # 03:00-03:15 only
+    quarter_price[12:16] = [1.0, 200.0, 200.0, 200.0]   # hour 3: avg 150.25
+    quarter_price[20:24] = [60.0] * 4                   # hour 5: flat, looks cheapest
     hourly_price = [sum(quarter_price[h * 4:(h + 1) * 4]) / 4 for h in range(24)]
     pv, load = [0.0] * 96, [3000.0] * 96
 
@@ -270,3 +290,52 @@ def test_the_schedule_always_covers_24_hours():
     result = mpc.solve(50.0, _forecast(load=1000.0, price=[10.0, 90.0] * 12),
                        current_hour=0)
     assert len(result.schedule) == 24
+
+
+# ── the cost model respects the SoC limits it clamps to ──────────────────────
+
+def test_a_discharge_the_battery_cannot_sustain_is_billed_for_the_shortfall():
+    """At 31% SoC a one-hour 5 kW discharge needs ~36% of a 15 kWh pack.
+
+    _simulate used to clamp SoC at SOC_MIN but bill the step as though the full
+    DISCHARGE_KW had flowed for its whole length, so the hour came out FREE.
+    solve() accepts a move on the cost it is quoted, so every `savings` figure
+    that reached InfluxDB and the dashboard was inflated by that shortfall.
+    """
+    traj, cost = mpc._simulate(31.0, [0.0], [5000.0], [100.0],
+                               [MODE_FORCE_DISCHARGE], 15.0, 1.0)
+
+    assert traj[0] == pytest.approx(mpc.SOC_MIN)             # the pack ran dry
+    from_pack = (31.0 - mpc.SOC_MIN) / 100.0 * 15.0          # 1.65 kWh available
+    delivered = from_pack * mpc.EFFICIENCY                   # 1.52 kWh reaches the house
+    shortfall = 5.0 - delivered                              # the rest is imported
+    assert cost == pytest.approx(shortfall * 100.0 / mpc.PRICE_SCALE)
+    assert cost > 0
+
+
+def test_a_discharge_the_battery_can_sustain_is_priced_as_before():
+    """The cap must only bite when it has to: 5 kWh out of a 90% pack is fine."""
+    _, cost = mpc._simulate(90.0, [0.0], [5000.0], [100.0],
+                            [MODE_FORCE_DISCHARGE], 15.0, 1.0)
+    assert cost == pytest.approx(0.0)
+
+
+def test_a_charge_near_full_only_pays_for_the_energy_that_fits():
+    """The mirror image: billing the full CHARGE_KW overstated a top-up.
+
+    At 88% SoC only 0.3 kWh of the pack is left to fill, so that — plus its
+    conversion loss — is what the meter sees, not a full 5 kWh.
+    """
+    _, cost = mpc._simulate(88.0, [0.0], [0.0], [100.0],
+                            [MODE_FORCE_CHARGE], 15.0, 1.0)
+
+    into_pack = (mpc.SOC_MAX - 88.0) / 100.0 * 15.0          # 0.3 kWh
+    off_the_meter = into_pack / mpc.EFFICIENCY               # 0.326 kWh
+    assert cost == pytest.approx(off_the_meter * 100.0 / mpc.PRICE_SCALE)
+
+
+def test_a_charge_with_room_to_spare_is_priced_as_before():
+    """1 kW load + 5 kW charging - 0 PV = 6 kWh for an hour, as it always was."""
+    _, cost = mpc._simulate(50.0, [0.0], [1000.0], [10.0],
+                            [MODE_FORCE_CHARGE], 15.0, 1.0)
+    assert cost == pytest.approx(6.0 * 10.0 / mpc.PRICE_SCALE)

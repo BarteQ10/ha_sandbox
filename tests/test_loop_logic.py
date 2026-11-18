@@ -109,43 +109,91 @@ def test_apply_instability_price_always_inflates():
 
 def test_shed_inactive_when_grid_ok_or_soc_high():
     # No deficit / SoC not low → no shed.
-    load, balance, shed = self_consumption_shed(
+    out = self_consumption_shed(
         2000, 500, soc=50, grid_status=GRID_NORMAL,
         ev_eff=3700, hp_eff=0, boiler_eff=0, pv=2500, v2g_power=0)
-    assert shed is None
-    assert (load, balance) == (2000, 500)
+    boiler, hp, ev, load, balance, shed = out
+    assert shed == []
+    assert (boiler, hp, ev, load, balance) == (0, 0, 3700, 2000, 500)
 
 
 def test_shed_priority_ev_first():
-    load, balance, shed = self_consumption_shed(
+    out = self_consumption_shed(
         5000, -1000, soc=15, grid_status=GRID_NORMAL,
         ev_eff=3700, hp_eff=2, boiler_eff=1, pv=1000, v2g_power=0)
-    assert shed == ("EV", 3700)
+    boiler, hp, ev, load, balance, shed = out
+    assert shed == [("EV", 3700)]
     assert load == 5000 - 3700
     assert balance == compute_balance(1000, 0, 1300)
+    # Only the shed device is switched off; the others keep running.
+    assert (ev, hp, boiler) == (0, 2, 1)
 
 
 def test_shed_hp_when_no_ev():
-    load, balance, shed = self_consumption_shed(
+    out = self_consumption_shed(
         5000, -1000, soc=15, grid_status=GRID_NORMAL,
         ev_eff=0, hp_eff=2, boiler_eff=1, pv=1000, v2g_power=0)
-    assert shed == ("HP", 3000)
+    boiler, hp, ev, load, balance, shed = out
+    assert shed == [("HP", 3000)]
+    assert (hp, boiler) == (0, 1)
 
 
 def test_shed_boiler_last():
-    load, balance, shed = self_consumption_shed(
+    out = self_consumption_shed(
         5000, -1000, soc=15, grid_status=GRID_NORMAL,
         ev_eff=0, hp_eff=0, boiler_eff=1, pv=1000, v2g_power=0)
-    assert shed == ("boiler", 3000)
+    boiler, hp, ev, load, balance, shed = out
+    assert shed == [("boiler", 3000)]
+    assert boiler == 0
 
 
 def test_shed_balance_keeps_v2g():
     # Regression: V2G power must stay in the recomputed balance after shedding.
-    load, balance, shed = self_consumption_shed(
+    out = self_consumption_shed(
         5000, -1000, soc=15, grid_status=GRID_NORMAL,
         ev_eff=0, hp_eff=0, boiler_eff=1, pv=1000, v2g_power=800)
-    assert shed == ("boiler", 3000)
+    boiler, hp, ev, load, balance, shed = out
+    assert shed == [("boiler", 3000)]
     assert balance == compute_balance(1000, 800, 2000)  # 1000 + 800 - 2000 = -200
+
+
+def test_shed_switches_the_device_off_so_the_registers_agree():
+    """The watts leave `load`, so they have to leave the device too.
+
+    This used to return the device untouched: registers 3/4/5, MQTT and
+    InfluxDB kept reporting it at full power while the total load no longer
+    contained it, so the dashboard's own figures stopped adding up — and the
+    caller had nothing to reset the anti-chatter timer from.
+    """
+    out = self_consumption_shed(
+        5000, -1000, soc=15, grid_status=GRID_NORMAL,
+        ev_eff=3700, hp_eff=0, boiler_eff=0, pv=1000, v2g_power=0)
+    boiler, hp, ev, load, balance, shed = out
+
+    assert ev == 0                                  # the register will say "off"
+    assert load == 1300                             # and the load agrees
+    assert [dev for dev, _w in shed] == ["EV"]      # the caller can reset its timer
+
+
+def test_shed_falls_through_an_hp_in_an_unknown_mode():
+    """An HP mode with no power entry contributes 0 W, so the boiler goes."""
+    out = self_consumption_shed(
+        5000, -1000, soc=15, grid_status=GRID_NORMAL,
+        ev_eff=0, hp_eff=9, boiler_eff=1, pv=1000, v2g_power=0)
+    boiler, hp, ev, load, balance, shed = out
+
+    assert shed == [("boiler", 3000)]
+    assert (boiler, hp) == (0, 9)   # the HP is left exactly as it was
+
+
+def test_shed_reports_nothing_when_there_is_nothing_sheddable():
+    out = self_consumption_shed(
+        5000, -1000, soc=15, grid_status=GRID_NORMAL,
+        ev_eff=0, hp_eff=0, boiler_eff=0, pv=1000, v2g_power=0)
+    boiler, hp, ev, load, balance, shed = out
+
+    assert shed == []
+    assert (load, balance) == (5000, -1000)   # untouched
 
 
 # ── island_shed ──────────────────────────────────────────────────────────────
