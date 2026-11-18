@@ -11,12 +11,16 @@ The bridge is driven with a fake client, so these run with no broker and without
 paho-mqtt installed.
 """
 import json
+import os
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 
 import ems_simulator.mqtt_bridge as bridge
+
+ROOT = Path(__file__).resolve().parent.parent
 
 TABLES: list[tuple[str, list]] = [
     ("sensor", bridge._SENSORS),
@@ -236,10 +240,20 @@ def test_controllable_devices_are_subscribed_when_their_group_is_on():
 ])
 def test_the_env_override_selects_groups(value, expected_groups):
     """EMS_SIM_DEVICES is read when config is imported, so this needs a fresh
-    interpreter rather than a monkeypatch."""
+    interpreter rather than a monkeypatch.
+
+    The repo root comes from __file__ and the child inherits this process's
+    environment with EMS_SIM_DEVICES replaced. Both used to be hardcoded -- a
+    cwd of "C:/ha_sandbox" and a hand-built Windows env with SYSTEMROOT -- so
+    this passed on the machine it was written on and raised FileNotFoundError
+    on every CI run. The deploy job is `needs: test`, which made it the reason
+    the gate was red and nothing had deployed.
+    """
     code = "import ems_simulator.config as c; print(len(c.SIM_DEVICES))"
+    env = {**os.environ, "EMS_SIM_DEVICES": value,
+           "PYTHONPATH": str(ROOT), "PYTHONUTF8": "1"}
     out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True,
-                         env={"EMS_SIM_DEVICES": value, "PYTHONPATH": "C:/ha_sandbox",
-                              "PYTHONUTF8": "1", "SYSTEMROOT": "C:/Windows"},
-                         cwd="C:/ha_sandbox", check=True)
+                         env=env, cwd=str(ROOT))
+
+    assert out.returncode == 0, out.stderr
     assert int(out.stdout.strip()) == expected_groups
