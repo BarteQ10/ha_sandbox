@@ -13,3 +13,15 @@ export const HA_BASE: string =
 
 export const SIM_BASE: string =
   import.meta.env.VITE_SIM_URL || (PROXY ? `${ORIGIN}/sim` : "http://localhost:8088")
+
+// Shared secret for the simulator's guarded endpoints (HEALTH_TOKEN on the
+// backend: /assistant, POST /floorplan, /push/*, /backtest, /test-alarm). Like
+// VITE_HA_TOKEN, Vite bundles this into the client JS, so it keeps other devices
+// on the network out — not someone who can already load this app. Leave it empty
+// in local dev, where the simulator accepts loopback requests without a token.
+export const SIM_TOKEN: string = import.meta.env.VITE_SIM_TOKEN || ""
+
+/** Headers for a simulator call: the given ones, plus the bearer token when set. */
+export function simHeaders(extra: Record<string, string> = {}): Record<string, string> {
+  return SIM_TOKEN ? { ...extra, Authorization: `Bearer ${SIM_TOKEN}` } : { ...extra }
+}

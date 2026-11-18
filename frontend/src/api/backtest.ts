@@ -1,7 +1,7 @@
 // Backtest API — talks to the simulator's health/metrics HTTP server (port 8088),
 // a different origin than HA. The server sends CORS headers (Access-Control-Allow-Origin).
 
-import { SIM_BASE } from "./base"
+import { SIM_BASE, simHeaders } from "./base"
 const SIM_URL = SIM_BASE
 
 export interface BacktestStrategy {
@@ -36,7 +36,7 @@ export interface BacktestError {
 export async function runBacktest(days: number): Promise<BacktestResult> {
   const res = await fetch(`${SIM_URL}/backtest?days=${days}`, {
     method: "GET",
-    headers: { Accept: "application/json" },
+    headers: simHeaders({ Accept: "application/json" }),
   })
   const json = await res.json()
   if (!res.ok || "error" in json) {

@@ -1,7 +1,7 @@
 // Web Push subscription flow. Asks the simulator for the VAPID public key,
 // subscribes the browser's push manager, and registers the subscription so the
 // backend (push.py) can deliver notifications even when the app is closed.
-import { SIM_BASE } from "./base"
+import { SIM_BASE, simHeaders } from "./base"
 
 export type PushResult =
   | { ok: true; count?: number }
@@ -45,9 +45,12 @@ export async function subscribePush(): Promise<PushResult> {
     })
     const res = await fetch(`${SIM_BASE}/push/subscribe`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: simHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(sub.toJSON()),
     })
+    // A rejected request (401 from a missing/stale token, 500) used to be
+    // reported to the UI as a successful subscription.
+    if (!res.ok) return { ok: false, reason: "error" }
     const data = await res.json().catch(() => ({}))
     return { ok: true, count: data.count }
   } catch {
@@ -57,7 +60,11 @@ export async function subscribePush(): Promise<PushResult> {
 
 export async function sendTestPush(): Promise<number> {
   try {
-    const res = await fetch(`${SIM_BASE}/push/test`, { method: "POST" })
+    const res = await fetch(`${SIM_BASE}/push/test`, {
+      method: "POST",
+      headers: simHeaders(),
+    })
+    if (!res.ok) return 0
     const data = await res.json()
     return data.sent ?? 0
   } catch {

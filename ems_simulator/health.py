@@ -1,13 +1,24 @@
 """Health & metrics HTTP endpoint (2.4).
 
 Starts a lightweight HTTP server in a daemon thread on HEALTH_PORT (default 8088).
-Two endpoints:
-    GET /health  — {"status": "ok"|"degraded", "uptime_s", "ticks", "influx_ok", ...}
-    GET /metrics — current simulation snapshot (PV, SoC, load, price, battery, MPC, etc.)
-
 The main loop calls update() every tick to push the latest values.
+
+Open, because an unauthenticated caller has to be able to reach them:
+    GET  /health     status/uptime/ticks — the container healthcheck polls it
+    GET  /push/key   VAPID public key (public by design)
+
+Everything else needs HEALTH_TOKEN. The writes change state, spend the owner's
+push/LLM quota or burn CPU; the reads say when the house is occupied
+(presence_mode, motion_*, media_state) — neither belongs to every device on
+the LAN/tailnet:
+    POST /push/subscribe  POST /push/test  POST /assistant  POST /floorplan
+    GET  /metrics  /events  /advisor  /floorplan  /backtest  /test-alarm
+
+So both consumers have to carry the token: the dashboard (VITE_SIM_TOKEN) and
+Home Assistant's REST sensor (configuration.yaml -> X-EMS-Token).
 """
 
+import hmac
 import json
 import logging
 import os
@@ -36,6 +47,48 @@ _CORS_ORIGINS = [
     ).split(",")
     if o.strip()
 ]
+
+# Shared secret guarding the state-changing and expensive endpoints. Set
+# HEALTH_TOKEN and present it as `Authorization: Bearer <token>` (or X-EMS-Token).
+#
+# Left unset, those endpoints answer a loopback peer only. That keeps a plain
+# `python run.py` + Vite dev setup working (the browser reaches 127.0.0.1
+# directly) while refusing anything that arrives through the nginx/tailnet
+# proxy, where the peer is the proxy — the exposure that matters: /test-alarm
+# fires a real smoke/CO/leak alarm, /push/test and /assistant spend the owner's
+# notification and LLM quota, POST /floorplan writes a file, /backtest burns
+# CPU, and /metrics plus /events say whether anyone is home.
+_TOKEN = os.environ.get("HEALTH_TOKEN", "").strip()
+_LOOPBACK = frozenset({"127.0.0.1", "::1", "::ffff:127.0.0.1"})
+
+# The only GETs served without a credential. Everything else — including a path
+# added later — goes through the gate, so the default is deny.
+_OPEN_GET_PATHS = frozenset({"/health", "/push/key"})
+
+# Request bodies here are small JSON documents. Anything larger is refused
+# unread, so a bogus Content-Length cannot make the simulator buffer or persist
+# an arbitrary amount of data.
+_MAX_BODY_BYTES = 64 * 1024
+
+# /backtest replays this many days of history; an unbounded `days` is a free CPU sink.
+_MAX_BACKTEST_DAYS = 90
+
+
+def _auth_ok(peer_ip: str, presented: str) -> bool:
+    """Authorize a state-changing or expensive request (see _TOKEN above)."""
+    if _TOKEN:
+        return hmac.compare_digest(presented, _TOKEN)
+    return peer_ip in _LOOPBACK
+
+
+def _clamp_days(raw, default: int = 7) -> int:
+    """Parse and clamp the /backtest `days` query parameter."""
+    try:
+        days = int(raw)
+    except (TypeError, ValueError):
+        return default
+    return max(1, min(days, _MAX_BACKTEST_DAYS))
+
 
 # Shared state — written by the main loop, read by the HTTP handler.
 _metrics: dict = {}
@@ -171,63 +224,153 @@ class _Handler(BaseHTTPRequestHandler):
         self.send_response(204)
         self._send_cors()
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Allow-Headers",
+                         "Content-Type, Authorization, X-EMS-Token")
+        # /metrics, /events and /advisor are polled and cross-origin in dev, and
+        # the token header makes them non-simple requests. Without this the
+        # browser would re-preflight every single poll.
+        self.send_header("Access-Control-Max-Age", "600")
         self.end_headers()
 
+    # -- auth / body helpers ----------------------------------------------
+
+    def _presented_token(self) -> str:
+        auth = self.headers.get("Authorization", "")
+        if auth[:7].lower() == "bearer ":
+            return auth[7:].strip()
+        return self.headers.get("X-EMS-Token", "")
+
+    def _require_auth(self) -> bool:
+        """True when the request may proceed, else answers 401 and returns False."""
+        if _auth_ok(self.client_address[0], self._presented_token()):
+            return True
+        log.warning("[HEALTH] Refused %s %s from %s",
+                    self.command, self.path, self.client_address[0])
+        data = json.dumps({
+            "error": "unauthorized",
+            "hint": "set HEALTH_TOKEN and send Authorization: Bearer <token>",
+        }, indent=2).encode()
+        self.send_response(401)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("WWW-Authenticate", 'Bearer realm="ems"')
+        self._send_cors()
+        self.end_headers()
+        self.wfile.write(data)
+        return False
+
+    def _read_body(self):
+        """Request body as text, or None after answering 400/413."""
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+        except (TypeError, ValueError):
+            length = -1
+        if length < 0:
+            self._send_json(400, {"error": "bad_content_length"})
+            return None
+        if length > _MAX_BODY_BYTES:
+            self._send_json(413, {"error": "payload_too_large",
+                                  "max_bytes": _MAX_BODY_BYTES})
+            return None
+        if not length:
+            return ""
+        return self.rfile.read(length).decode("utf-8", "replace")
+
+    def _json_body(self):
+        """Parsed JSON body, or None after answering 400/413."""
+        body = self._read_body()
+        if body is None:
+            return None
+        try:
+            return json.loads(body) if body else {}
+        except ValueError:
+            self._send_json(400, {"error": "invalid_json"})
+            return None
+
+    # -- POST --------------------------------------------------------------
+
     def do_POST(self):
+        """Every POST mutates something, so all of them pass the auth gate."""
         path = urlparse(self.path).path.rstrip("/") or "/"
-        if path in ("/push/subscribe", "/push/test"):
-            try:
-                import ems_simulator.push as push
-                length = int(self.headers.get("Content-Length", "0"))
-                body = self.rfile.read(length).decode("utf-8") if length else ""
-                if path == "/push/test":
-                    sent = push.send("EMS", "Test notification ✅", tag="ems-test")
-                    self._send_json(200, {"sent": sent, "enabled": push.enabled()})
-                else:
-                    sub = json.loads(body) if body else {}
-                    count = push.add_subscription(sub)
-                    self._send_json(200, {"ok": True, "count": count})
-            except Exception as e:
-                log.warning("[HEALTH] POST %s failed: %s", path, e)
-                self._send_json(200, {"ok": False})
-            return
-        if path == "/assistant":
-            try:
-                import ems_simulator.assistant_llm as assistant_llm
-                length = int(self.headers.get("Content-Length", "0"))
-                body = self.rfile.read(length).decode("utf-8")
-                text = json.loads(body).get("text", "") if body else ""
-                result = assistant_llm.classify(text)
-                result["enabled"] = assistant_llm.enabled()
-                self._send_json(200, result)
-            except Exception as e:
-                log.warning("[HEALTH] POST /assistant failed: %s", e)
-                self._send_json(200, {"intent": "unknown", "value": None, "enabled": False})
-            return
-        if path == "/floorplan":
-            try:
-                length = int(self.headers.get("Content-Length", "0"))
-                body = self.rfile.read(length).decode("utf-8")
-                data = json.loads(body)
-                if not (isinstance(data, dict) and isinstance(data.get("rooms"), list)
-                        and isinstance(data.get("devices"), list)):
-                    self._send_json(400, {"error": "invalid_layout"})
-                    return
-                os.makedirs(os.path.dirname(_FLOORPLAN_PATH), exist_ok=True)
-                with open(_FLOORPLAN_PATH, "w", encoding="utf-8") as f:
-                    json.dump(data, f)
-                self._send_json(200, {"saved": True})
-            except Exception as e:
-                log.warning("[HEALTH] POST /floorplan failed: %s", e)
-                self._send_json(500, {"error": "save_failed", "detail": str(e)})
-        else:
+        handler = {
+            "/push/subscribe": self._post_push_subscribe,
+            "/push/test": self._post_push_test,
+            "/assistant": self._post_assistant,
+            "/floorplan": self._post_floorplan,
+        }.get(path)
+        if handler is None:
             self._send_json(404, {"error": "not found"})
+            return
+        if not self._require_auth():
+            return
+        handler()
+
+    def _post_push_subscribe(self):
+        import ems_simulator.push as push
+        sub = self._json_body()
+        if sub is None:
+            return
+        if not isinstance(sub, dict) or not sub.get("endpoint"):
+            self._send_json(400, {"error": "invalid_subscription"})
+            return
+        try:
+            count = push.add_subscription(sub)
+        except Exception as e:
+            log.warning("[HEALTH] POST /push/subscribe failed: %s", e)
+            self._send_json(500, {"error": "subscribe_failed"})
+            return
+        self._send_json(200, {"ok": True, "count": count})
+
+    def _post_push_test(self):
+        import ems_simulator.push as push
+        try:
+            sent = push.send("EMS", "Test notification ✅", tag="ems-test")
+        except Exception as e:
+            log.warning("[HEALTH] POST /push/test failed: %s", e)
+            self._send_json(500, {"error": "push_failed"})
+            return
+        self._send_json(200, {"sent": sent, "enabled": push.enabled()})
+
+    def _post_assistant(self):
+        import ems_simulator.assistant_llm as assistant_llm
+        data = self._json_body()
+        if data is None:
+            return
+        text = data.get("text", "") if isinstance(data, dict) else ""
+        try:
+            result = assistant_llm.classify(text)
+        except Exception as e:
+            log.warning("[HEALTH] POST /assistant failed: %s", e)
+            self._send_json(502, {"error": "classify_failed"})
+            return
+        result["enabled"] = assistant_llm.enabled()
+        self._send_json(200, result)
+
+    def _post_floorplan(self):
+        data = self._json_body()
+        if data is None:
+            return
+        if not (isinstance(data, dict) and isinstance(data.get("rooms"), list)
+                and isinstance(data.get("devices"), list)):
+            self._send_json(400, {"error": "invalid_layout"})
+            return
+        try:
+            os.makedirs(os.path.dirname(_FLOORPLAN_PATH), exist_ok=True)
+            with open(_FLOORPLAN_PATH, "w", encoding="utf-8") as f:
+                json.dump(data, f)
+        except Exception as e:
+            # The detail stays in the log: it carries a server filesystem path.
+            log.warning("[HEALTH] POST /floorplan failed: %s", e)
+            self._send_json(500, {"error": "save_failed"})
+            return
+        self._send_json(200, {"saved": True})
 
     def do_GET(self):
         uptime = round(time.monotonic() - _started_at)
         parsed = urlparse(self.path)
         path = parsed.path.rstrip("/") or "/"
+        if path not in _OPEN_GET_PATHS and not self._require_auth():
+            return
         snap = _snapshot()
 
         if path == "/health":
@@ -247,12 +390,7 @@ class _Handler(BaseHTTPRequestHandler):
             self._send_json(200, body)
 
         elif path == "/backtest":
-            days = 7
-            try:
-                q = parse_qs(parsed.query)
-                days = int(q.get("days", ["7"])[0])
-            except (ValueError, TypeError):
-                days = 7
+            days = _clamp_days(parse_qs(parsed.query).get("days", ["7"])[0])
             try:
                 from backtest import run_backtest
                 result = run_backtest(days)
@@ -327,11 +465,15 @@ class _Handler(BaseHTTPRequestHandler):
             self._send_json(200, {"publicKey": push.VAPID_PUBLIC, "enabled": push.enabled()})
 
         else:
-            self._send_json(404, {"error": "not found",
-                                  "paths": ["/health", "/metrics", "/backtest?days=N",
-                                            "/events", "/test-alarm?type=smoke|co|leak",
-                                            "/floorplan (GET/POST)", "/advisor",
-                                            "/assistant (POST)"]})
+            self._send_json(404, {
+                "error": "not found",
+                "open": sorted(_OPEN_GET_PATHS),
+                "token_required": ["/metrics", "/events", "/advisor", "/floorplan",
+                                   "/backtest?days=N",
+                                   "/test-alarm?type=smoke|co|leak",
+                                   "/assistant (POST)", "/floorplan (POST)",
+                                   "/push/subscribe (POST)", "/push/test (POST)"],
+            })
 
 
 class _Server(threading.Thread):
@@ -342,6 +484,13 @@ class _Server(threading.Thread):
 
     def run(self):
         log.info("[HEALTH] Listening on port %d  (GET /health  /metrics  /backtest)", HEALTH_PORT)
+        if _TOKEN:
+            log.info("[HEALTH] Token auth active on every endpoint except "
+                     "/health and /push/key")
+        else:
+            log.warning("[HEALTH] HEALTH_TOKEN not set — every endpoint except /health "
+                        "and /push/key answers loopback requests only, so HA's REST "
+                        "sensor and a proxied dashboard will get 401")
         self._httpd.serve_forever()
 
     def stop(self):

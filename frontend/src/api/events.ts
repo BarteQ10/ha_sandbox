@@ -1,6 +1,6 @@
 // Event log API — talks to the simulator's health server (/events, port 8088).
 
-import { SIM_BASE } from "./base"
+import { SIM_BASE, simHeaders } from "./base"
 const SIM_URL = SIM_BASE
 
 export type EventCategory = "anomaly" | "rule" | "security" | "energy" | "media" | "grid"
@@ -34,7 +34,7 @@ export async function fetchEvents(
 
   const res = await fetch(`${SIM_URL}/events?${params.toString()}`, {
     method: "GET",
-    headers: { Accept: "application/json" },
+    headers: simHeaders({ Accept: "application/json" }),
   })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return res.json() as Promise<EventsResponse>

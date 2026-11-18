@@ -3,7 +3,7 @@ default_config:
 # MQTT integration — autodiscovery from EMS Simulator (mqtt_bridge.py)
 # The Mosquitto broker is defined in docker-compose.yml.
 # In HA UI: Settings → Devices & Services → Add Integration → MQTT
-# Host: mosquitto (docker internal) or 192.168.0.18 (external)
+# Host: mosquitto (inside the compose network) or the host running the broker
 # Port: 1883, no auth needed for local dev
 #
 # mqtt:
@@ -75,7 +75,10 @@ scene: !include scenes.yaml
 modbus:
   - name: wirtualny_inwerter
     type: tcp
-    host: 192.168.0.18
+    # Where the simulator's Modbus server runs. Kept in config/secrets.yaml
+    # (gitignored), so the address stays out of the public repo and moving the
+    # stack to another host is a one-line change. See config/secrets.yaml.example.
+    host: !secret ems_sim_host
     port: 5020
     sensors:
       - name: "Sztuczna Produkcja PV"
@@ -353,9 +356,16 @@ template:
 sensor:
   - platform: rest
     name: "EMS: Metrics snapshot"
-    resource: http://192.168.0.18:8088/metrics
+    # The whole URL, because YAML cannot splice a !secret into a string. Keep its
+    # host in sync with ems_sim_host above.
+    resource: !secret ems_metrics_url
     scan_interval: 15
     timeout: 5
+    # /metrics now needs the simulator's token (HEALTH_TOKEN in the repo-root
+    # .env). Keep the value in config/secrets.yaml, which is gitignored — see
+    # config/secrets.yaml.example. Without it this sensor goes unavailable (401).
+    headers:
+      X-EMS-Token: !secret ems_sim_token
     json_attributes:
       - presence_mode
       - presence_label

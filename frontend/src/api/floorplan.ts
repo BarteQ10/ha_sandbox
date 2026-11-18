@@ -2,7 +2,7 @@
 // Lets the layout follow the user across browsers/devices instead of living only
 // in localStorage.
 import type { PlanLayout } from "@/lib/floorplan"
-import { SIM_BASE } from "./base"
+import { SIM_BASE, simHeaders } from "./base"
 
 const SIM_URL = SIM_BASE
 
@@ -12,7 +12,7 @@ function isLayout(d: unknown): d is PlanLayout {
 
 export async function fetchLayout(): Promise<PlanLayout | null> {
   try {
-    const res = await fetch(`${SIM_URL}/floorplan`)
+    const res = await fetch(`${SIM_URL}/floorplan`, { headers: simHeaders() })
     if (!res.ok) return null
     const data = await res.json()
     return isLayout(data) ? data : null
@@ -25,7 +25,7 @@ export async function saveLayout(layout: PlanLayout): Promise<boolean> {
   try {
     const res = await fetch(`${SIM_URL}/floorplan`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: simHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(layout),
     })
     return res.ok

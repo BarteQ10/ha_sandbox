@@ -17,6 +17,8 @@ import logging
 import os
 import threading
 
+from ems_simulator.config import PUSH_MAX_SUBSCRIPTIONS
+
 log = logging.getLogger(__name__)
 
 VAPID_PUBLIC = os.environ.get("EMS_VAPID_PUBLIC", "")
@@ -54,12 +56,21 @@ def _save() -> None:
 
 
 def add_subscription(sub: dict) -> int:
-    """Register a browser subscription (deduped by endpoint). Returns total count."""
+    """Register a browser subscription (deduped by endpoint). Returns total count.
+
+    Capped at PUSH_MAX_SUBSCRIPTIONS: known endpoints keep working, but a new
+    one past the cap is dropped rather than growing the list — and the file it
+    persists to — without bound.
+    """
     endpoint = sub.get("endpoint") if isinstance(sub, dict) else None
     if not endpoint:
         return len(_subs)
     with _lock:
         if not any(s.get("endpoint") == endpoint for s in _subs):
+            if len(_subs) >= PUSH_MAX_SUBSCRIPTIONS:
+                log.warning("[PUSH] subscription limit reached (%d) — dropping a new one",
+                            PUSH_MAX_SUBSCRIPTIONS)
+                return len(_subs)
             _subs.append(sub)
             _save()
         return len(_subs)
@@ -103,6 +114,7 @@ _load()
 
 if __name__ == "__main__":  # `python -m ems_simulator.push --gen-keys`
     import base64
+
     from cryptography.hazmat.primitives import serialization
     from py_vapid import Vapid01
 
