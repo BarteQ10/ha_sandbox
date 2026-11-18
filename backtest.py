@@ -14,7 +14,6 @@ Usage:
 """
 
 import argparse
-import os
 import sys
 from dataclasses import dataclass, field
 
@@ -22,21 +21,31 @@ import numpy as np
 import pandas as pd
 from influxdb_client import InfluxDBClient
 
-# ── config (env-overridable, matches influx_writer.py) ──────────────────────────
-URL = os.environ.get("INFLUX_URL", "http://localhost:8086")
-TOKEN = os.environ.get("INFLUX_TOKEN", "ems-token")
-ORG = os.environ.get("INFLUX_ORG", "home")
-BUCKET = os.environ.get("INFLUX_BUCKET", "ems")
+from ems_simulator.config import BATTERY_KWH
 
-BATTERY_KWH = 15.0
+# ── config ─────────────────────────────────────────────────────────────────────
+# Imported, not re-declared: the battery size and efficiency used here must be the
+# ones the simulator runs with, or the "savings" this reports describe a different
+# system than the dashboard does.
+from ems_simulator.config import INFLUX_BUCKET as BUCKET
+from ems_simulator.config import INFLUX_ORG as ORG
+from ems_simulator.config import INFLUX_TOKEN as TOKEN
+from ems_simulator.config import INFLUX_URL as URL
+from ems_simulator.config import INVERTER_EFFICIENCY as EFFICIENCY
+
+# Backtest-only strategy parameters (not part of the live simulation).
 CHARGE_KW = 5.0
 DISCHARGE_KW = 5.0
-EFFICIENCY = 0.92
 SOC_INIT = 50.0
 SOC_MAX = 90.0
 SOC_MIN = 20.0
 
-PRICE_SCALE = 100.0 * 1000.0   # gr/kWh → PLN per Wh
+# gr → PLN: the energy multiplied by the price below is in kWh, so
+# kWh * gr/kWh / 100 = PLN. Was 100 * 1000 (the denominator for Wh), which made
+# every cost_pln, savings_pln and savings_year_est here 1000x too small. Ratios
+# (savings_pct) and the ranking of strategies were unaffected, which is why the
+# existing tests — they only check shape and ordering — never caught it.
+PRICE_SCALE = 100.0
 
 # Distribution tariff bands (hour_start, hour_end, gr/kWh)
 DISTRIBUTION_ZONES = [

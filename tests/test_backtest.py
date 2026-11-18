@@ -17,6 +17,20 @@ def _synthetic_df(hours=48):
     return pd.DataFrame(rows)
 
 
+def test_baseline_cost_is_in_zloty_not_in_thousandths():
+    """1 kWh imported at 50 gr/kWh plus the 12 gr night distribution rate is
+    62 gr = 0.62 PLN. PRICE_SCALE used to be the Wh denominator while the energy
+    here is kWh, so every reported cost came out 1000x too small."""
+    one_hour = pd.DataFrame([{
+        "ds": pd.Timestamp("2026-05-24 00:00"), "pv_w": 0, "load_w": 1000,
+        "price_gr": 50, "hour": 0,
+    }])
+
+    result = backtest.strategy_baseline(one_hour)
+
+    assert result.cost_pln == pytest.approx(0.62)
+
+
 def test_run_backtest_no_data(monkeypatch):
     monkeypatch.setattr(backtest, "load_history", lambda days: pd.DataFrame())
     result = backtest.run_backtest(7)
