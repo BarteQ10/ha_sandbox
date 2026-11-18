@@ -32,3 +32,9 @@ python_version = "3.11"
 warn_return_any = true
 warn_unused_ignores = true
 ignore_missing_imports = true
+# Most functions here are unannotated, and without this mypy skips their bodies
+# entirely — it was reporting "no issues" while never looking inside main(),
+# the tick helpers or the tests. With it on, the bodies are checked too (mypy
+# still infers parameter types as Any, so this is not the same as requiring
+# annotations everywhere).
+check_untyped_defs = true

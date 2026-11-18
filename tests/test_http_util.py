@@ -39,3 +39,16 @@ def test_get_json_raises_after_exhausting_retries(monkeypatch):
 
     with pytest.raises(ConnectionError):
         http_util.get_json("http://x", retries=2)
+
+
+def test_get_json_with_no_retries_raises_something_meaningful(monkeypatch):
+    """retries<1 skips the loop entirely. The last exception was seeded with None,
+    so this used to come out as `TypeError: exceptions must derive from
+    BaseException` instead of saying what went wrong."""
+    def never_called(url, params=None, timeout=None):
+        raise AssertionError("requests.get must not be reached")
+
+    monkeypatch.setattr(http_util.requests, "get", never_called)
+
+    with pytest.raises(RuntimeError, match="no attempt made"):
+        http_util.get_json("http://x", retries=0)

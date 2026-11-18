@@ -92,7 +92,7 @@ def test_ids_are_monotonic():
 # ── persistence backends ──────────────────────────────────────────────────────
 
 def test_sink_called_on_record():
-    written = []
+    written: list = []
     events.set_backends(sink=written.append)
     events.record("grid", "critical", "blackout")
     assert len(written) == 1
@@ -130,7 +130,7 @@ def test_seed_advances_id_sequence():
 
 
 def test_seed_does_not_repersist():
-    written = []
+    written: list = []
     events.set_backends(sink=written.append)
     events.seed([{"id": 1, "ts": 1.0, "category": "rule", "severity": "info", "message": "h"}])
     assert written == []  # seeding must not call the sink

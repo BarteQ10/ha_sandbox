@@ -8,7 +8,6 @@ sparse, deterministic fallbacks are returned transparently.
 
 import datetime
 import logging
-import os
 
 import numpy as np
 import pandas as pd
@@ -16,14 +15,15 @@ from influxdb_client import InfluxDBClient
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error
 
+from ems_simulator.config import INFLUX_BUCKET as _BUCKET
+from ems_simulator.config import INFLUX_ORG as _ORG
+from ems_simulator.config import INFLUX_TOKEN as _TOKEN
+from ems_simulator.config import INFLUX_URL as _URL
 from ems_simulator.config import PV_PEAK_KW
+from ems_simulator.loop_logic import step_hours
+from ems_simulator.pricing import PERIODS_PER_HOUR as _PPH
 
 log = logging.getLogger(__name__)
-
-_URL = os.environ.get("INFLUX_URL", "http://localhost:8086")
-_TOKEN = os.environ.get("INFLUX_TOKEN", "ems-token")
-_ORG = os.environ.get("INFLUX_ORG", "home")
-_BUCKET = os.environ.get("INFLUX_BUCKET", "ems")
 
 MIN_TRAIN_ROWS = 24   # minimum hourly points required before fitting
 HISTORY_DAYS = 7      # how many past days of InfluxDB data to train on
@@ -54,6 +54,11 @@ def _query_hourly(sensor, days, field):
         return pd.DataFrame()
     finally:
         client.close()
+
+
+def _per_period(hourly):
+    """Hold each hourly value across the quarter-hour periods it covers."""
+    return [float(v) for v in hourly for _ in range(_PPH)]
 
 
 def _add_time_features(df):
@@ -124,7 +129,8 @@ class _RFModel:
 
     def predict(self, df):
         """Return np.ndarray or None if not ready / missing features."""
-        if not self.ready:
+        # Same condition as `self.ready`, phrased so the check narrows _rf below.
+        if self._rf is None:
             return None
         missing = [f for f in self.features if f not in df.columns]
         if missing:
@@ -236,7 +242,8 @@ class ForecastEngine:
         Falls back to deterministic estimates when the corresponding model is not ready.
         """
         from ems_simulator.generators import base_load
-        from ems_simulator.pricing import fallback_price
+        from ems_simulator.pricing import PERIODS_PER_HOUR, fallback_price
+        from ems_simulator.pricing import get as live_price
 
         future = _weather_future_df()
         feat = _add_time_features(future)
@@ -261,16 +268,34 @@ class ForecastEngine:
             load_arr = np.array([base_load(h, temp) for h in hours], dtype=np.float64)
 
         # Price ──
-        price_arr = self._price.predict(feat)
-        if price_arr is not None:
-            price_arr = np.clip(price_arr, 0, None)
-        else:
-            price_arr = np.array([float(fallback_price(h)) for h in hours], dtype=np.float64)
+        # Emitted per quarter-hour settlement period, because that is the
+        # resolution PSE publishes and the market bills at. Precedence per
+        # period: the real RCE price if we have it, else the fitted model's
+        # value for that hour, else a synthetic band price. Going straight to
+        # fallback_price() used to throw away prices already sitting in memory.
+        model_price = self._price.predict(feat)
+        if model_price is not None:
+            model_price = np.clip(model_price, 0, None)
 
+        prices = []
+        for i, hour in enumerate(hours):
+            for q in range(PERIODS_PER_HOUR):
+                rce = live_price(hour + q / PERIODS_PER_HOUR)
+                if rce is not None:
+                    prices.append(float(rce))
+                elif model_price is not None:
+                    prices.append(float(model_price[i]))
+                else:
+                    prices.append(float(fallback_price(hour)))
+
+        # PV and load come from models fed HOURLY weather, so they are held flat
+        # across their four periods rather than invented at a finer resolution.
+        # All three lists still span the same 24 h; loop_logic.step_hours() is
+        # what turns a sample into energy.
         return {
-            "pv": pv_arr.tolist(),
-            "load": load_arr.tolist(),
-            "price": price_arr.tolist(),
+            "pv": _per_period(pv_arr),
+            "load": _per_period(load_arr),
+            "price": prices,
         }
 
     def summary(self, forecast):
@@ -279,8 +304,10 @@ class ForecastEngine:
         load = forecast.get("load", [])
         price = forecast.get("price", [])
         return {
-            "pv_day_kwh": round(sum(pv) / 1000.0, 1),
-            "load_day_kwh": round(sum(load) / 1000.0, 1),
+            # W per sample -> kWh needs the sample length, or 96 quarter-hour
+            # samples would be reported as four times the energy.
+            "pv_day_kwh": round(sum(pv) * step_hours(pv) / 1000.0, 1),
+            "load_day_kwh": round(sum(load) * step_hours(load) / 1000.0, 1),
             "price_avg": round(float(np.mean(price)), 1) if price else 0.0,
             "price_peak": round(float(np.max(price)), 1) if price else 0.0,
         }

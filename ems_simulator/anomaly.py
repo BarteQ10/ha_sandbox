@@ -44,7 +44,7 @@ class _Window:
     """Fixed-length deque with mean/std helpers."""
 
     def __init__(self, maxlen=WINDOW):
-        self._buf = collections.deque(maxlen=maxlen)
+        self._buf: collections.deque[float] = collections.deque(maxlen=maxlen)
 
     def push(self, val):
         self._buf.append(float(val))

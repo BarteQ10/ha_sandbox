@@ -18,7 +18,9 @@ def get_json(url, params=None, timeout=10, retries=3, backoff=1.0):
     Waits `backoff * 2**(attempt-1)` seconds between attempts. Raises the last
     exception if every attempt fails.
     """
-    last_exc = None
+    # Seeded with a real exception, not None: with retries < 1 the loop body never
+    # runs, and `raise None` would blow up as an unrelated TypeError.
+    last_exc: Exception = RuntimeError(f"GET {url}: no attempt made (retries={retries})")
     for attempt in range(1, retries + 1):
         try:
             r = requests.get(url, params=params, timeout=timeout)

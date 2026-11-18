@@ -24,10 +24,13 @@ def test_set_enabled_toggles():
 
 
 def test_set_enabled_coerces_to_bool():
+    """Deliberately out-of-contract: set_enabled is declared bool, and the point
+    of this test is the defensive bool() inside it, since a Modbus register is an
+    int. Hence the narrow ignores — main.py itself passes a real bool."""
     _reset()
-    notify.set_enabled(0)
+    notify.set_enabled(0)  # type: ignore[arg-type]
     assert notify.is_enabled() is False
-    notify.set_enabled(1)
+    notify.set_enabled(1)  # type: ignore[arg-type]
     assert notify.is_enabled() is True
 
 
