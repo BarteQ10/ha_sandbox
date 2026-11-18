@@ -87,9 +87,10 @@ from ems_simulator.security import MotionSimulator
 from ems_simulator.server import banner as srv_banner
 from ems_simulator.server import read as srv_read
 from ems_simulator.server import set_register as srv_set_register
+from ems_simulator.server import set_register_if_unchanged as srv_set_if_unchanged
 from ems_simulator.server import start as srv_start
 from ems_simulator.server import stop as srv_stop
-from ems_simulator.server import write as srv_write
+from ems_simulator.server import write_registers as srv_write_registers
 from ems_simulator.thermal import ThermalModel
 from ems_simulator.weather import fetch as w_fetch
 from ems_simulator.weather import get as w_get
@@ -592,31 +593,32 @@ def main():
 
                 cost_int = int(round(running_cost_pln * 100))
 
-                srv_write([
-                    int(pv),
-                    int(round(new_soc)),
-                    force,
-                    boiler_eff,
-                    hp_eff,
-                    ev_eff,
-                    int(load),
-                    price,
-                    peak_today,
-                    cost_int,
-                    curtail,
-                    chg_start if chg_start is not None else 24,
-                    int(round(chg_duration * 10)),
-                    int(round(chg_pv_kwh * 10)),
-                    grid_status,
-                    anomaly,
-                    storm_safe,
-                    ev_override,
-                    v2g_mode,
-                    presence_mode,
-                    notify_enabled,
-                    0,  # reg 21 notify_test_trigger — always reset (momentary)
-                    notify_muted,  # reg 22 notify category mute mask (HA-written)
-                ])
+                # Only the registers the simulator owns. The HA-written ones
+                # (2, 10, 14-22) are deliberately absent: echoing them back out
+                # of the snapshot this tick opened with is what lost a write
+                # Home Assistant made while the tick was running. Register 21
+                # is cleared where it is handled, above, for the same reason.
+                srv_write_registers({
+                    0: int(pv),
+                    1: int(round(new_soc)),
+                    6: int(load),
+                    7: price,
+                    8: peak_today,
+                    9: cost_int,
+                    11: chg_start if chg_start is not None else 24,
+                    12: int(round(chg_duration * 10)),
+                    13: int(round(chg_pv_kwh * 10)),
+                })
+                # Shared with HA: it writes the request, the simulator writes
+                # back what the anti-chatter timers and the two shed stages
+                # allowed -- unless HA has changed the request since this tick
+                # read it, in which case the newer request stands.
+                for _addr, _asked, _effective in ((3, boiler, boiler_eff),
+                                                  (4, hp, hp_eff),
+                                                  (5, ev, ev_eff)):
+                    if not srv_set_if_unchanged(_addr, _asked, _effective):
+                        log.info("[MODBUS] Reg %d changed during the tick — "
+                                 "leaving the newer request in place", _addr)
 
                 inf_write(pv, round(new_soc), load, price, balance, current_temp, cloud, ghi,
                           peak_today, round(running_cost_pln, 2), curtail,

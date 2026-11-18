@@ -14,8 +14,57 @@ def stop():
 def read():
     return server.data_bank.get_holding_registers(0, NUM_REGISTERS)
 
-def write(registers):
-    server.data_bank.set_holding_registers(0, registers)
+
+# The registers the simulator owns outright. Home Assistant owns 2, 10 and
+# 14-22, and the simulator must never write those back.
+#
+# It used to: a tick read the whole block at the top and wrote all
+# NUM_REGISTERS at the bottom, echoing the HA-written ones straight out of the
+# snapshot. A tick is not short -- its hourly branch refits the forecast,
+# solves the MPC and writes to InfluxDB synchronously -- so an HA write that
+# landed in between was overwritten with the value read before it, the switch
+# visibly snapped back in the dashboard and the command was lost. Register 21
+# (the momentary notify trigger) was reset by that block write too, which threw
+# away a test-notification request made during the tick; it is now cleared only
+# where it is handled.
+#
+# Registers 3-5 are shared rather than owned: HA writes the request, the
+# simulator writes back what the anti-chatter timers and the shed stages
+# actually allowed. Those go through set_register_if_unchanged() below.
+OUTPUT_REGISTERS = (0, 1, 6, 7, 8, 9, 11, 12, 13)
+SHARED_REGISTERS = (3, 4, 5)
+
+
+def write_registers(values):
+    """Write a ``{address: value}`` mapping.
+
+    Only the addresses given are touched, which is the promise a block write of
+    NUM_REGISTERS could not make.
+    """
+    for addr, value in values.items():
+        server.data_bank.set_holding_registers(int(addr), [int(value)])
+
+
+def set_register_if_unchanged(addr, expected, value) -> bool:
+    """Write `value` to `addr`, but only while it still reads `expected`.
+
+    For the shared registers above, this keeps a mid-tick write from Home
+    Assistant: the effective value the simulator computed describes the request
+    it read at the top of the tick, so writing it over a newer request would
+    discard that request. Returns True when the value was written, False when
+    something else got there first and its value is left for the next tick to
+    act on.
+
+    This narrows the window from the whole tick down to the gap between the two
+    calls below. pyModbusTCP's data bank has no compare-and-set, so it cannot
+    be closed completely.
+    """
+    current = server.data_bank.get_holding_registers(addr, 1)
+    if current and current[0] != int(expected):
+        return False
+    server.data_bank.set_holding_registers(addr, [int(value)])
+    return True
+
 
 def set_register(addr, value):
     """Overwrite a single holding register without touching others."""

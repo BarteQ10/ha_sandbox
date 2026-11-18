@@ -43,6 +43,15 @@ loop that ties every subsystem together. New per-tick behaviour usually plugs in
   writes, RW = HA writes. Reg map in `server.py` banner + README. Latest additions:
   18 = V2G, 19 = Presence, 20 = Notifications enabled, 21 = Notify test trigger,
   22 = Notify category mute mask.
+- **Never block-write the register file.** `main()` reads all 23 at the top of a
+  tick, so writing them all back at the bottom silently discards anything HA
+  wrote in between — and a tick is not short (hourly forecast refit, MPC solve,
+  synchronous InfluxDB writes). Ownership, declared in `server.py`:
+  `OUTPUT_REGISTERS` (0, 1, 6-9, 11-13) the simulator writes freely via
+  `write_registers()`; `SHARED_REGISTERS` (3, 4, 5) carry HA's request and the
+  simulator's *effective* value, so they go through `set_register_if_unchanged()`;
+  everything else (2, 10, 14-22) belongs to HA and the simulator only reads it.
+  Register 21 is momentary — cleared with `set_register()` where it is handled.
 - **Auxiliary MQTT virtual devices** (`home_devices.py`): a separate class of
   "props" (sensors, contacts, air-quality, doorbell, gate/garage, lock, TRV,
   vacuum, irrigation, fan) published via MQTT autodiscovery (`mqtt_bridge.py`),
