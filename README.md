@@ -38,7 +38,10 @@ pip install -r requirements.txt
 python run.py
 ```
 
-HA connects to `192.168.0.18:5020` (Modbus TCP).
+HA reaches the simulator's Modbus TCP server on port 5020. The address is not hardcoded —
+it lives in `config/secrets.yaml` as `ems_sim_host` (gitignored): `ems-simulator` when both
+run in docker compose, `host.docker.internal` when HA is containerised and the simulator
+runs on the host, or a LAN address/hostname otherwise. See `config/secrets.yaml.example`.
 
 ## Docker (full stack)
 
@@ -72,11 +75,19 @@ The `ems-simulator` service builds from the local `Dockerfile` and reaches Influ
 | `MQTT_PORT` | `1883` | MQTT broker port |
 | `MQTT_USER` / `MQTT_PASS` | *(empty)* | MQTT auth (optional) |
 | `HEALTH_PORT` | `8088` | Health/metrics HTTP port |
+| `HEALTH_TOKEN` | *(empty)* | Shared token for the HTTP API. Required by every endpoint except `/health` (container probe) and `/push/key` (public VAPID key) — the writes, `/backtest`, and the reads that expose occupancy (`/metrics`, `/events`, `/advisor`). Empty = they answer loopback only, so a proxied dashboard and HA's REST sensor get 401. Sent as `Authorization: Bearer <token>` or `X-EMS-Token`. The same value belongs in `frontend/.env` (`VITE_SIM_TOKEN`) and `config/secrets.yaml` (`ems_sim_token`). |
+| `HEALTH_CORS_ORIGINS` | `http://localhost:5173,http://127.0.0.1:5173` | Comma-separated CORS allow-list for the HTTP API. Only needed in local dev, where the dashboard is cross-origin; behind the nginx proxy it is same-origin. `*` restores the old open behaviour. |
+| `EMS_SIM_DEVICES` | *(all)* | Which **simulated** devices to publish to HA. Comma-separated entries, each a group (`energy`, `house`, `security`, `air`, `meters`, `appliances`), a single device id (`smoke`), or either prefixed with `-` to drop it. Removals apply last, and a list of only removals starts from everything: `-window_living,-door_entrance` keeps all the fakes except those two, `security,-smoke` is that group without the smoke detector, `none` retires the lot. Whatever is off is **actively removed** from Home Assistant (empty retained payload on its discovery topic) rather than left behind as an unavailable ghost — so retire a dummy the day real hardware replaces it. |
 | `EMS_RL_ENABLED` | `0` | `1` enables the Q-learning control agent (`rl/`) |
 | `EMS_WEBHOOK_URL` | *(empty)* | Generic webhook for alerts (POST JSON) |
 | `EMS_TELEGRAM_TOKEN` / `EMS_TELEGRAM_CHAT_ID` | *(empty)* | Telegram bot notifications |
 | `EMS_LLM_URL` | *(empty)* | Local LLM endpoint for the NL assistant, incl. `/v1` (e.g. `http://localhost:1234/v1` for LM Studio, `http://localhost:11434/v1` for Ollama). Empty = assistant uses the offline rule parser only. |
 | `EMS_LLM_MODEL` | `bielik-11b-v3.0-instruct` | Model id served by the local LLM |
+| `EMS_LLM_TIMEOUT` | `20` | Seconds to wait for the local LLM before falling back to the rule parser |
+| `EMS_VAPID_PUBLIC` / `EMS_VAPID_PRIVATE` | *(empty)* | Web Push keypair — both empty disables push. Generate with `python -m ems_simulator.push --gen-keys` |
+| `EMS_VAPID_SUBJECT` | `mailto:admin@example.com` | VAPID contact handed to the push service |
+| `PUSH_SUBS_PATH` | `/data/push_subs.json` | Where browser push subscriptions persist (mount it to survive container rebuilds) |
+| `FLOORPLAN_PATH` | `/data/floorplan.json` | Where the floor-plan layout persists, so it follows the user across browsers |
 
 ### Graceful shutdown
 
@@ -172,8 +183,8 @@ ems_simulator/
 ├── battery.py             # SoC delta from power balance + State-of-Health (SoH)
 ├── thermal.py             # RC house thermal model (temperature dynamics)
 ├── charge_scheduler.py    # Dynamic charge window (PV forecast + price bands)
-├── forecasting.py         # RandomForest PV/load/price 24h forecasting
-├── mpc_scheduler.py       # Model-Predictive-Control battery optimizer
+├── forecasting.py         # RandomForest PV/load/price, 24h over 96 quarter-hour periods
+├── mpc_scheduler.py       # Model-Predictive-Control battery optimizer (resolution-agnostic)
 ├── anomaly.py             # Z-score anomaly detection on telemetry
 ├── presence.py            # Presence zones: home/away/vacation load profiles
 ├── lighting.py            # Circadian lighting model (brightness + colour temp)
@@ -228,7 +239,7 @@ simulator → webhook/Telegram (edge-triggered alerts: blackout, motion, rules)
 | 5 | 40006 | RW | EV Charging Limit | 0-7400 W |
 | 6 | 40007 | R | Total House Load | W (base + all devices + spikes) |
 | 7 | 40008 | R | Energy Price | 15-80 gr/kWh (TGE simulation) |
-| 8 | 40009 | R | Peak Price Today | gr/kWh (PSE 24h forecast peak) |
+| 8 | 40009 | R | Peak Price Today | gr/kWh — peak **quarter-hour** period of today's PSE curve, so higher than an hourly average would report |
 | 9 | 40010 | R | Running Cost Today | grosze (cumulative financial balance) |
 | 10 | 40011 | RW | PV Curtailment | 0=Auto, 1=Zero-Export (curtail) |
 | 11 | 40012 | R | Charge Window Start | hour (0-23, 24=no charge needed) |
@@ -254,10 +265,39 @@ simulator → webhook/Telegram (edge-triggered alerts: blackout, motion, rules)
 - **Cloud cover**: Stored in InfluxDB as `sensor.cloud_cover` (0-100%) for ML feature engineering
 - **House**: daily profile + **temperature-dependent load** (heating when <18C, cooling when >26C)
 - **Spikes**: random 2-7kW events (kettle, oven, induction) every ~2-8 min
-- **Prices**: **real RCE from PSE API** (`api.raporty.pse.pl`) — 15-min aggregated to hourly; shows duck curve (near-zero at solar noon, peak evening)
+- **Prices**: **real RCE from PSE API** (`api.raporty.pse.pl`) — kept at the **96 quarter-hour settlement periods** the API publishes and the market bills at, not averaged into 24 hourly values. Averaging hid a lot: on a measured day the spread *within* a single hour averaged 12 gr/kWh and reached 40 gr/kWh (16:00 ran 130.0 · 94.4 · 92.4 · 89.8), i.e. up to 43% of the whole day's spread. Shows the duck curve (near-zero at solar noon, peak evening)
 - **Distribution fees**: on import (`balance < 0`), distribution cost added to PSE price: peak hours (6-13, 15-22) +28 gr/kWh, off-peak +12 gr/kWh. Export uses PSE price only (no distribution paid by operator).
 - **Battery**: 15kWh LiFePO4, smooth SoC delta from real-time power balance
 - **Calendar aging**: 2% capacity loss per year — effective capacity decreases over simulated time
+
+### Time resolution (and the one rule that comes with it)
+
+Three grids coexist here, deliberately:
+
+| what | resolution | why |
+|---|---|---|
+| simulation tick | 5 simulated min (`TICK_S=5`, 60×) | smooth power curves |
+| RCE price | **15 min** — 96 periods/day | what PSE publishes and the market settles on |
+| weather (GHI / temp / cloud) | 1 hour | what Open-Meteo serves |
+
+`ForecastEngine.predict_next_24h()` therefore returns **96 samples**: the price is
+real per period, while PV and load are *held flat* across their four periods —
+the models behind them are fed hourly weather, so a finer figure would be invented
+rather than measured.
+
+**The rule:** a forecast array spans one day, so one sample covers
+`loop_logic.step_hours(samples)` hours — `1.0` at 24 samples, `0.25` at 96. Every
+conversion from power (W) to energy (kWh) has to scale by it. Skipping it does not
+crash, it silently multiplies by four: `sum(pv) / 1000` reads 96 kWh where 24 kWh
+actually flowed. `mpc_scheduler` derives its step this way and runs at either
+resolution, and the test suite pins the invariant that **the same price curve costs
+the same at both** (bar SoC-discretisation noise under 0.1%) — which is what
+catches a forgotten conversion.
+
+One consequence worth knowing: the greedy MPC search needs sweeps proportional to
+the step count (`PASSES_PER_24_STEPS`), because a quarter-hour move shifts a quarter
+of the energy an hourly move does. At three sweeps a 96-step plan was still
+half-built and came out costing *more* than the hourly plan.
 
 ## HA Entities
 
@@ -320,7 +360,7 @@ Without these sync automations, changing HA entities has no effect on the simula
 2. **Peak Shaving** — cuts boiler/HP/EV when grid draw exceeds configurable limit
 3. **Smart EV Charging** — matches charge power to PV surplus when battery > 80%
 4. **HP Boost** — stores excess PV as heat when battery is full
-5. **Charge Scheduler** (`charge_scheduler.py`) — every simulated hour, computes tomorrow's PV energy from Open-Meteo forecast, calculates energy needed for target SoC, finds cheapest consecutive night hours for charging; exposes window via reg 11-13
+5. **Charge Scheduler** (`charge_scheduler.py`) — every simulated hour, computes tomorrow's PV energy from Open-Meteo forecast, calculates energy needed for target SoC, finds the cheapest consecutive night hours for charging; exposes window via reg 11-13. Windows stay **whole hours** (reg 11-13 is an hour), but each hour is weighed on the mean of its four quarter-hour periods plus that hour's distribution rate — so 06:00-08:00 no longer looks as cheap as the small hours when it is in fact on the peak tariff
 6. **Bojler Sync** — synchronizes input_boolean → Modbus reg 3
 7. **HP Sync** — synchronizes input_select → Modbus reg 4 (0/1/2)
 8. **EV Sync** — synchronizes input_number → Modbus reg 5
@@ -432,8 +472,11 @@ Every tick (`TICK_S=5s`, 60× speed → 5 simulated min), the simulator computes
 dt_h = 5 * 60 / 3600 = 1/12 h       # simulated hours per tick
 effective_price = price + distribution_rate(hour)  if importing (balance < 0)
 effective_price = price                              if exporting (balance > 0)
-cost_chwilowy = -balance * effective_price / (100 * 1000 * dt_h)   # PLN
+cost_chwilowy = -balance * effective_price * dt_h / (100 * 1000)   # PLN
 ```
+`balance` is in **W** and `dt_h` in **hours**, so `balance * dt_h` is Wh and the
+denominator converts gr/Wh to PLN. (This line used to divide by `dt_h` instead of
+multiplying — dimensionally impossible, and the opposite of what the code does.)
 - `balance < 0` (grid import) → positive cost (spending)
 - `balance > 0` (grid export) → negative cost (revenue)
 - Written to InfluxDB as `sensor.ems_koszt_chwilowy_pln`

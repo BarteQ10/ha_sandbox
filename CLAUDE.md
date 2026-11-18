@@ -47,12 +47,19 @@ loop that ties every subsystem together. New per-tick behaviour usually plugs in
   "props" (sensors, contacts, air-quality, doorbell, gate/garage, lock, TRV,
   vacuum, irrigation, fan) published via MQTT autodiscovery (`mqtt_bridge.py`),
   **not** through Modbus. Controllable ones route commands to a `command_fn`
-  callback in `main.py`, not to a register. Add new ones here, not as registers.
+  callback in `main.py`, not to a register. Add new ones here, not as registers —
+  and add the new `object_id` to `mqtt_bridge._GROUPS`, or it is never published
+  (`tests/test_mqtt_bridge.py` fails if an entity is in no group, or in two).
+  Groups are switched per deployment with `EMS_SIM_DEVICES`, which also *removes*
+  disabled entities from HA by publishing an empty retained discovery payload.
 - **HA ↔ Modbus sync**: changing an HA `input_*` entity does nothing until an
   automation in `automations.yaml` writes the value to the matching register.
   When you add a control entity, add its sync automation too.
 - **Timing**: `TICK_S=5` real seconds = 5 simulated minutes (60× speed).
-  `STEPS_PER_HOUR=12`, `STEPS_PER_DAY=288`.
+  `STEPS_PER_HOUR=12`, `STEPS_PER_DAY=288`. Three resolutions coexist on purpose:
+  the tick is 5 simulated minutes, RCE prices are **96 quarter-hour periods**
+  (`pricing.PERIODS_PER_DAY` — what PSE publishes and the market settles on), and
+  the weather is hourly. See the README's *Time resolution* section.
 - **Telemetry**: every subsystem writes to InfluxDB via `influx_writer.py`
   (`sensor.ems_*` measurements). The React app reads via HA, not InfluxDB directly.
 - **Config is the single source of truth** — constants live in `config.py` and are
@@ -105,6 +112,19 @@ fixtures in `frontend/src/api/haMock.ts`.
 
 - **Ruff config** is in `pyproject.toml` (line-length 100, py311). Import ordering
   (I001) is enforced — run `ruff check --fix` before committing Python.
+- **Forecast arrays: scale by `step_hours()`, and index 0 is *now***. Two traps
+  that both fail silently, in `predict_next_24h()` output and anything derived
+  from it:
+  1. The array spans one day, so one sample is `loop_logic.step_hours(samples)`
+     hours — `1.0` at 24 samples, `0.25` at 96. **Every** W→kWh conversion must
+     multiply by it. Forgetting it does not crash, it multiplies by four:
+     `sum(pv) / 1000` reads 96 kWh where 24 kWh flowed. This already bit
+     `summary()`, `charge_scheduler` and `mpc_scheduler._simulate`.
+  2. Index `i` is `i` samples **from now**, not hour-of-day — the window starts
+     at the current hour. Indexing by hour-of-day reads a curve rotated by the
+     current hour, and is correct only at midnight, which is why it survived.
+  New consumer? Add a test asserting the same curve gives the same physical
+  answer at 24 and at 96 samples; that invariant is what catches both.
 - **monkeypatch the bound name**: module-level constants imported with
   `from config import X` must be patched on the *consuming* module
   (e.g. `monkeypatch.setattr(generators, "STANDBY_CUT_AFTER_TICKS", 1)`),

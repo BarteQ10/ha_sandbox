@@ -1,7 +1,24 @@
 services:
   homeassistant:
     container_name: homeassistant_dev
-    image: "ghcr.io/home-assistant/home-assistant:stable"
+    # Pinned on purpose. This was ":stable", which on a hand-written
+    # configuration.yaml means one `docker compose pull` can cross several
+    # releases — and their breaking changes — in a single step, unannounced.
+    # 2026.5.3 is what config/.HA_VERSION says last ran here, so the file now
+    # describes what is actually deployed.
+    #
+    # Upgrading is a deliberate bump of this tag (2026.11.1 is current, six
+    # releases ahead). Before you do:
+    #   - back up config/ (README "Backup & migration")
+    #   - read the notes for 2026.6 .. 2026.11; 2026.6 removed legacy
+    #     `platform: template`, which this config happens not to use
+    # And after: Developer Tools > YAML > Check Configuration; then
+    # Settings > System > Network, because the `http:` block below is deprecated
+    # since 2026.8 and gets imported there — confirm trusted_proxies and
+    # cors_allowed_origins survived, since the tailnet and the React dashboard
+    # both depend on them. Finally confirm sensor.ems_metrics_snapshot still
+    # exposes its attributes; 14 template entities read them.
+    image: "ghcr.io/home-assistant/home-assistant:2026.5.3"
     volumes:
       - ./config:/config
       - /etc/localtime:/etc/localtime:ro
@@ -59,6 +76,9 @@ services:
       LOG_LEVEL: INFO
       MQTT_HOST: mosquitto    # MQTT bridge (set empty to disable)
       MQTT_PORT: "1883"
+      # Which simulated device groups to publish to HA (empty = all, "none" =
+      # retire them all and remove them from HA). See .env.example.
+      EMS_SIM_DEVICES: "${EMS_SIM_DEVICES:-}"
       # EMS_RL_ENABLED: "1"       # enable Q-learning agent
       # Secrets come from the gitignored .env file (see .env.example).
       EMS_WEBHOOK_URL: "${EMS_WEBHOOK_URL:-}"          # generic webhook for alerts
@@ -73,6 +93,11 @@ services:
       EMS_VAPID_PRIVATE: "${EMS_VAPID_PRIVATE:-}"
       EMS_VAPID_SUBJECT: "${EMS_VAPID_SUBJECT:-mailto:admin@example.com}"
       PUSH_SUBS_PATH: /data/push_subs.json
+      # HTTP API auth for /assistant, POST /floorplan, /push/*, /backtest and
+      # /test-alarm. Empty = they answer localhost only, so they are unreachable
+      # through the nginx proxy until HEALTH_TOKEN is set in .env (the dashboard
+      # sends the same value as VITE_SIM_TOKEN).
+      HEALTH_TOKEN: "${HEALTH_TOKEN:-}"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped
@@ -104,7 +129,17 @@ services:
   # the Zigbee network key and the device database there.
   zigbee2mqtt:
     container_name: ems_zigbee2mqtt
-    image: koenkk/zigbee2mqtt:latest
+    # Pinned to the version this repo last ran (read from the local image's
+    # org.opencontainers.image.version label, built 2026-06-09). This was
+    # ":latest", which is riskier here than anywhere else in this file: the
+    # data/ volume holds the Zigbee network key and the device database, so an
+    # unattended jump into a release with a config migration can cost you a walk
+    # round the house re-pairing sensors.
+    #
+    # 2.14.x is current. Before bumping, check the release notes AND the issue
+    # tracker — 2.13.0 and 2.14.0 were both flagged as risky upgrades and 2.14.3
+    # had an open coordinator startup regression, which matters with a CC2652P.
+    image: koenkk/zigbee2mqtt:2.12.0
     profiles: ["zigbee"]
     restart: unless-stopped
     volumes:
@@ -131,7 +166,15 @@ services:
   # /dev/net/tun + NET_ADMIN, which is finicky under Docker Desktop).
   tailscale:
     container_name: ems_tailscale
-    image: tailscale/tailscale:latest
+    # Pinned to what :latest and :stable both pointed at when this was written
+    # (verified by digest against the registry's tag list).
+    #
+    # Worth knowing: unlike the two above, this one is a VPN client, so holding
+    # it back also holds back security fixes, and Tailscale drops support for
+    # very old clients over time. If you would rather keep patch updates while
+    # still not jumping minor versions unattended, use the minor track instead:
+    #   image: tailscale/tailscale:v1.104
+    image: tailscale/tailscale:v1.104.7
     hostname: ems                       # → ems.<your-tailnet>.ts.net
     profiles: ["tailscale"]
     cap_add:
