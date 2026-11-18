@@ -19,6 +19,8 @@ import logging
 import os
 import threading
 
+from ems_simulator.config import SIM_DEVICES
+
 log = logging.getLogger(__name__)
 
 try:
@@ -128,6 +130,73 @@ _VACUUMS = [
 ]
 
 
+# ── which of the above are still wanted ──────────────────────────────────────
+# Every object_id in the tables above belongs to exactly one group here
+# (tests/test_mqtt_bridge.py fails if one is missing or listed twice). Groups are
+# switched on and off through config.SIM_DEVICES / EMS_SIM_DEVICES, so a virtual
+# device can be retired the day a real one replaces it.
+_GROUPS: dict[str, set[str]] = {
+    "energy": {
+        "pv_w", "soc_pct", "load_w", "price_gr", "balance_w", "standby_load_w",
+        "mpc_action", "v2g_mode",
+    },
+    "house": {
+        "t_house", "presence_label", "presence_mode", "media_state",
+        "light_brightness", "light_color_temp_k", "trv_living",
+    },
+    "security": {
+        "motion_outdoor", "motion_indoor", "window_living", "door_entrance",
+        "leak_kitchen", "smoke", "co", "doorbell", "lock_entrance",
+    },
+    "air": {"humidity_pct", "co2_ppm", "pm25", "voc_index", "air_quality"},
+    "meters": {"water_m3", "gas_m3"},
+    "appliances": {"gate", "garage", "irrigation", "fan_living", "vacuum",
+                   "vacuum_battery"},
+}
+
+
+_KNOWN_IDS = {obj_id for ids in _GROUPS.values() for obj_id in ids}
+
+
+def enabled_ids() -> set[str]:
+    """Object ids whose virtual device should exist in Home Assistant.
+
+    Each entry of config.SIM_DEVICES is a group name, a single device id, or
+    either prefixed with "-" to take it back out. Removals are applied after
+    additions, so `security,-smoke` is the security group without the smoke
+    detector. A list of only removals starts from everything, because
+    `-smoke,-co` plainly means "the fakes except those two" — which is what you
+    write the day two real detectors arrive, one token per device retired.
+    """
+    additions: set[str] = set()
+    removals: set[str] = set()
+    unknown: list[str] = []
+
+    for entry in SIM_DEVICES:
+        token = entry.strip()
+        dropping = token.startswith("-")
+        name = token.lstrip("-").strip()
+        if not name:
+            continue
+        if name in _GROUPS:
+            target = set(_GROUPS[name])
+        elif name in _KNOWN_IDS:
+            target = {name}
+        else:
+            unknown.append(token)
+            continue
+        (removals if dropping else additions).update(target)
+
+    if unknown:
+        log.warning("[MQTT] Unknown entries in EMS_SIM_DEVICES: %s — groups: %s",
+                    unknown, sorted(_GROUPS))
+
+    if not additions and removals:
+        additions = set(_KNOWN_IDS)
+
+    return additions - removals
+
+
 def _state_topic(component: str, obj_id: str) -> str:
     return f"{_STATE_PREFIX}/{component}/{obj_id}/state"
 
@@ -158,6 +227,8 @@ class MQTTBridge:
         self._lock = threading.Lock()
         self._switch_state: dict[str, bool] = {s[0]: False for s in _SWITCHES}
         self._select_state: dict[str, str]  = {s[0]: s[2][0] for s in _SELECTS}
+        # Resolved on connect, so a config change is picked up by a restart.
+        self._on: set[str] = set()
 
     # ── lifecycle ─────────────────────────────────────────────────────────────
 
@@ -203,6 +274,9 @@ class MQTTBridge:
             return
         log.info("[MQTT] Connected to %s:%d", MQTT_HOST, MQTT_PORT)
         self._connected = True
+        # Resolve the device selection once per connection — both calls below read
+        # it, so neither depends on the other having run first.
+        self._on = enabled_ids()
         self._publish_discovery(client)
         self._subscribe_commands(client)
 
@@ -267,7 +341,24 @@ class MQTTBridge:
 
     # ── autodiscovery ─────────────────────────────────────────────────────────
 
+    def _publish_disc(self, client, component: str, obj_id: str, cfg: dict) -> None:
+        """Publish one discovery config — or clear it when the device is off.
+
+        An EMPTY retained payload on a discovery topic is how Home Assistant is
+        told to forget an entity. It matters because every config we publish is
+        retained by the broker: without this, turning a virtual device off would
+        leave a permanently unavailable ghost behind in HA.
+        """
+        if obj_id in self._on:
+            client.publish(_disc_topic(component, obj_id), json.dumps(cfg), retain=True)
+        else:
+            client.publish(_disc_topic(component, obj_id), "", retain=True)
+
     def _publish_discovery(self, client) -> None:
+        """Announce the enabled devices and un-announce the retired ones.
+
+        Reads self._on, which _on_connect resolves for the connection.
+        """
         for obj_id, name, unit, dc, sc, _ in _SENSORS:
             cfg: dict = {
                 "name": name,
@@ -281,7 +372,7 @@ class MQTTBridge:
                 cfg["device_class"] = dc
             if sc:
                 cfg["state_class"] = sc
-            client.publish(_disc_topic("sensor", obj_id), json.dumps(cfg), retain=True)
+            self._publish_disc(client, "sensor", obj_id, cfg)
 
         for obj_id, name, dc, _ in _BINARY_SENSORS:
             cfg = {
@@ -292,7 +383,7 @@ class MQTTBridge:
                 "device_class": dc,
                 "device": _DEVICE,
             }
-            client.publish(_disc_topic("binary_sensor", obj_id), json.dumps(cfg), retain=True)
+            self._publish_disc(client, "binary_sensor", obj_id, cfg)
 
         for obj_id, name, icon, _ in _SWITCHES:
             cfg = {
@@ -303,7 +394,7 @@ class MQTTBridge:
                 "icon": icon,
                 "device": _DEVICE,
             }
-            client.publish(_disc_topic("switch", obj_id), json.dumps(cfg), retain=True)
+            self._publish_disc(client, "switch", obj_id, cfg)
 
         for obj_id, name, options, _, icon, _ in _SELECTS:
             cfg = {
@@ -315,7 +406,7 @@ class MQTTBridge:
                 "icon": icon,
                 "device": _DEVICE,
             }
-            client.publish(_disc_topic("select", obj_id), json.dumps(cfg), retain=True)
+            self._publish_disc(client, "select", obj_id, cfg)
 
         for obj_id, name, _pos, _ck, _pk in _COVERS:
             cfg = {
@@ -329,7 +420,7 @@ class MQTTBridge:
                 "device_class": "garage" if obj_id == "garage" else "gate",
                 "device": _DEVICE,
             }
-            client.publish(_disc_topic("cover", obj_id), json.dumps(cfg), retain=True)
+            self._publish_disc(client, "cover", obj_id, cfg)
 
         for obj_id, name, _ in _LOCKS:
             cfg = {
@@ -341,7 +432,7 @@ class MQTTBridge:
                 "state_locked": "LOCKED", "state_unlocked": "UNLOCKED",
                 "device": _DEVICE,
             }
-            client.publish(_disc_topic("lock", obj_id), json.dumps(cfg), retain=True)
+            self._publish_disc(client, "lock", obj_id, cfg)
 
         for obj_id, name, _cur, _tgt, _mode, min_t, max_t in _CLIMATES:
             cfg = {
@@ -357,7 +448,7 @@ class MQTTBridge:
                 "temperature_unit": "C",
                 "device": _DEVICE,
             }
-            client.publish(_disc_topic("climate", obj_id), json.dumps(cfg), retain=True)
+            self._publish_disc(client, "climate", obj_id, cfg)
 
         for obj_id, name, icon, _state, _ck in _AUX_SWITCHES:
             cfg = {
@@ -368,7 +459,7 @@ class MQTTBridge:
                 "icon": icon,
                 "device": _DEVICE,
             }
-            client.publish(_disc_topic("switch", obj_id), json.dumps(cfg), retain=True)
+            self._publish_disc(client, "switch", obj_id, cfg)
 
         for obj_id, name, _state, _pct in _FANS:
             cfg = {
@@ -380,7 +471,7 @@ class MQTTBridge:
                 "percentage_command_topic": _sub_topic("fan", obj_id, "pct/set"),
                 "device": _DEVICE,
             }
-            client.publish(_disc_topic("fan", obj_id), json.dumps(cfg), retain=True)
+            self._publish_disc(client, "fan", obj_id, cfg)
 
         for obj_id, name, _state, _batt in _VACUUMS:
             cfg = {
@@ -392,35 +483,59 @@ class MQTTBridge:
                 "supported_features": ["start", "stop", "pause", "return_home", "status"],
                 "device": _DEVICE,
             }
-            client.publish(_disc_topic("vacuum", obj_id), json.dumps(cfg), retain=True)
+            self._publish_disc(client, "vacuum", obj_id, cfg)
 
-        log.info(
-            "[MQTT] Autodiscovery published (%d sensors, %d binary, %d switches, "
-            "%d selects, %d covers, %d locks, %d climates, %d fans, %d vacuums)",
-            len(_SENSORS), len(_BINARY_SENSORS), len(_SWITCHES) + len(_AUX_SWITCHES),
-            len(_SELECTS), len(_COVERS), len(_LOCKS), len(_CLIMATES),
-            len(_FANS), len(_VACUUMS),
-        )
+        total = sum(len(ids) for ids in _GROUPS.values())
+        if self._on:
+            log.info("[MQTT] Autodiscovery: %d/%d virtual devices published, "
+                     "%d removed from HA (groups: %s)",
+                     len(self._on), total, total - len(self._on),
+                     ", ".join(SIM_DEVICES))
+        else:
+            log.warning("[MQTT] All %d virtual devices retired and removed from "
+                        "Home Assistant (EMS_SIM_DEVICES is empty). The Modbus "
+                        "entities in configuration.yaml are separate and stay.",
+                        total)
 
     def _subscribe_commands(self, client) -> None:
+        # No point listening for commands to a device HA no longer knows about.
+        def _off(obj_id: str) -> bool:
+            return obj_id not in self._on
+
         for obj_id, *_ in _SWITCHES:
+            if _off(obj_id):
+                continue
             client.subscribe(_cmd_topic("switch", obj_id))
         for obj_id, *_ in _SELECTS:
+            if _off(obj_id):
+                continue
             client.subscribe(_cmd_topic("select", obj_id))
         for obj_id, *_ in _COVERS:
+            if _off(obj_id):
+                continue
             client.subscribe(_cmd_topic("cover", obj_id))
             client.subscribe(_sub_topic("cover", obj_id, "set_position"))
         for obj_id, *_ in _LOCKS:
+            if _off(obj_id):
+                continue
             client.subscribe(_cmd_topic("lock", obj_id))
         for obj_id, *_ in _CLIMATES:
+            if _off(obj_id):
+                continue
             client.subscribe(_sub_topic("climate", obj_id, "temp/set"))
             client.subscribe(_sub_topic("climate", obj_id, "mode/set"))
         for obj_id, *_ in _AUX_SWITCHES:
+            if _off(obj_id):
+                continue
             client.subscribe(_cmd_topic("switch", obj_id))
         for obj_id, *_ in _FANS:
+            if _off(obj_id):
+                continue
             client.subscribe(_cmd_topic("fan", obj_id))
             client.subscribe(_sub_topic("fan", obj_id, "pct/set"))
         for obj_id, *_ in _VACUUMS:
+            if _off(obj_id):
+                continue
             client.subscribe(_cmd_topic("vacuum", obj_id))
 
     # ── state publication ─────────────────────────────────────────────────────
@@ -429,37 +544,52 @@ class MQTTBridge:
         c = self._client
         if c is None:
             return
+        on = self._on
         for obj_id, *_, key in _SENSORS:
+            if obj_id not in on:
+                continue
             val = m.get(key)
             if val is not None:
                 c.publish(_state_topic("sensor", obj_id), str(val))
 
         for obj_id, *_, key in _BINARY_SENSORS:
+            if obj_id not in on:
+                continue
             val = m.get(key)
             if val is not None:
                 c.publish(_state_topic("binary_sensor", obj_id), "ON" if val else "OFF")
 
         # Mirror switch/select current state (reflects Modbus register)
         for obj_id, *_ in _SWITCHES:
+            if obj_id not in on:
+                continue
             state = "ON" if self._switch_state.get(obj_id) else "OFF"
             c.publish(_state_topic("switch", obj_id), state)
 
         for obj_id, *_ in _SELECTS:
+            if obj_id not in on:
+                continue
             state = self._select_state.get(obj_id, "W domu")
             c.publish(_state_topic("select", obj_id), state)
 
         # Auxiliary controllable devices — publish current state from metrics
         for obj_id, _name, pos_key, *_ in _COVERS:
+            if obj_id not in on:
+                continue
             val = m.get(pos_key)
             if val is not None:
                 c.publish(_sub_topic("cover", obj_id, "position"), str(int(val)))
 
         for obj_id, _name, state_key in _LOCKS:
+            if obj_id not in on:
+                continue
             val = m.get(state_key)
             if val is not None:
                 c.publish(_state_topic("lock", obj_id), str(val))
 
         for obj_id, _name, cur_key, tgt_key, mode_key, *_ in _CLIMATES:
+            if obj_id not in on:
+                continue
             if (cur := m.get(cur_key)) is not None:
                 c.publish(_sub_topic("climate", obj_id, "current"), str(cur))
             if (tgt := m.get(tgt_key)) is not None:
@@ -468,16 +598,22 @@ class MQTTBridge:
                 c.publish(_sub_topic("climate", obj_id, "mode/state"), str(mode))
 
         for obj_id, _name, _icon, state_key, _ck in _AUX_SWITCHES:
+            if obj_id not in on:
+                continue
             if (val := m.get(state_key)) is not None:
                 c.publish(_state_topic("switch", obj_id), str(val))
 
         for obj_id, _name, state_key, pct_key in _FANS:
+            if obj_id not in on:
+                continue
             if (val := m.get(state_key)) is not None:
                 c.publish(_state_topic("fan", obj_id), str(val))
             if (pct := m.get(pct_key)) is not None:
                 c.publish(_sub_topic("fan", obj_id, "pct"), str(int(pct)))
 
         for obj_id, _name, state_key, batt_key in _VACUUMS:
+            if obj_id not in on:
+                continue
             st = m.get(state_key)
             batt = m.get(batt_key)
             if st is not None:
