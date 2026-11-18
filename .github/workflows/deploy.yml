@@ -61,17 +61,16 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SERVER_PORT || '22' }}
+          # deploy.sh owns the steps, so this job and a manual deploy cannot
+          # drift apart. This step used to hold its own copy of them, and that
+          # copy never restarted the Docker stack: it printed "Deploy complete"
+          # while the containers went on running the previous image, and a fix
+          # to deploy.sh would not have reached it.
+          #
+          # The script pulls and then re-execs itself, so the version that does
+          # the work is the one just fetched. Invoked through `bash` rather than
+          # `./`, because the repo is developed on Windows and the executable
+          # bit does not always survive the round trip.
           script: |
             cd ${{ secrets.PROJECT_PATH }}
-            git pull
-            pip install -r requirements.txt 2>/dev/null || true
-            cd frontend
-            npm ci --omit=dev --ignore-scripts 2>/dev/null || npm ci 2>/dev/null || npm install
-            npm run build
-            cd ..
-            if systemctl is-active --quiet ems-simulator 2>/dev/null; then
-              sudo systemctl restart ems-simulator
-            elif systemctl is-active --quiet hass 2>/dev/null; then
-              echo "Simulator not managed by systemd. Restart manually if needed."
-            fi
-            echo "Deploy complete: $(date)"
+            bash deploy.sh

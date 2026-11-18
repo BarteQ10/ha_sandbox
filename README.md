@@ -419,6 +419,12 @@ Add these secrets to GitHub repo → Settings → Secrets and variables → Acti
 | `SERVER_PORT` | SSH port (default 22) |
 | `PROJECT_PATH` | Absolute path to project on server |
 
+The SSH step runs `deploy.sh`, so the automated deploy does exactly what a
+manual one does: build the frontend, rebuild the simulator image, bring the
+Docker stack up and then wait for `/health` to report healthy before it calls
+itself done. On a host with no Docker it falls back to restarting the
+`ems-simulator` systemd unit.
+
 Or deploy manually: `./deploy.sh /path/to/project`
 
 ## Backup & migration (moving servers)
