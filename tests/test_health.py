@@ -9,6 +9,7 @@ The tests drive the real _Handler over a loopback socket, so the status codes
 and headers they assert are the ones a client actually gets.
 """
 import json
+import logging
 import socket
 import threading
 import urllib.error
@@ -400,3 +401,49 @@ def test_a_matching_non_ascii_token_header_is_accepted(server, monkeypatch):
                     header=("X-EMS-Token", _on_the_wire(TOKEN_PL)))
 
     assert code == 200
+
+
+# ── saying out loud when nothing can authenticate ────────────────────────────
+
+def test_the_auth_mode_line_reports_token_auth(monkeypatch):
+    monkeypatch.setattr(health, "_TOKEN", TOKEN)
+
+    level, message = health._auth_mode_log()
+
+    assert level == logging.INFO
+    assert "Token auth active" in message
+
+
+def test_a_missing_token_in_a_container_is_an_error(monkeypatch):
+    """Behind published ports the loopback allow-list can never match.
+
+    The peer is the bridge gateway, never 127.0.0.1, so "answers loopback only"
+    means "answers nobody" — and because the compose file ships with
+    HEALTH_TOKEN unset, the symptom is a dashboard of empty panels with no clue
+    why. It has to be louder than the host case, where the fallback works.
+    """
+    monkeypatch.setattr(health, "_TOKEN", "")
+    monkeypatch.setattr(health, "_in_container", lambda: True)
+
+    level, message = health._auth_mode_log()
+
+    assert level == logging.ERROR
+    assert "bridge gateway" in message
+    assert "HEALTH_TOKEN" in message and "VITE_SIM_TOKEN" in message
+
+
+def test_a_missing_token_on_the_host_is_only_a_warning(monkeypatch):
+    """There the fallback does what it says: python run.py + Vite is loopback."""
+    monkeypatch.setattr(health, "_TOKEN", "")
+    monkeypatch.setattr(health, "_in_container", lambda: False)
+
+    level, message = health._auth_mode_log()
+
+    assert level == logging.WARNING
+    assert "loopback" in message
+
+
+def test_the_logged_line_carries_the_module_prefix(monkeypatch):
+    monkeypatch.setattr(health, "_TOKEN", TOKEN)
+    _level, line = health._auth_mode_log_line()
+    assert line.startswith("[HEALTH] ")

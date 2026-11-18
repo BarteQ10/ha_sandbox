@@ -37,8 +37,15 @@ def _connect():
                 _client.close()
         _client = InfluxDBClient(url=URL, token=TOKEN, org=ORG)
         _write = _client.write_api(write_options=SYNCHRONOUS)
-        health = _client.health()
-        log.info("[INFLUX] Connected (health: %s)", health.status)
+        # ping() rather than health(): the latter is deprecated and warned on
+        # every single (re)connect attempt. It also reports a failure instead
+        # of only logging one -- health() returned a status this code printed
+        # and then carried on with, so an InfluxDB that answered but was not
+        # serving counted as connected, and every write failed one by one
+        # instead of taking the cooldown-and-retry path _failed exists for.
+        if not _client.ping():
+            raise RuntimeError(f"no answer from InfluxDB at {URL}")
+        log.info("[INFLUX] Connected to %s", URL)
         _failed = False
         return True
     except Exception as e:

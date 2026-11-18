@@ -33,7 +33,10 @@ services:
 
   influxdb:
     container_name: influxdb_dev
-    image: influxdb:2.7
+    # Pinned to the patch the deployed image reports, so a `docker compose
+    # pull` cannot cross a release unannounced. Multi-arch (amd64 + arm64), so
+    # it still resolves on a Raspberry Pi.
+    image: influxdb:2.7.12
     ports:
       - "8086:8086"
     volumes:
@@ -51,6 +54,12 @@ services:
 
   mosquitto:
     container_name: mosquitto_dev
+    # Deliberately NOT pinned, unlike every other image here: the deployed
+    # image reports 2.1.2, and Docker Hub publishes no 2.1.x tag at all (only
+    # 2.0.x plus the floating "2" and "latest"). Pinning to 2.0.22 would be a
+    # downgrade of a broker whose config and persistence are live, and the
+    # image's own digest no longer verifies against this tag. So this one tracks
+    # "2" until an exact tag exists to name. tests/test_compose.py knows.
     image: eclipse-mosquitto:2
     ports:
       - "1883:1883"   # MQTT
@@ -126,7 +135,9 @@ services:
 
   nginx:
     container_name: ems_nginx_dev
-    image: nginx:alpine
+    # "alpine" is a rolling tag; this is the version the deployed image
+    # reports. Multi-arch, so it still resolves on a Raspberry Pi.
+    image: nginx:1.31.1-alpine
     ports:
       - "8080:80"   # single entry point (LAN + the in-container Tailscale below)
     volumes:

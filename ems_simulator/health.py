@@ -94,6 +94,53 @@ def _auth_ok(peer_ip: str, presented: str) -> bool:
     return peer_ip in _LOOPBACK
 
 
+def _in_container() -> bool:
+    """Best-effort "are we containerised" check, used only to pick a log level.
+
+    Docker creates /.dockerenv in every container. A heuristic, not a
+    guarantee, which is all this needs: getting it wrong only changes how
+    loudly the missing-token message below is phrased.
+    """
+    return os.path.exists("/.dockerenv")
+
+
+def _auth_mode_log() -> tuple[int, str]:
+    """(level, message) describing how the guarded endpoints are protected.
+
+    Split out of _Server.run() so it can be asserted without starting a server.
+    """
+    if _TOKEN:
+        return logging.INFO, ("Token auth active on every endpoint except "
+                              "/health and /push/key")
+    if _in_container():
+        # The loopback allow-list can never match behind published ports: the
+        # peer is the bridge gateway (172.x.0.1), never 127.0.0.1. So in a
+        # container the dev fallback is not "localhost only", it is "nobody" --
+        # and since the compose file ships with HEALTH_TOKEN unset, the usual
+        # symptom is a dashboard rendering empty panels with no clue why. Hence
+        # an error rather than a warning.
+        return logging.ERROR, (
+            "HEALTH_TOKEN not set, and in a container the loopback fallback can "
+            "never match \u2014 the peer is the bridge gateway, never 127.0.0.1. "
+            "/metrics, /events, /advisor and every POST will answer 401 and the "
+            "dashboard will stay blank. Set HEALTH_TOKEN in .env, and "
+            "VITE_SIM_TOKEN to the same value."
+        )
+    # On the host the fallback does work: `python run.py` plus Vite reaches
+    # 127.0.0.1 directly, which is the setup it exists for.
+    return logging.WARNING, (
+        "HEALTH_TOKEN not set \u2014 every endpoint except /health and /push/key "
+        "answers loopback requests only, so HA's REST sensor and a proxied "
+        "dashboard will get 401"
+    )
+
+
+def _auth_mode_log_line() -> tuple[int, str]:
+    """_auth_mode_log() with the prefix every other line in this module has."""
+    level, message = _auth_mode_log()
+    return level, f"[HEALTH] {message}"
+
+
 def _clamp_days(raw, default: int = 7) -> int:
     """Parse and clamp the /backtest `days` query parameter."""
     try:
@@ -511,13 +558,7 @@ class _Server(threading.Thread):
 
     def run(self):
         log.info("[HEALTH] Listening on port %d  (GET /health  /metrics  /backtest)", HEALTH_PORT)
-        if _TOKEN:
-            log.info("[HEALTH] Token auth active on every endpoint except "
-                     "/health and /push/key")
-        else:
-            log.warning("[HEALTH] HEALTH_TOKEN not set — every endpoint except /health "
-                        "and /push/key answers loopback requests only, so HA's REST "
-                        "sensor and a proxied dashboard will get 401")
+        log.log(*_auth_mode_log_line())
         self._httpd.serve_forever()
 
     def stop(self):
