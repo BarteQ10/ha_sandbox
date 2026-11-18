@@ -8,6 +8,7 @@ import { useEntityNum, useEntityState, useHA } from "@/hooks/useHA"
 import { useToast } from "@/hooks/useToast"
 import { useAlarms } from "@/hooks/useAlarms"
 import { subscribePush } from "@/api/push"
+import { SectionVisibility } from "@/components/SectionVisibility"
 import {
   Settings2, Battery, Sun, Zap, MapPin, Clock,
   Bell, Webhook, Send, CheckCircle2, XCircle,
@@ -353,6 +354,9 @@ export function Settings() {
 
   return (
     <div className="space-y-4">
+
+      {/* What the rest of the dashboard shows — first, because it governs it */}
+      <SectionVisibility />
 
       {/* EMS Thresholds */}
       <Card>

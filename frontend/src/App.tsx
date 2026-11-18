@@ -31,10 +31,14 @@ import { AssistantFab } from "@/components/AssistantFab"
 import { DemoBanner } from "@/components/DemoBanner"
 import { DashboardSummary } from "@/components/DashboardSummary"
 import { CostForecast } from "@/components/CostForecast"
+import { Languages, Sun, Moon, WifiOff } from "lucide-react"
+import { useSectionVisibility } from "@/hooks/useSectionVisibility"
 import {
-  Home, Languages, Sun, Moon, Bolt, ToggleLeft, BarChart3, FileText,
-  Sofa, Bed, TreePine, WifiOff, Bell, CloudSun, SlidersHorizontal, Users, FlaskConical, ScrollText, Video, Music, Plug, Eye, Map, History, Sparkles,
-} from "lucide-react"
+  SECTIONS,
+  firstVisibleSection,
+  firstVisibleSub,
+  sectionHasContent,
+} from "@/lib/sections"
 
 function ConnectionIndicator() {
   const { connected } = useHA()
@@ -141,6 +145,39 @@ function AppContent() {
   const [monitorTab, setMonitorTab] = usePersistentState("ems.monitorTab", "cameras")
   const [analyticsTab, setAnalyticsTab] = usePersistentState("ems.analyticsTab", "reports")
   const { t } = useTranslation()
+  const { hidden, isVisible } = useSectionVisibility()
+
+  // Nav comes from the section registry, so Settings' switches and these tabs
+  // cannot disagree about what exists. A section whose every sub-tab is off is
+  // dropped too — it would open an empty sub-nav.
+  const topSections = SECTIONS.filter(
+    (s) => isVisible(s.id) && sectionHasContent(hidden, s.id),
+  )
+  const subItems = (sectionId: string) =>
+    (SECTIONS.find((s) => s.id === sectionId)?.subs ?? [])
+      .filter((x) => isVisible(x.key))
+      .map((x) => ({ value: x.id, icon: x.icon, label: t(x.labelKey) }))
+
+  // Hiding the section (or sub-tab) you are looking at would otherwise leave a
+  // blank page with nothing selected, so move to the first one still there.
+  useEffect(() => {
+    if (!isVisible(tab) || !sectionHasContent(hidden, tab)) {
+      setTab(firstVisibleSection(hidden))
+      return
+    }
+    const subs: [string, string, (v: string) => void][] = [
+      ["rooms", roomTab, setRoomTab],
+      ["energy", energyTab, setEnergyTab],
+      ["monitoring", monitorTab, setMonitorTab],
+      ["analytics", analyticsTab, setAnalyticsTab],
+    ]
+    for (const [id, value, set] of subs) {
+      if (id !== tab || isVisible(`${id}.${value}`)) continue
+      const next = firstVisibleSub(hidden, id)
+      if (next) set(next)
+    }
+  }, [tab, hidden, isVisible, roomTab, energyTab, monitorTab, analyticsTab,
+      setTab, setRoomTab, setEnergyTab, setMonitorTab, setAnalyticsTab])
 
   // Wall-tablet kiosk mode (?kiosk=1): keep screen awake + return Home when idle.
   useKiosk(() => { setTab("rooms"); setRoomTab("day") })
@@ -187,26 +224,18 @@ function AppContent() {
           {/* Main nav — themed sections, full width, flush with header bottom */}
           <Tabs value={tab} onValueChange={setTab}>
             <TabsList className="w-full rounded-none border-0 bg-transparent p-0 h-9">
-              <TabsTrigger value="rooms" className={topTabClass} title={t("nav.rooms")} aria-label={t("nav.rooms")}>
-                <Home className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span className="hidden sm:inline">{t("nav.rooms")}</span>
-              </TabsTrigger>
-              <TabsTrigger value="energy" className={topTabClass} title={t("nav.energy")} aria-label={t("nav.energy")}>
-                <Bolt className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span className="hidden sm:inline">{t("nav.energy")}</span>
-              </TabsTrigger>
-              <TabsTrigger value="monitoring" className={topTabClass} title={t("nav.monitoring")} aria-label={t("nav.monitoring")}>
-                <Eye className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span className="hidden sm:inline">{t("nav.monitoring")}</span>
-              </TabsTrigger>
-              <TabsTrigger value="analytics" className={topTabClass} title={t("nav.analytics")} aria-label={t("nav.analytics")}>
-                <BarChart3 className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span className="hidden sm:inline">{t("nav.analytics")}</span>
-              </TabsTrigger>
-              <TabsTrigger value="settings" className={topTabClass} title={t("nav.settings")} aria-label={t("nav.settings")}>
-                <SlidersHorizontal className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span className="hidden sm:inline">{t("nav.settings")}</span>
-              </TabsTrigger>
+              {topSections.map(({ id, labelKey, icon: Icon }) => (
+                <TabsTrigger
+                  key={id}
+                  value={id}
+                  className={topTabClass}
+                  title={t(labelKey)}
+                  aria-label={t(labelKey)}
+                >
+                  <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                  <span className="hidden sm:inline">{t(labelKey)}</span>
+                </TabsTrigger>
+              ))}
             </TabsList>
           </Tabs>
         </div>
@@ -229,30 +258,12 @@ function AppContent() {
               <div className="overflow-x-auto">
                 <Tabs value={roomTab} onValueChange={setRoomTab}>
                   <TabsList className="flex w-max min-w-full sm:w-full">
-                    <TabsTrigger value="plan" className="flex-1 gap-1">
-                      <Map className="h-4 w-4 shrink-0" />
-                      <span>{t("nav.floorplan")}</span>
-                    </TabsTrigger>
-                    <TabsTrigger value="day" className="flex-1 gap-1">
-                      <Sofa className="h-4 w-4 shrink-0" />
-                      <span>{t("rooms.day")}</span>
-                    </TabsTrigger>
-                    <TabsTrigger value="night" className="flex-1 gap-1">
-                      <Bed className="h-4 w-4 shrink-0" />
-                      <span>{t("rooms.night")}</span>
-                    </TabsTrigger>
-                    <TabsTrigger value="garden" className="flex-1 gap-1">
-                      <TreePine className="h-4 w-4 shrink-0" />
-                      <span>{t("rooms.gardenLabel")}</span>
-                    </TabsTrigger>
-                    <TabsTrigger value="media" className="flex-1 gap-1">
-                      <Music className="h-4 w-4 shrink-0" />
-                      <span>{t("nav.media")}</span>
-                    </TabsTrigger>
-                    <TabsTrigger value="devices" className="flex-1 gap-1">
-                      <Plug className="h-4 w-4 shrink-0" />
-                      <span>{t("nav.devices")}</span>
-                    </TabsTrigger>
+                    {subItems("rooms").map(({ value, icon: Icon, label }) => (
+                      <TabsTrigger key={value} value={value} className="flex-1 gap-1">
+                        <Icon className="h-4 w-4 shrink-0" />
+                        <span>{label}</span>
+                      </TabsTrigger>
+                    ))}
                   </TabsList>
                 </Tabs>
               </div>
@@ -268,13 +279,7 @@ function AppContent() {
 
         {tab === "energy" && (
           <div className="space-y-3 sm:space-y-4">
-            <SubNav value={energyTab} onChange={setEnergyTab} items={[
-              { value: "flow",     icon: Bolt,       label: t("nav.flow") },
-              { value: "energy",   icon: BarChart3,  label: t("nav.charts") },
-              { value: "advisor",  icon: Sparkles,   label: t("nav.advisor") },
-              { value: "controls", icon: ToggleLeft, label: t("nav.controls") },
-              { value: "presence", icon: Users,      label: t("nav.presence") },
-            ]} />
+            <SubNav value={energyTab} onChange={setEnergyTab} items={subItems("energy")} />
             {energyTab === "flow"     && <Flow />}
             {energyTab === "energy"   && <Energy />}
             {energyTab === "advisor"  && <Advisor />}
@@ -285,12 +290,7 @@ function AppContent() {
 
         {tab === "monitoring" && (
           <div className="space-y-3 sm:space-y-4">
-            <SubNav value={monitorTab} onChange={setMonitorTab} items={[
-              { value: "cameras", icon: Video,      label: t("nav.cameras") },
-              { value: "events",  icon: ScrollText, label: t("nav.events") },
-              { value: "history", icon: History,    label: t("nav.history") },
-              { value: "alerts",  icon: Bell,       label: t("nav.alerts") },
-            ]} />
+            <SubNav value={monitorTab} onChange={setMonitorTab} items={subItems("monitoring")} />
             {monitorTab === "cameras" && <Cameras />}
             {monitorTab === "events"  && <EventLog />}
             {monitorTab === "history" && <Timeline />}
@@ -300,11 +300,7 @@ function AppContent() {
 
         {tab === "analytics" && (
           <div className="space-y-3 sm:space-y-4">
-            <SubNav value={analyticsTab} onChange={setAnalyticsTab} items={[
-              { value: "reports",  icon: FileText,     label: t("nav.reports") },
-              { value: "backtest", icon: FlaskConical, label: t("nav.backtest") },
-              { value: "weather",  icon: CloudSun,     label: t("nav.weather") },
-            ]} />
+            <SubNav value={analyticsTab} onChange={setAnalyticsTab} items={subItems("analytics")} />
             {analyticsTab === "reports"  && <Reports />}
             {analyticsTab === "backtest" && <Backtest />}
             {analyticsTab === "weather"  && <Weather />}
