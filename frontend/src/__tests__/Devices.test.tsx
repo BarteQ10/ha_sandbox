@@ -5,12 +5,14 @@ import { render, screen } from "@testing-library/react"
 
 const mockUseEntitiesByDomain = vi.fn()
 const mockEntities = vi.fn()
+const mockAreaOf = vi.fn<() => Record<string, string>>(() => ({}))
 const mockUseEntity = vi.fn()
 
 vi.mock("@/hooks/useHA", () => ({
-  useHA: () => ({ entities: mockEntities(), callService: vi.fn() }),
+  useHA: () => ({ entities: mockEntities(), areaOf: mockAreaOf(), callService: vi.fn() }),
   useEntity: (id: string) => mockUseEntity(id),
   useEntitiesByDomain: (domain: string) => mockUseEntitiesByDomain(domain),
+  useEntitiesInArea: () => [],
 }))
 
 vi.mock("@/hooks/useCommittedSlider", () => ({
@@ -109,5 +111,26 @@ describe("Devices", () => {
     expect(screen.getByText("Humidity")).toBeInTheDocument()
     // a power sensor is not an environment device → excluded
     expect(screen.queryByText("Random Power")).not.toBeInTheDocument()
+  })
+
+  it("excludes hardware Home Assistant has put in a room", async () => {
+    // The static ROOM_DEVICE_IDS map cannot know about this one: the room card
+    // finds it by area, so the house-wide view has to leave it out by area too
+    // or the same device shows up in both places.
+    mockEntities.mockReturnValue({
+      "light.wled": entity("light.wled", "on", { friendly_name: "WLED" }),
+      "binary_sensor.front_door": entity(
+        "binary_sensor.front_door", "off",
+        { friendly_name: "Front Door", device_class: "door" },
+      ),
+    })
+    mockAreaOf.mockReturnValue({ "light.wled": "Salon" })
+    mockUseEntitiesByDomain.mockImplementation((d: string) =>
+      d === "light" ? ["light.wled"] : [])
+
+    await renderDevices()
+
+    expect(screen.queryByText("WLED")).not.toBeInTheDocument()
+    expect(screen.getByText("Front Door")).toBeInTheDocument()
   })
 })

@@ -27,9 +27,18 @@ const HA_MOCK = import.meta.env.VITE_HA_MOCK === "1"
 interface HAStore {
   entities: HassEntities
   connected: boolean
+  /**
+   * entity_id -> Home Assistant area name.
+   *
+   * Empty until the registries load, and empty for good against a mock or a
+   * non-admin token. Everything that reads it treats "no area" as "show it
+   * where it was always shown", so the dashboard degrades to its previous
+   * behaviour rather than losing devices.
+   */
+  areaOf: Record<string, string>
 }
 
-let _store: HAStore = { entities: {}, connected: false }
+let _store: HAStore = { entities: {}, connected: false, areaOf: {} }
 const _listeners = new Set<() => void>()
 
 function _notify() {
@@ -38,6 +47,11 @@ function _notify() {
 
 function _setEntities(e: HassEntities) {
   _store = { ..._store, entities: e }
+  _notify()
+}
+
+function _setAreas(areaOf: Record<string, string>) {
+  _store = { ..._store, areaOf }
   _notify()
 }
 
@@ -88,6 +102,42 @@ export function getEntitySnapshot(entityId: string): HassEntity | undefined {
 let _conn: Connection | null = null
 let _unsub: (() => void) | null = null
 
+interface AreaEntry { area_id: string; name: string }
+interface DeviceEntry { id: string; area_id: string | null }
+interface EntityEntry { entity_id: string; area_id: string | null; device_id: string | null }
+
+/**
+ * Map every entity to the name of the area it sits in.
+ *
+ * The registries are a separate websocket call from the state subscription and
+ * change rarely, so this runs once per connection. They need an admin token;
+ * without one the call throws and the map stays empty, which every reader
+ * treats as "this entity has no room" rather than as an error.
+ */
+async function _loadAreas(c: Connection) {
+  try {
+    const [areas, devices, ents] = await Promise.all([
+      c.sendMessagePromise<AreaEntry[]>({ type: "config/area_registry/list" }),
+      c.sendMessagePromise<DeviceEntry[]>({ type: "config/device_registry/list" }),
+      c.sendMessagePromise<EntityEntry[]>({ type: "config/entity_registry/list" }),
+    ])
+    const nameOfArea = new Map(areas.map((a) => [a.area_id, a.name]))
+    const areaOfDevice = new Map(devices.map((d) => [d.id, d.area_id]))
+
+    const map: Record<string, string> = {}
+    for (const e of ents) {
+      // An entity inherits its device's area unless it overrides it, which is
+      // how Home Assistant itself resolves this.
+      const areaId = e.area_id ?? (e.device_id ? areaOfDevice.get(e.device_id) ?? null : null)
+      const name = areaId ? nameOfArea.get(areaId) : undefined
+      if (name) map[e.entity_id] = name
+    }
+    _setAreas(map)
+  } catch {
+    /* no registry access — rooms keep showing exactly what they showed before */
+  }
+}
+
 function _subscribeEntities(c: Connection) {
   _unsub?.()
   _unsub = subscribeEntities(c, (e) => _setEntities(e))
@@ -109,12 +159,14 @@ export async function connectHA(): Promise<Connection> {
   const auth = createLongLivedTokenAuth(HA_URL, HA_TOKEN)
   _conn = await createConnection({ auth })
   _subscribeEntities(_conn)
+  void _loadAreas(_conn)
   _conn.addEventListener("disconnected", () => _setConnected(false))
   // "reconnect" exists at runtime but is missing from the type definitions in
   // home-assistant-js-websocket — cast to any to silence the TS error.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ;(_conn as any).addEventListener("reconnect", () => {
     _subscribeEntities(_conn!)
+    void _loadAreas(_conn!)
     _setConnected(true)
   })
   _setConnected(true)

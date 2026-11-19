@@ -3,12 +3,16 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Slider } from "@/components/ui/slider"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
+import {
+  Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
+} from "@/components/ui/select"
 import { useEntity, useHA } from "@/hooks/useHA"
 import { useCommittedSlider } from "@/hooks/useCommittedSlider"
 import {
   Lock, Unlock, Thermometer, Droplets, Flame, Waves, DoorOpen, Wind,
   Activity, AlertTriangle, ArrowUp, ArrowDown, Square, Plus, Minus, Power,
   DoorClosed, AppWindow, Fan, Bot, Play, Pause, RotateCcw, Battery, Cloud, Gauge,
+  Lightbulb,
 } from "lucide-react"
 import type { HassEntity } from "home-assistant-js-websocket"
 
@@ -164,6 +168,98 @@ export function ClimateControl({ entityId }: { entityId: string }) {
           <Power className="mr-1 h-4 w-4" />
           {heating ? t("devices.heatOn") : t("devices.heatOff")}
         </Button>
+      </CardContent>
+    </Card>
+  )
+}
+
+// ─── fan ──────────────────────────────────────────────────────────────────────
+
+/**
+ * Whichever control suits an entity's domain, or nothing when we have none.
+ *
+ * Used for hardware found by its Home Assistant area rather than named in a
+ * config, where the domain is all that is known about it up front.
+ */
+export function EntityControl({ entityId }: { entityId: string }) {
+  switch (entityId.split(".")[0]) {
+    case "light":   return <LightControl entityId={entityId} />
+    case "cover":   return <CoverControl entityId={entityId} />
+    case "lock":    return <LockControl entityId={entityId} />
+    case "climate": return <ClimateControl entityId={entityId} />
+    case "fan":     return <FanControl entityId={entityId} />
+    case "vacuum":  return <VacuumControl entityId={entityId} />
+    default:        return null
+  }
+}
+
+// ─── light ────────────────────────────────────────────────────────────────────
+
+/**
+ * A real Home Assistant light.
+ *
+ * Not to be confused with the room lights in Rooms.tsx: those are the
+ * simulator's `input_boolean.wirtualne_swiatlo_*`, wired up by a hardcoded map.
+ * Anything in the `light` domain is hardware that actually exists, which until
+ * now had nowhere at all to appear in this dashboard.
+ *
+ * The effect picker is here rather than left to Home Assistant because an
+ * addressable strip without its effects is a costly bulb — a WLED controller
+ * offers a couple of hundred of them.
+ */
+export function LightControl({ entityId }: { entityId: string }) {
+  const { t } = useTranslation()
+  const { callService } = useHA()
+  const e = useEntity(entityId)
+  const on = e?.state === "on"
+  const name = (e?.attributes?.friendly_name as string) ?? entityId
+  // HA carries brightness as 0-255. Everything user-facing here is a
+  // percentage, and light.turn_on takes brightness_pct directly, so the
+  // conversion happens once, on the way in.
+  const pct = Math.round((((e?.attributes?.brightness as number) ?? 0) / 255) * 100)
+  const effects = (e?.attributes?.effect_list as string[]) ?? []
+  const effect = (e?.attributes?.effect as string) ?? ""
+
+  const slider = useCommittedSlider(pct, (v) =>
+    callService("light", "turn_on", { entity_id: entityId, brightness_pct: v }),
+  )
+
+  return (
+    <Card>
+      <CardContent className="space-y-3 p-3 sm:p-4">
+        <div className="flex items-center gap-2">
+          <Lightbulb className={`h-4 w-4 ${on ? "text-amber-400" : "text-muted-foreground"}`} />
+          <span title={name} className="truncate text-sm font-medium">{displayName(name)}</span>
+          <Switch
+            className="ml-auto"
+            checked={on}
+            onCheckedChange={() =>
+              callService("light", on ? "turn_off" : "turn_on", { entity_id: entityId })}
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <Slider min={0} max={100} step={1} className="flex-1" {...slider.sliderProps} />
+          <span className="w-9 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
+            {slider.display}%
+          </span>
+        </div>
+        {effects.length > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="shrink-0 text-xs text-muted-foreground">{t("devices.effect")}</span>
+            <Select
+              value={effect}
+              onValueChange={(v) =>
+                callService("light", "turn_on", { entity_id: entityId, effect: v })}
+            >
+              <SelectTrigger className="h-8 flex-1 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {effects.map((f) => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </CardContent>
     </Card>
   )

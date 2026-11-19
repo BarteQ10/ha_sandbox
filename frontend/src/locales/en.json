@@ -76,6 +76,7 @@
   },
   "devices": {
     "controllable": "Controls",
+    "effect": "Effect",
     "contacts": "Contacts & safety",
     "environment": "Meters & environment",
     "empty": "No devices. Add cover.* / lock.* / climate.* / binary_sensor.* entities in HA — they appear here automatically.",
@@ -230,6 +231,7 @@
     "noteDays_other": "Based on {{count}} full days"
   },
   "rooms": {
+    "realDevices": "Your hardware",
     "salon": "Living Room",
     "kitchen": "Kitchen",
     "bedroom": "Bedroom",

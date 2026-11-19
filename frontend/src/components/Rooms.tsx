@@ -5,9 +5,10 @@ import { Slider } from "@/components/ui/slider"
 import { Button } from "@/components/ui/button"
 import { useEntityState, useEntityNum, useHA } from "@/hooks/useHA"
 import { useCommittedSlider } from "@/hooks/useCommittedSlider"
+import { useEntitiesInArea } from "@/hooks/useHA"
 import { CameraView } from "@/components/CameraView"
 import {
-  CoverControl, LockControl, ClimateControl, BinaryChip,
+  CoverControl, LockControl, ClimateControl, BinaryChip, EntityControl, SensorTile, ENV_CLASSES,
 } from "@/components/DeviceControls"
 import {
   Sofa, CookingPot, Bed, Bath, TreePine,
@@ -47,6 +48,17 @@ interface LightConfig {
 interface RoomConfig {
   id: string
   nameKey: string
+  /**
+   * The Home Assistant area this room stands for.
+   *
+   * Everything else on a room card is the simulator, named entity by entity in
+   * the map below — which is why no amount of real equipment ever showed up in
+   * one. Whatever Home Assistant has assigned to this area is rendered
+   * alongside it, so a new device appears by being given a room in HA rather
+   * than by editing this file. Rooms the simulator invented have no counterpart
+   * area and simply leave it unset.
+   */
+  areaName?: string
   icon: React.ElementType
   color: string
   tempEntity: string
@@ -67,6 +79,7 @@ const rooms: RoomConfig[] = [
   {
     id: "salon",
     nameKey: "rooms.salon",
+    areaName: "Salon",
     icon: Sofa,
     color: "#ffa726",
     tempEntity: "input_number.wirtualna_temp_salon",
@@ -96,6 +109,7 @@ const rooms: RoomConfig[] = [
   {
     id: "kuchnia",
     nameKey: "rooms.kitchen",
+    areaName: "Kuchnia",
     icon: CookingPot,
     color: "#66bb6a",
     tempEntity: "input_number.wirtualna_temp_kuchnia",
@@ -123,6 +137,7 @@ const rooms: RoomConfig[] = [
   {
     id: "sypialnia",
     nameKey: "rooms.bedroom",
+    areaName: "Sypialnia",
     icon: Bed,
     color: "#4fc3f7",
     tempEntity: "input_number.wirtualna_temp_sypialnia",
@@ -181,6 +196,13 @@ const rooms: RoomConfig[] = [
     motionEntity: "binary_sensor.ems_czujnik_ruchu_zewnetrzny",
   },
 ]
+
+// Home Assistant areas that a room card stands for. The Devices tab uses this
+// to leave out hardware a room is already showing, the same reason
+// ROOM_DEVICE_IDS exists for the statically configured ones.
+export const ROOM_AREA_NAMES = new Set<string>(
+  rooms.map((r) => r.areaName).filter((x): x is string => Boolean(x)),
+)
 
 // Entity IDs of all room-assigned smart devices. The house-wide Devices tab
 // imports this to avoid showing the same device in two places.
@@ -318,6 +340,27 @@ function LightControl({ light, color }: { light: LightConfig; color: string }) {
 function RoomCard({ room }: { room: RoomConfig }) {
   const { t } = useTranslation()
   const { entities, callService } = useHA()
+
+  // Hardware Home Assistant puts in this room, minus anything the map above
+  // already names, so a device configured by hand does not appear twice.
+  const configured = new Set<string>(
+    [
+      room.tempEntity, room.setpointEntity, room.humidityEntity, room.shutterEntity,
+      room.cameraEntity, room.motionEntity, room.climateEntity, room.lockEntity,
+      room.coverEntity,
+      ...(room.contactEntities ?? []),
+      ...room.lights.flatMap((l) => [l.entityId, l.brightnessEntity, l.colorTempEntity]),
+    ].filter((x): x is string => Boolean(x)),
+  )
+  const real = useEntitiesInArea(room.areaName).filter((id) => !configured.has(id))
+  const realChips = real.filter((id) => id.startsWith("binary_sensor."))
+  const realSensors = real.filter(
+    (id) => id.startsWith("sensor.") &&
+      ENV_CLASSES.has((entities[id]?.attributes?.device_class as string) ?? ""),
+  )
+  const realControls = real.filter(
+    (id) => !id.startsWith("binary_sensor.") && !id.startsWith("sensor."),
+  )
 
   // Read entity values from the context map directly so the number of hooks
   // stays constant regardless of which optional entities a room defines
@@ -474,6 +517,30 @@ function RoomCard({ room }: { room: RoomConfig }) {
             {room.coverEntity && <CoverControl entityId={room.coverEntity} />}
             {room.climateEntity && <ClimateControl entityId={room.climateEntity} />}
             {room.lockEntity && <LockControl entityId={room.lockEntity} />}
+          </div>
+        )}
+
+        {/* Real hardware, found by its Home Assistant area */}
+        {real.length > 0 && (
+          <div className="space-y-2 border-t pt-2">
+            <p className="text-[11px] font-medium text-muted-foreground">
+              {t("rooms.realDevices")}
+            </p>
+            {realChips.length > 0 && (
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {realChips.map((id) =>
+                  entities[id] ? <BinaryChip key={id} e={entities[id]} /> : null,
+                )}
+              </div>
+            )}
+            {realSensors.length > 0 && (
+              <div className="grid grid-cols-2 gap-2">
+                {realSensors.map((id) =>
+                  entities[id] ? <SensorTile key={id} e={entities[id]} /> : null,
+                )}
+              </div>
+            )}
+            {realControls.map((id) => <EntityControl key={id} entityId={id} />)}
           </div>
         )}
       </CardContent>

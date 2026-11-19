@@ -76,6 +76,7 @@
   },
   "devices": {
     "controllable": "Sterowanie",
+    "effect": "Efekt",
     "contacts": "Kontaktrony i bezpieczeństwo",
     "environment": "Liczniki i środowisko",
     "empty": "Brak urządzeń. Dodaj encje cover.* / lock.* / climate.* / binary_sensor.* w HA — pojawią się tu automatycznie.",
@@ -231,6 +232,7 @@
     "noteDays_many": "Na podstawie {{count}} pełnych dni"
   },
   "rooms": {
+    "realDevices": "Twój sprzęt",
     "salon": "Salon",
     "kitchen": "Kuchnia",
     "bedroom": "Sypialnia",

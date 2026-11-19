@@ -3,9 +3,9 @@ import { Card, CardContent } from "@/components/ui/card"
 import { useHA, useEntitiesByDomain } from "@/hooks/useHA"
 import {
   CoverControl, LockControl, ClimateControl, FanControl, VacuumControl,
-  BinaryChip, SensorTile, ENV_CLASSES,
+  LightControl, BinaryChip, SensorTile, ENV_CLASSES,
 } from "@/components/DeviceControls"
-import { ROOM_DEVICE_IDS } from "@/components/Rooms"
+import { ROOM_AREA_NAMES, ROOM_DEVICE_IDS } from "@/components/Rooms"
 
 // ─── container ────────────────────────────────────────────────────────────────
 
@@ -26,12 +26,19 @@ function Section({ title, count, children }: {
 
 export function Devices() {
   const { t } = useTranslation()
-  const { entities } = useHA()
+  const { entities, areaOf } = useHA()
 
   // Devices assigned to a specific room are rendered inside that room card
   // (Rooms.tsx) — exclude them here so this house-wide view doesn't duplicate them.
-  const houseWide = (id: string) => !ROOM_DEVICE_IDS.has(id)
+  // ...and neither does hardware Home Assistant has put in one of those rooms,
+  // which the room card renders from its area.
+  const houseWide = (id: string) =>
+    !ROOM_DEVICE_IDS.has(id) && !ROOM_AREA_NAMES.has(areaOf[id] ?? "")
 
+  // Real lights. The simulator's room lighting is input_boolean/input_number,
+  // so nothing in the `light` domain comes from it — whatever shows up here is
+  // hardware.
+  const lights   = useEntitiesByDomain("light").filter(houseWide)
   const covers   = useEntitiesByDomain("cover").filter(houseWide)
   const locks    = useEntitiesByDomain("lock").filter(houseWide)
   const climates = useEntitiesByDomain("climate").filter(houseWide)
@@ -46,7 +53,8 @@ export function Devices() {
       ENV_CLASSES.has((e.attributes.device_class as string) ?? "") && houseWide(e.entity_id))
     .sort((a, b) => a.entity_id.localeCompare(b.entity_id))
 
-  const controllable = covers.length + climates.length + locks.length + fans.length + vacuums.length
+  const controllable =
+    lights.length + covers.length + climates.length + locks.length + fans.length + vacuums.length
   const total = controllable + binaries.length + envSensors.length
 
   if (total === 0) {
@@ -63,6 +71,7 @@ export function Devices() {
     <div className="space-y-4">
       <Section title={t("devices.controllable")} count={controllable}>
         <div className="grid gap-3 lg:grid-cols-2">
+          {lights.map((id) => <LightControl key={id} entityId={id} />)}
           {covers.map((id) => <CoverControl key={id} entityId={id} />)}
           {climates.map((id) => <ClimateControl key={id} entityId={id} />)}
           {vacuums.map((id) => <VacuumControl key={id} entityId={id} />)}

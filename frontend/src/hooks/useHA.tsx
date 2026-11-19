@@ -33,8 +33,22 @@ export function HAProvider({ children }: { children: React.ReactNode }) {
 
 export function useHA() {
   const { callService } = useContext(HAContext)
-  const { connected, entities } = useSyncExternalStore(subscribe, getSnapshot)
-  return { connected, entities, callService }
+  const { connected, entities, areaOf } = useSyncExternalStore(subscribe, getSnapshot)
+  return { connected, entities, areaOf, callService }
+}
+
+/**
+ * Entity ids Home Assistant places in `areaName`.
+ *
+ * Empty when the area is unknown, when nothing is assigned to it, or when the
+ * registries never loaded — a room then shows what it always showed.
+ */
+export function useEntitiesInArea(areaName: string | undefined): string[] {
+  const { entities, areaOf } = useHA()
+  if (!areaName) return []
+  return Object.keys(entities)
+    .filter((id) => areaOf[id] === areaName)
+    .sort()
 }
 
 export function useEntity(entityId: string): HassEntity | undefined {
