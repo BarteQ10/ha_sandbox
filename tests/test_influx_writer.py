@@ -103,3 +103,115 @@ def test_connect_does_not_call_the_deprecated_health_api(monkeypatch):
     iw._connect()
 
     assert called == []
+
+
+# ── writes happen off the tick now ───────────────────────────────────────────
+
+def test_connect_asks_for_batched_writes_not_synchronous(monkeypatch):
+    """SYNCHRONOUS made every write an HTTP round trip inside the loop.
+
+    A tick calls this module about ten times, so that was ten blocking requests
+    every five seconds — invisible against a local database, and the likeliest
+    way for a tick to overrun its budget on a Raspberry Pi.
+    """
+    from influxdb_client.client.write_api import WriteType
+
+    captured: dict = {}
+
+    class _Client:
+        def __init__(self, **_kwargs):
+            pass
+
+        def write_api(self, **kwargs):
+            captured.update(kwargs)
+            return object()
+
+        def ping(self):
+            return True
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(iw, "InfluxDBClient", _Client)
+    for name, value in (("_client", None), ("_write", None),
+                        ("_failed", False), ("_last_attempt", 0.0)):
+        monkeypatch.setattr(iw, name, value)
+
+    assert iw._connect() is True
+    assert captured["write_options"].write_type is WriteType.batching
+    # Without the callbacks a failed batch would be silent: there is no
+    # exception at the call site any more.
+    assert captured["error_callback"] is iw._on_write_error
+    assert captured["retry_callback"] is iw._on_write_retry
+
+
+def test_a_failed_batch_is_recorded_even_though_nothing_raised(monkeypatch):
+    monkeypatch.setattr(iw, "_write", object())
+    monkeypatch.setattr(iw, "_failed", False)
+    assert iw.healthy() is True
+
+    iw._on_write_error(("bucket", "org", "ns"), "data", RuntimeError("refused"))
+
+    assert iw.healthy() is False
+
+
+def test_healthy_is_false_before_anything_is_connected(monkeypatch):
+    monkeypatch.setattr(iw, "_write", None)
+    monkeypatch.setattr(iw, "_failed", False)
+    assert iw.healthy() is False
+
+
+def test_stop_flushes_the_writer_before_closing_the_client(monkeypatch):
+    """Order matters: the writer thread holds up to flush_interval of
+    telemetry, and closing the client first drops it with the connection."""
+    order: list = []
+
+    class _Writer:
+        def close(self):
+            order.append("writer")
+
+    class _Client:
+        def close(self):
+            order.append("client")
+
+    monkeypatch.setattr(iw, "_write", _Writer())
+    monkeypatch.setattr(iw, "_client", _Client())
+
+    iw.stop()
+
+    assert order == ["writer", "client"]
+
+
+def test_connect_flushes_an_old_writer_before_replacing_it(monkeypatch):
+    """A reconnect must not drop what the previous writer still holds."""
+    order: list = []
+
+    class _OldWriter:
+        def close(self):
+            order.append("old-writer")
+
+    class _OldClient:
+        def close(self):
+            order.append("old-client")
+
+    class _NewClient:
+        def __init__(self, **_kwargs):
+            pass
+
+        def write_api(self, **_kwargs):
+            return object()
+
+        def ping(self):
+            return True
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(iw, "InfluxDBClient", _NewClient)
+    monkeypatch.setattr(iw, "_write", _OldWriter())
+    monkeypatch.setattr(iw, "_client", _OldClient())
+    monkeypatch.setattr(iw, "_last_attempt", 0.0)
+
+    iw._connect()
+
+    assert order == ["old-writer", "old-client"]

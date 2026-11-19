@@ -42,6 +42,7 @@ from ems_simulator.generators import (
     standby_load,
 )
 from ems_simulator.home_devices import HomeDevices
+from ems_simulator.influx_writer import healthy as inf_healthy
 from ems_simulator.influx_writer import read_events as inf_read_events
 from ems_simulator.influx_writer import read_last as inf_read_last
 from ems_simulator.influx_writer import start as inf_start
@@ -638,7 +639,11 @@ def main():
                     t_house=thermal.t_house,
                     battery_soh=aging_factor,
                     running_cost_pln=running_cost_pln,
-                    influx_ok=not anomaly,
+                    # Whether telemetry is really landing, not whether the
+                    # API-failure simulation happens to be off, which is what
+                    # this used to report. It matters more now that a failed
+                    # write surfaces on the writer thread instead of here.
+                    influx_ok=inf_healthy(),
                     mpc_action=_mpc_action,
                     forecast_pv_kwh=_fc_summary.get("pv_day_kwh", 0.0),
                     forecast_load_kwh=_fc_summary.get("load_day_kwh", 0.0),

@@ -357,3 +357,22 @@ def test_the_momentary_notify_trigger_is_cleared_where_it_is_handled(released, m
 
     assert sent == [True]
     assert cleared == [(21, 0)]
+
+
+# ── /health reports the database, not the anomaly switch ─────────────────────
+
+def test_health_reports_influxdb_rather_than_the_anomaly_flag(released, monkeypatch):
+    """`influx_ok` used to be `not anomaly` — true whenever the API-failure
+    simulation was off, which says nothing about telemetry reaching InfluxDB.
+    It matters more now that a failed write surfaces on the writer thread
+    instead of raising on the tick."""
+    captured: dict = {}
+    regs = [0] * cfg.NUM_REGISTERS          # register 15 = 0, so anomaly is off
+
+    monkeypatch.setattr(m, "inf_healthy", lambda: False)
+    monkeypatch.setattr(m.health, "update", lambda **kw: captured.update(kw))
+    monkeypatch.setattr(m, "srv_read", _scripted_read([regs, KeyboardInterrupt]))
+
+    m.main()
+
+    assert captured["influx_ok"] is False

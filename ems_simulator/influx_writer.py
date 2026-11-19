@@ -1,3 +1,4 @@
+import contextlib
 import datetime
 import logging
 import re
@@ -5,7 +6,7 @@ import time
 from typing import Any
 
 from influxdb_client import InfluxDBClient, Point
-from influxdb_client.client.write_api import SYNCHRONOUS
+from influxdb_client.client.write_api import WriteOptions
 
 from ems_simulator.config import INFLUX_BUCKET as BUCKET
 from ems_simulator.config import INFLUX_ORG as ORG
@@ -17,6 +18,43 @@ log = logging.getLogger(__name__)
 # How long (real seconds) to wait between reconnect attempts after a failure,
 # so a down database is not hammered on every tick.
 RECONNECT_COOLDOWN_S = 30
+
+# Batched writes on a background thread, not SYNCHRONOUS on the simulation loop.
+#
+# A tick calls into this module about ten times, and with SYNCHRONOUS every one
+# of those was an HTTP round trip taken inside the loop: ten blocking requests
+# every five seconds. Against a database on the same host that is invisible.
+# Against one on a Raspberry Pi it is the likeliest way for a tick to overrun
+# its budget, and the loop then falls behind the real clock that the forecast
+# window is indexed from.
+#
+# The batching API queues points and flushes them from its own thread, so the
+# loop pays an append instead. The trade is that a failed write is no longer an
+# exception at the call site: it arrives at _on_write_error below, which is what
+# keeps _failed -- and with it the reconnect cooldown and healthy() -- working.
+_WRITE_OPTIONS = WriteOptions(
+    batch_size=500,        # a tick produces ~40 points, so this is many ticks
+    flush_interval=2_000,  # ms; telemetry two seconds late is still live
+    jitter_interval=500,   # ms; keeps reconnecting writers out of lockstep
+    max_retries=3,
+    retry_interval=2_000,
+)
+
+
+def _on_write_error(conf, data, exception) -> None:
+    """A batch failed for good, after the retries configured above.
+
+    Called from the writer thread, so it only records the fact; the simulation
+    loop notices on its next tick through _ensure_connection().
+    """
+    global _failed
+    log.warning("[INFLUX] Write failed: %s", exception)
+    _failed = True
+
+
+def _on_write_retry(conf, data, exception) -> None:
+    """A batch hit a retryable error; the client is already backing off."""
+    log.info("[INFLUX] Write retrying: %s", exception)
 
 _SAFE_MEASUREMENT = re.compile(r'^[\w.]+$')
 
@@ -31,12 +69,21 @@ def _connect():
     global _client, _write, _failed, _last_attempt
     _last_attempt = time.monotonic()
     try:
+        # Close the writer before the client it belongs to, so whatever is
+        # still queued gets flushed rather than dropped with the connection.
+        if _write is not None:
+            with contextlib.suppress(Exception):
+                _write.close()
+            _write = None
         if _client is not None:
-            import contextlib
             with contextlib.suppress(Exception):
                 _client.close()
         _client = InfluxDBClient(url=URL, token=TOKEN, org=ORG)
-        _write = _client.write_api(write_options=SYNCHRONOUS)
+        _write = _client.write_api(
+            write_options=_WRITE_OPTIONS,
+            error_callback=_on_write_error,
+            retry_callback=_on_write_retry,
+        )
         # ping() rather than health(): the latter is deprecated and warned on
         # every single (re)connect attempt. It also reports a failure instead
         # of only logging one -- health() returned a status this code printed
@@ -54,6 +101,16 @@ def _connect():
         _write = None
         _failed = True
         return False
+
+
+def healthy() -> bool:
+    """Whether telemetry is currently reaching InfluxDB.
+
+    Worth asking now that writes are asynchronous: a failure shows up in the
+    writer thread, not as an exception on the tick, so /health reporting this
+    is the only thing that makes a silently failing database visible.
+    """
+    return _write is not None and not _failed
 
 
 def _ensure_connection():
@@ -435,7 +492,14 @@ def write_rules(active_keys: set) -> None:
 
 
 def stop():
-    global _client
+    global _client, _write
+    # Flush before closing: the writer thread holds up to flush_interval of
+    # telemetry, which would otherwise be lost on every clean shutdown.
+    if _write is not None:
+        with contextlib.suppress(Exception):
+            _write.close()
+        _write = None
     if _client:
         _client.close()
+        _client = None
         log.info("[INFLUX] Closed")
