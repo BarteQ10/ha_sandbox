@@ -6,7 +6,11 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    # Pinned, not ubuntu-latest: that label rolled forward to Ubuntu 26.04 and
+    # `playwright install --with-deps` broke with "Playwright does not support
+    # chromium on ubuntu26.04-x64", so the gate went red with nothing in this
+    # repo having changed. Revisit when Playwright is upgraded.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -50,7 +54,7 @@ jobs:
 
   deploy:
     needs: test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
