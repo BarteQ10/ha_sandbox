@@ -55,10 +55,21 @@ jobs:
   deploy:
     needs: test
     runs-on: ubuntu-24.04
+    # The SSH deploy runs only where it has somewhere to deploy to. With no
+    # SERVER_HOST the action stopped with "missing server host" and failed the
+    # whole run, so a green gate still reported a red build — this repository
+    # has never had those secrets set.
+    #
+    # The secret is mapped into env first because that is the only way the
+    # guard below can see it: the `secrets` context is not available in a step
+    # `if`, while `env` is.
+    env:
+      SERVER_HOST: ${{ secrets.SERVER_HOST }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Deploy via SSH
+        if: ${{ env.SERVER_HOST != '' }}
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -78,3 +89,12 @@ jobs:
           script: |
             cd ${{ secrets.PROJECT_PATH }}
             bash deploy.sh
+
+      # Green, but say why nothing was deployed rather than leaving it a
+      # mystery. A GitHub-hosted runner also has no route to a LAN address, so
+      # configuring the secrets alone is not enough for a home server.
+      - name: Note that the deploy was skipped
+        if: ${{ env.SERVER_HOST == '' }}
+        run: |
+          echo "::notice::SSH deploy skipped: SERVER_HOST is not configured."
+          echo "Deploy by hand on the target:  cd <project> && bash deploy.sh"

@@ -80,3 +80,34 @@ def _git_mode(path: Path) -> str:
         cwd=ROOT, capture_output=True, text=True, check=True,
     ).stdout
     return out.split()[0] if out else "missing"
+
+
+# ── an unconfigured deploy must not fail a green gate ────────────────────────
+
+def test_the_deploy_step_only_runs_when_it_has_a_target(ssh_step):
+    """With no SERVER_HOST the action stops with "missing server host" and
+    fails the run, so a green gate reported a red build."""
+    guard = ssh_step.get("if", "")
+    assert "SERVER_HOST" in guard
+
+
+def test_the_deploy_job_maps_the_host_secret_into_env():
+    """The guard above can only work through env.
+
+    The `secrets` context is not available in a step `if` — only `env` is — so
+    dropping this mapping would silently make the condition always true.
+    """
+    workflow: dict = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
+    job: dict = workflow["jobs"]["deploy"]
+
+    assert "SERVER_HOST" in job.get("env", {})
+
+
+def test_a_skipped_deploy_says_so():
+    """Green and silent would be worse than red: nothing reached the server."""
+    workflow: dict = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
+    steps: list = workflow["jobs"]["deploy"]["steps"]
+    notes = [s for s in steps if "SERVER_HOST == ''" in str(s.get("if", ""))]
+
+    assert len(notes) == 1, [s.get("name") for s in steps]
+    assert "deploy.sh" in notes[0]["run"]
