@@ -1,12 +1,19 @@
 import { useCallback, useSyncExternalStore } from "react"
 import {
+  defaultHidden,
   hiddenForPreset,
   isSectionVisible,
   toggleKey,
   type Preset,
 } from "@/lib/sections"
 
-const STORAGE_KEY = "ems.hiddenSections"
+// Deliberately not the key the first version of this used. That one stored an
+// empty list the moment the app mounted, so "never chose anything" and "chose
+// to see everything" were written identically — and a browser carrying the old
+// value would never pick up the new default. A fresh key makes the rollout
+// unambiguous at the cost of discarding a preference this feature is hours old
+// enough not to have accumulated.
+const STORAGE_KEY = "ems.sections.v2"
 
 /**
  * Which dashboard sections this browser hides.
@@ -26,11 +33,15 @@ const STORAGE_KEY = "ems.hiddenSections"
 function load(): string[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return []
+    if (!raw) return defaultHidden()
     const parsed: unknown = JSON.parse(raw)
-    return Array.isArray(parsed) ? parsed.filter((k): k is string => typeof k === "string") : []
+    // A stored choice wins, including the empty one: someone who switched
+    // everything back on means it, and must not be overruled on every reload.
+    return Array.isArray(parsed)
+      ? parsed.filter((k): k is string => typeof k === "string")
+      : defaultHidden()
   } catch {
-    return []
+    return defaultHidden()
   }
 }
 
@@ -67,7 +78,8 @@ export function resetSectionVisibility(): void {
   } catch {
     /* nothing to clear */
   }
-  publish([])
+  hidden = defaultHidden()
+  for (const listener of listeners) listener()
 }
 
 export function useSectionVisibility() {

@@ -3,6 +3,8 @@ import { act, renderHook } from "@testing-library/react"
 import {
   ALL_KEYS,
   LOCKED_SECTION,
+  PANEL_HOME_SUMMARY,
+  PANELS,
   REAL_HARDWARE_KEYS,
   SECTIONS,
   firstVisibleSection,
@@ -140,11 +142,36 @@ describe("sectionHasContent", () => {
 
 describe("useSectionVisibility", () => {
   beforeEach(() => {
+    vi.unstubAllEnvs()
     resetSectionVisibility()
   })
 
-  it("starts with everything visible", () => {
+  it("opens on the real house, not on the simulator", () => {
+    // The dashboard is mostly panels about a battery, an inverter and a heat
+    // pump that are not installed. A browser that has never chosen starts
+    // without them and switches them on as hardware arrives.
     const { result } = renderHook(() => useSectionVisibility())
+
+    expect(result.current.isVisible("rooms.devices")).toBe(true)
+    expect(result.current.isVisible("monitoring.alerts")).toBe(true)
+    expect(result.current.isVisible("energy")).toBe(false)
+    expect(result.current.isVisible("analytics")).toBe(false)
+  })
+
+  it("leaves Settings reachable, or nothing could be switched back on", () => {
+    const { result } = renderHook(() => useSectionVisibility())
+    expect(result.current.isVisible(LOCKED_SECTION)).toBe(true)
+  })
+
+  it("shows everything in the mock build", async () => {
+    // VITE_HA_MOCK marks the public demo, which exists to show the simulator,
+    // and the Playwright run, which clicks through every tab.
+    vi.stubEnv("VITE_HA_MOCK", "1")
+    vi.resetModules()
+    const fresh = await import("@/hooks/useSectionVisibility")
+
+    const { result } = renderHook(() => fresh.useSectionVisibility())
+
     expect(result.current.hidden).toEqual([])
     expect(result.current.isVisible("energy")).toBe(true)
   })
@@ -156,46 +183,77 @@ describe("useSectionVisibility", () => {
     const settings = renderHook(() => useSectionVisibility())
     const nav = renderHook(() => useSectionVisibility())
 
-    act(() => settings.result.current.toggle("energy"))
+    act(() => settings.result.current.toggle("rooms.devices"))
 
-    expect(nav.result.current.isVisible("energy")).toBe(false)
+    expect(nav.result.current.isVisible("rooms.devices")).toBe(false)
   })
 
-  it("writes the hidden list to storage so it survives a reload", () => {
+  it("writes the choice to storage so it survives a reload", () => {
     const { result } = renderHook(() => useSectionVisibility())
-    act(() => result.current.toggle("energy"))
+    act(() => result.current.applyPreset("all"))
 
-    expect(JSON.parse(localStorage.getItem("ems.hiddenSections") ?? "[]")).toEqual(["energy"])
+    expect(JSON.parse(localStorage.getItem("ems.sections.v2") ?? "null")).toEqual([])
+  })
+
+  it("does not overrule someone who switched everything back on", async () => {
+    // An empty stored list is a decision, not an absence of one — otherwise
+    // the default would undo it on every single reload.
+    localStorage.setItem("ems.sections.v2", "[]")
+    vi.resetModules()
+    const fresh = await import("@/hooks/useSectionVisibility")
+
+    const { result } = renderHook(() => fresh.useSectionVisibility())
+
+    expect(result.current.isVisible("energy")).toBe(true)
   })
 
   it("applies a preset", () => {
     const { result } = renderHook(() => useSectionVisibility())
-    act(() => result.current.applyPreset("real"))
-
-    expect(result.current.isVisible("rooms.devices")).toBe(true)
-    expect(result.current.isVisible("energy")).toBe(false)
-
     act(() => result.current.applyPreset("all"))
     expect(result.current.isVisible("energy")).toBe(true)
+
+    act(() => result.current.applyPreset("real"))
+    expect(result.current.isVisible("energy")).toBe(false)
   })
 
-  it("ignores junk in storage rather than rendering nothing", async () => {
-    // The stored value is only read when the module first loads, so the module
-    // has to be loaded again to exercise that path.
-    localStorage.setItem("ems.hiddenSections", "{not json")
+  it("falls back to the default when storage holds junk", async () => {
+    localStorage.setItem("ems.sections.v2", "{not json")
     vi.resetModules()
     const fresh = await import("@/hooks/useSectionVisibility")
 
     const { result } = renderHook(() => fresh.useSectionVisibility())
-    expect(result.current.hidden).toEqual([])
+    expect(result.current.isVisible("rooms.devices")).toBe(true)
+    expect(result.current.isVisible("energy")).toBe(false)
   })
 
-  it("ignores a stored value of the wrong shape", async () => {
-    localStorage.setItem("ems.hiddenSections", '{"energy":true}')
+  it("falls back to the default when storage holds the wrong shape", async () => {
+    localStorage.setItem("ems.sections.v2", '{"energy":true}')
     vi.resetModules()
     const fresh = await import("@/hooks/useSectionVisibility")
 
     const { result } = renderHook(() => fresh.useSectionVisibility())
-    expect(result.current.hidden).toEqual([])
+    expect(result.current.isVisible("energy")).toBe(false)
+  })
+})
+
+
+// ── panels, which are simulator without being tabs ───────────────────────────
+
+describe("panels", () => {
+  it("are covered by the presets like any section", () => {
+    // Left out of ALL_KEYS they would survive every preset, so "only my
+    // hardware" would still open on a column of battery and PV tiles.
+    for (const panel of PANELS) {
+      expect(ALL_KEYS).toContain(panel.key)
+    }
+  })
+
+  it("hide the KPI column for a house with real hardware", () => {
+    const hidden = hiddenForPreset("real")
+    expect(isSectionVisible(hidden, PANEL_HOME_SUMMARY)).toBe(false)
+  })
+
+  it("come back with the full simulator", () => {
+    expect(isSectionVisible(hiddenForPreset("all"), PANEL_HOME_SUMMARY)).toBe(true)
   })
 })

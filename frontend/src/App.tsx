@@ -34,6 +34,7 @@ import { CostForecast } from "@/components/CostForecast"
 import { Languages, Sun, Moon, WifiOff } from "lucide-react"
 import { useSectionVisibility } from "@/hooks/useSectionVisibility"
 import {
+  PANEL_HOME_SUMMARY,
   SECTIONS,
   firstVisibleSection,
   firstVisibleSub,
@@ -246,12 +247,19 @@ function AppContent() {
 
       <main id="main-content" className="mx-auto max-w-7xl px-3 py-3 sm:px-4 sm:py-4">
         {tab === "rooms" && (
-          <div className="grid gap-3 sm:gap-4 lg:grid-cols-[16rem_1fr] lg:items-start">
-            {/* KPI summary — left sidebar on desktop; below the room nav on mobile/tablet */}
-            <div className="order-2 min-w-0 space-y-3 sm:space-y-4 lg:order-1 lg:sticky lg:top-[5.5rem]">
-              <DashboardSummary variant="side" onNavigate={goTo} />
-              <CostForecast />
-            </div>
+          <div className={`grid gap-3 sm:gap-4 lg:items-start ${
+            isVisible(PANEL_HOME_SUMMARY) ? "lg:grid-cols-[16rem_1fr]" : ""
+          }`}>
+            {/* KPI summary — left sidebar on desktop; below the room nav on
+                mobile/tablet. Every tile on it is simulator, so it answers to
+                the same preference as the sections, and the grid drops to one
+                column rather than leaving a 16rem gap where it was. */}
+            {isVisible(PANEL_HOME_SUMMARY) && (
+              <div className="order-2 min-w-0 space-y-3 sm:space-y-4 lg:order-1 lg:sticky lg:top-[5.5rem]">
+                <DashboardSummary variant="side" onNavigate={goTo} />
+                <CostForecast />
+              </div>
+            )}
             {/* Rooms column — first on mobile/tablet so the sub-nav stays at the top */}
             <div className="order-1 min-w-0 space-y-3 sm:space-y-4 lg:order-2">
               {/* Room sub-tabs — scrollable on mobile, icon+text on larger screens */}

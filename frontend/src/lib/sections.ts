@@ -16,6 +16,7 @@ import {
   Eye,
   FileText,
   FlaskConical,
+  Gauge,
   History,
   Home,
   Map,
@@ -106,6 +107,26 @@ export const SECTIONS: Section[] = [
   { id: "settings", labelKey: "nav.settings", icon: SlidersHorizontal, subs: [] },
 ]
 
+export interface Panel {
+  key: string
+  labelKey: string
+  icon: React.ElementType
+}
+
+/**
+ * Things that are not tabs but are still simulator.
+ *
+ * The KPI column beside the room view is the loudest of them: PV output, state
+ * of charge, battery health, self-consumption and a cost forecast, all of it
+ * about equipment that is not installed. It sits on the opening screen, so
+ * hiding the energy *tab* while leaving this is half a job.
+ */
+export const PANEL_HOME_SUMMARY = "panel.homeSummary"
+
+export const PANELS: Panel[] = [
+  { key: PANEL_HOME_SUMMARY, labelKey: "settings.panelHomeSummary", icon: Gauge },
+]
+
 /**
  * Settings can never be hidden — it is the only way back to these switches.
  * Every helper below treats it as visible whatever the stored preference says.
@@ -113,7 +134,10 @@ export const SECTIONS: Section[] = [
 export const LOCKED_SECTION = "settings"
 
 /** Every visibility key there is, top-level sections and sub-sections alike. */
-export const ALL_KEYS: string[] = SECTIONS.flatMap((s) => [s.id, ...s.subs.map((x) => x.key)])
+export const ALL_KEYS: string[] = [
+  ...SECTIONS.flatMap((s) => [s.id, ...s.subs.map((x) => x.key)]),
+  ...PANELS.map((p) => p.key),
+]
 
 /**
  * What a house with a couple of real devices keeps.
@@ -134,6 +158,25 @@ export const REAL_HARDWARE_KEYS: string[] = [
 ]
 
 export type Preset = "all" | "real"
+
+/**
+ * What to hide in a browser that has never chosen for itself.
+ *
+ * The dashboard opens on the real house, not on the simulator: with a WLED
+ * strip and a contact sensor installed, the battery, inverter, heat-pump and
+ * car panels are twenty-odd screens about equipment that is not there. They
+ * switch back on in Settings, one at a time, as hardware actually arrives —
+ * which is the same direction EMS_SIM_DEVICES takes on the backend.
+ *
+ * The mock build is the exception, and deliberately so: VITE_HA_MOCK marks
+ * both the public GitHub Pages demo, which exists to show the simulator off,
+ * and the Playwright run, which clicks through every tab. Starting those two
+ * with sections missing would gut the one and break the other.
+ */
+export function defaultHidden(): string[] {
+  if (import.meta.env.VITE_HA_MOCK === "1") return []
+  return hiddenForPreset("real")
+}
 
 /** The hidden-key list a preset corresponds to. */
 export function hiddenForPreset(preset: Preset): string[] {

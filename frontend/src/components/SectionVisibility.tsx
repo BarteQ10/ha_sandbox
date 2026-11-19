@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
 import { Button } from "@/components/ui/button"
 import { useSectionVisibility } from "@/hooks/useSectionVisibility"
-import { LOCKED_SECTION, SECTIONS } from "@/lib/sections"
+import { LOCKED_SECTION, PANELS, SECTIONS } from "@/lib/sections"
 import { Eye, Lock } from "lucide-react"
 
 /**
@@ -106,6 +106,30 @@ export function SectionVisibility() {
                     })}
                   </div>
                 )}
+              </div>
+            )
+          })}
+        </div>
+
+        <div className="divide-y rounded-md border">
+          <div className="px-3 py-2">
+            <p className="text-xs font-medium text-muted-foreground">
+              {t("settings.sectionsPanels")}
+            </p>
+          </div>
+          {PANELS.map((panel) => {
+            const PanelIcon = panel.icon
+            return (
+              <div key={panel.key} className="flex items-center justify-between gap-3 p-3">
+                <div className="flex min-w-0 items-center gap-2">
+                  <PanelIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <span className="truncate text-sm font-medium">{t(panel.labelKey)}</span>
+                </div>
+                <Switch
+                  checked={isVisible(panel.key)}
+                  onCheckedChange={() => toggle(panel.key)}
+                  aria-label={t(panel.labelKey)}
+                />
               </div>
             )
           })}
